@@ -54,10 +54,16 @@ export const analyzeAndSaveNote = createServerFn({ method: "POST" })
     if (data.filePath && !data.filePath.startsWith(`${userId}/`)) throw new Error("Forbidden");
     if (!data.text.trim() && !data.imageDataUrl) throw new Error("내용이 비어 있어요");
 
-    const { data: custom } = await supabase.from("user_categories").select("name, hint").limit(30);
+    const [{ data: custom }, { data: recent }] = await Promise.all([
+      supabase.from("user_categories").select("name, hint").limit(30),
+      supabase.from("notes").select("summary, category, tags").order("created_at", { ascending: false }).limit(3),
+    ]);
     const extra = (custom ?? []).map((c) => c.name);
     const customLine = extra.length
       ? `\n사용자 맞춤 카테고리(해당하면 기본보다 우선): ${(custom ?? []).map((c) => (c.hint ? `${c.name}(${c.hint})` : c.name)).join(", ")}`
+      : "";
+    const recentLine = recent?.length
+      ? `\n[최근 보관 흐름(참고용)] ${recent.map((r) => `${r.category}:"${r.summary}"(${(r.tags ?? []).map((t: string) => `#${t}`).join(" ")})`).join(" | ")}\n방금 던진 내용·스크린샷이 직전 메모와 같은 주제·시리즈(예: 같은 시험 기출문제, 같은 프로젝트)로 보이면 카테고리(예: 공부)와 핵심 검색 태그(예: 자격증, 시험명)를 일관되게 유지하라.`
       : "";
     const now = new Date();
     const localNow = new Date(now.getTime() - data.tzOffsetMin * 60000).toISOString().slice(0, 16);
@@ -66,7 +72,7 @@ export const analyzeAndSaveNote = createServerFn({ method: "POST" })
     const instructions = `너는 다정하고 똑똑한 '톡비서'다. 사용자가 던진 텍스트/스크린샷을 분석해 JSON 하나만 출력한다.
 현재 사용자 현지 시각: ${localNow} (${tz}). 상대 날짜("다음 주 토요일", "내일")는 이 기준으로 계산하라.
 스키마: {"summary": 핵심 1줄 요약(40자 이내), "category": ${[...NOTE_CATEGORIES, ...extra].join("|")} 중 하나, "has_date": boolean, "detected_date": 시간대 포함 ISO 8601 또는 null, "remind_at": 일정 전날 20:00 또는 당일 아침 08:00 (시간대 포함 ISO) 또는 null, "remind_message": 그 시점에 건넬 다정한 1줄 알림 또는 null, "tags": 검색용 키워드 3~5개(# 없이), "secretary_reply": 방금 받은 직후 건넬 짧은 확인 한마디(이모지 1~2개)}.
-스크린샷이면 이미지 속 글자(청첩장, 예약 문자, 영수증, 상품명, 가게 이름)를 읽어서 판단하라. 시간이 없으면 일정은 12:00로 가정.${customLine}` + aiLangRule(L);
+스크린샷이면 이미지 속 글자(청첩장, 예약 문자, 영수증, 상품명, 가게 이름, 기출문제)를 읽어서 판단하라. 시험·학습·기출문제·강의 노트는 "공부" 카테고리로 분류하고 관련 과목·시험·자격증 태그를 빠짐없이 넣어라. 시간이 없으면 일정은 12:00로 가정.${customLine}${recentLine}` + aiLangRule(L);
 
     const url = data.imagePath ? null : firstUrl(data.text);
     const og = url ? await fetchOg(url) : null;
@@ -185,6 +191,7 @@ export const askNotes = createServerFn({ method: "POST" })
     const instructions = `너는 '톡비서'다. 사용자의 저장된 메모(JSON)만 근거로 질문에 답한다. 현재 현지 시각: ${localNow}. 날짜는 현지 기준으로 말하라.
 JSON 하나만 출력: {"answer": 한국어 1~2문장, 간결하고 다정하게(이모지 1개), 메모에 없으면 솔직히 못 찾았다고, "note_ids": 근거가 된 메모 id 배열(관련도 순)}.
 개수·통계·현황 질문(몇 개, 얼마나 등)은 정확한 개수와 형태/카테고리별 내역으로 답하고 note_ids에는 해당 메모를 모두(최대 20개) 넣는다(화면에서 접어 두고 사용자가 원할 때만 펼친다). 특정 메모 찾기는 가장 관련된 1~2개만 고른다.
+주제 검색 시 정확한 단어 일치만 보지 말고, 카테고리("공부" 등)·요약·태그의 의미적 연관성(예: "자격증" 질문에 학습·기출문제·임업학·사방사업 등 시험 관련 메모도 함께 포함)까지 폭넓게 연결해 누락 없이 찾아라.
 중요: 질문이 사용자 메모에 대한 것이 아니라 너(톡비서) 자신에 대한 질문(이름·정체·할 수 있는 일)이면 메모를 뒤지지 말고 "저는 초간편 AI 톡비서예요! 🧹 ..."처럼 자기소개하고 note_ids는 []. 일상 잡담·푸념 질문이면 "메모에서 못 찾았다"고 하지 말고 "저는 톡비서예요~ 🧹 일상 잡담은 서툴지만, 메모 정리·검색은 자신 있어요!" 톤으로 짧게 안내하고 note_ids는 [].\n[톡비서 본분] 톡비서는 컨설턴트·기획자·창작자·만능 에이전트가 아니라 "정리·기록 비서"다. 가격 책정, 아이디어 제안, 전략, 맞춤형 에이전트 역할 등을 "잡아드릴게요/맞춰드릴게요"처럼 약속하지 마라. 대신 "그건 제 영역 밖이에요 😅 생각을 툭 던져주시면 아이디어 메모로 정리해 두고 나중에 바로 꺼내드릴게요"처럼 정리·보관·알림으로 담백하게 유도한다.
 의도가 모호하면(예: "이 책 읽어봤어?", "그거 어떻게 됐지?"처럼 '이/그/저것' 지칭 대상이 메모에서 특정되지 않거나, 저장 메모 찾기인지 외부 정보·감상을 원하는지 불분명) "못 찾았다"로 끝내지 말고 되물어라. answer는 2~3문장 허용: "혹시 저장해두신 ○○ 메모를 찾으시는 걸까요, 아니면 새 ○○ 정보를 원하시는 걸까요? 😊 제목이나 핵심 단어를 알려주시면 바로 찾아드리고, 링크나 스샷을 던져주시면 정리해 둘게요 (실시간 웹검색은 서툴러요 🧹)" 톤. note_ids는 [] (관련 후보가 1~2개 있으면 그것을 넣고 "이 메모 말씀이세요?"라고 확인).` + aiLangRule(L);
     const text = await callGemini({

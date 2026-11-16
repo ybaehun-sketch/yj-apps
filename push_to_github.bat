@@ -1,5 +1,6 @@
 @echo off
 chcp 65001 >nul
+cd /d "%~dp0"
 title YJ Apps GitHub Push
 echo ====================================================
 echo  YJ Studio 통합 앱 보관함 -> 온라인 금고(GitHub) 올리기

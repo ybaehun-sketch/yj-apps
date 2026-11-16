@@ -6,7 +6,7 @@ const GB = 1024 * MB;
 
 export const QUOTA_BYTES: Record<QuotaPlan, number> = { free: 100 * MB, premium: 10 * GB, lifetime: 30 * GB };
 export const FREE_TRIAL_DAYS = 7;
-export const MAX_FILE_BYTES = 5 * MB;
+export const MAX_FILE_BYTES = 20 * MB;
 
 export function trialDaysLeft(joinedAt: string | null, now = new Date()): number {
   if (!joinedAt) return FREE_TRIAL_DAYS;
@@ -16,7 +16,7 @@ export function trialDaysLeft(joinedAt: string | null, now = new Date()): number
 
 /** 업로드 가능하면 null, 아니면 사용자에게 보여줄 안내 문구 */
 export function uploadBlockReason(plan: QuotaPlan, joinedAt: string | null, usedBytes: number, fileBytes: number, now = new Date()): string | null {
-  if (fileBytes > MAX_FILE_BYTES) return "파일 하나는 최대 5MB까지 올릴 수 있어요";
+  if (fileBytes > MAX_FILE_BYTES) return "파일 하나는 최대 20MB까지 올릴 수 있어요";
   if (plan === "free" && trialDaysLeft(joinedAt, now) === 0) return "무료 체험 7일이 끝났어요. 프리미엄으로 업그레이드하면 계속 보관할 수 있어요 ⭐";
   if (usedBytes + fileBytes > QUOTA_BYTES[plan]) return plan === "free"
     ? "무료 보관함 100MB가 가득 찼어요. 프리미엄으로 10GB를 써보세요 ⭐"

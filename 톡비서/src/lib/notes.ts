@@ -1,9 +1,9 @@
 // Browser-safe helpers for 톡비서 notes (shared by client and server).
-export const NOTE_CATEGORIES = ["일정", "쇼핑", "아이디어", "금융", "맛집", "할일", "기타"] as const;
+export const NOTE_CATEGORIES = ["일정", "쇼핑", "아이디어", "공부", "금융", "맛집", "할일", "기타"] as const;
 export type NoteCategory = (typeof NOTE_CATEGORIES)[number];
 
 export const CATEGORY_EMOJI: Record<NoteCategory, string> = {
-  일정: "📅", 쇼핑: "🛍️", 아이디어: "💡", 금융: "💰", 맛집: "🍝", 할일: "✅", 기타: "🗂️",
+  일정: "📅", 쇼핑: "🛍️", 아이디어: "💡", 공부: "📚", 금융: "💰", 맛집: "🍝", 할일: "✅", 기타: "🗂️",
 };
 
 /** 사용자 맞춤 카테고리 이모지 (클라이언트에서 등록). */

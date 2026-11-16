@@ -1,11 +1,12 @@
 import { QUOTA_BYTES, fmtBytes, trialDaysLeft, type Usage } from "@/lib/storage-quota";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Pencil, Trash2, X } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { CUSTOM_CATEGORY_LIMIT, NOTE_CATEGORIES, catEmoji, registerCustomCategories } from "@/lib/notes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { t as tr, locale, useLang, setLang, LANGS, LANG_LABEL } from "@/lib/i18n";
+import { downloadFile } from "@/lib/doc-text";
 
 type Note = Tables<"notes">;
 const keyOf = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
@@ -18,9 +19,105 @@ const KIND_SUMMARY = [
   { kind: "voice", emoji: "🎙️", label: "음성" },
 ] as const;
 
-export function NotesCalendar({ notes }: { notes: Note[] }) {
+export function NoteMetaEditor({
+  initialCategory,
+  initialTags,
+  onSave,
+  onCancel,
+}: {
+  initialCategory: string;
+  initialTags: string[];
+  onSave: (patch: { category: string; tags: string[] }) => void;
+  onCancel: () => void;
+}) {
+  const customCats = useCustomCategories();
+  const [category, setCategory] = useState(initialCategory);
+  const [tags, setTags] = useState<string[]>(initialTags);
+  const [tagInput, setTagInput] = useState("");
+  const allCats = [...new Set([...NOTE_CATEGORIES, ...customCats.map((c) => c.name), initialCategory])];
+
+  const parseTokens = (raw: string, base: string[]) => {
+    const added = raw.split(/[\s,]+/).map((s) => s.replace(/^#+/, "").trim()).filter(Boolean);
+    return [...new Set([...base, ...added])].slice(0, 8);
+  };
+
+  const commitInput = (raw: string) => {
+    setTags(parseTokens(raw, tags));
+    setTagInput("");
+  };
+
+  const saveEdit = () => {
+    onSave({ category, tags: parseTokens(tagInput, tags) });
+  };
+
+  return (
+    <div className="space-y-2.5 rounded-2xl bg-card p-3 text-xs text-foreground shadow-sm">
+      <div>
+        <p className="mb-1.5 font-semibold text-muted-foreground">{tr("카테고리")}</p>
+        <div className="flex flex-wrap gap-1.5">
+          {allCats.map((c) => (
+            <button key={c} type="button" onClick={() => setCategory(c)}
+              className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${category === c ? "bg-primary font-semibold text-primary-foreground" : "bg-muted text-foreground hover:bg-muted/80"}`}>
+              {catEmoji(c)} {tr(c)}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <p className="mb-1 font-semibold text-muted-foreground">{tr("키워드")}</p>
+        {tags.length > 0 && (
+          <div className="mb-1.5 flex flex-wrap gap-1">
+            {tags.map((t) => (
+              <span key={t} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground">
+                #{t}
+                <button type="button" aria-label={tr("삭제")} onClick={() => setTags(tags.filter((x) => x !== t))} className="text-muted-foreground hover:text-destructive">
+                  <X className="size-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-1 rounded-xl bg-muted px-3 py-1.5">
+          <span className="font-semibold text-muted-foreground">#</span>
+          <input value={tagInput}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (/[,\s]$/.test(v) && !(e.nativeEvent as InputEvent).isComposing) commitInput(v);
+              else setTagInput(v.replace(/^#+/, ""));
+            }}
+            onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing) return;
+              if (e.key === "Enter" || e.key === ",") { e.preventDefault(); commitInput(tagInput); }
+              else if (e.key === "Backspace" && !tagInput && tags.length > 0) setTags(tags.slice(0, -1));
+            }}
+            placeholder={tr("띄어쓰기나 쉼표로 구분")}
+            className="w-full bg-transparent py-0.5 text-xs text-foreground outline-none placeholder:text-muted-foreground" />
+        </div>
+      </div>
+      <div className="flex justify-end gap-1.5">
+        <button type="button" onClick={onCancel} className="rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/80">{tr("취소")}</button>
+        <button type="button" onClick={saveEdit} className="rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground">{tr("저장")}</button>
+      </div>
+    </div>
+  );
+}
+
+export function NotesCalendar({
+  notes,
+  urls = {},
+  onUpdate,
+  onDelete,
+}: {
+  notes: Note[];
+  urls?: Record<string, string>;
+  onUpdate?: (id: string, patch: { category: string; tags: string[] }) => void;
+  onDelete?: (n: Note) => void;
+}) {
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [sel, setSel] = useState<Date | null>(null);
+  const [viewId, setViewId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [delId, setDelId] = useState<string | null>(null);
   const byDay = useMemo(() => {
     const m: Record<string, Note[]> = {};
     notes.forEach((n) => { const k = keyOf(new Date(n.created_at)); (m[k] ??= []).push(n); });
@@ -80,13 +177,84 @@ export function NotesCalendar({ notes }: { notes: Note[] }) {
                   ))}
                 </ul>
                 <ul className="mt-3 space-y-2">
-                  {selNotes.map((n) => (
-                    <li key={n.id} className="rounded-2xl border border-border p-3">
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-foreground">{catEmoji(n.category)} {tr(n.category)}</span>
-                      <p className="mt-1.5 text-sm text-foreground">{n.summary}</p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">{new Date(n.created_at).toLocaleTimeString(locale(), { hour: "numeric", minute: "2-digit" })}</p>
-                    </li>
-                  ))}
+                  {selNotes.map((n) => {
+                    const isViewing = viewId === n.id;
+                    const isEditing = editId === n.id;
+                    const isDeleting = delId === n.id;
+                    const imgUrl = n.image_path ? urls[n.image_path] : undefined;
+                    const audUrl = n.audio_path ? urls[n.audio_path] : undefined;
+                    const docUrl = n.file_path ? urls[n.file_path] : undefined;
+                    return (
+                      <li key={n.id} className="rounded-2xl border border-border p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-foreground">{catEmoji(n.category)} {tr(n.category)}</span>
+                          <div className="flex items-center gap-1">
+                            <button type="button" aria-label={tr("보기")}
+                              onClick={() => { setViewId(isViewing ? null : n.id); setEditId(null); setDelId(null); }}
+                              className={`flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition-colors ${isViewing ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+                              <Eye className="size-3.5" />{tr("보기")}
+                            </button>
+                            {onUpdate && (
+                              <button type="button" aria-label={tr("수정")}
+                                onClick={() => { setEditId(isEditing ? null : n.id); setViewId(null); setDelId(null); }}
+                                className={`flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition-colors ${isEditing ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+                                <Pencil className="size-3.5" />{tr("수정")}
+                              </button>
+                            )}
+                            {onDelete && (
+                              <button type="button" aria-label={tr("삭제")}
+                                onClick={() => { setDelId(isDeleting ? null : n.id); setViewId(null); setEditId(null); }}
+                                className={`flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition-colors ${isDeleting ? "bg-destructive text-primary-foreground" : "bg-muted text-muted-foreground hover:text-destructive"}`}>
+                                <Trash2 className="size-3.5" />{tr("삭제")}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <p className="mt-1.5 text-sm text-foreground">{n.summary}</p>
+                        {n.tags.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">{n.tags.map((t) => <span key={t} className="text-[11px] text-muted-foreground">#{t}</span>)}</div>
+                        )}
+                        <p className="mt-1 text-[11px] text-muted-foreground">{new Date(n.created_at).toLocaleTimeString(locale(), { hour: "numeric", minute: "2-digit" })}</p>
+                        {isViewing && (
+                          <div className="mt-2.5 space-y-2 rounded-xl bg-muted/60 p-2.5 text-xs text-foreground">
+                            <p className="font-semibold text-muted-foreground">{tr("원본")}</p>
+                            {imgUrl && <img src={imgUrl} alt={tr("원본")} className="h-auto max-h-60 w-auto max-w-full rounded-xl object-contain" />}
+                            {audUrl && <audio controls preload="none" src={audUrl} className="h-9 w-full" />}
+                            {n.link_url && (
+                              <a href={n.link_url} target="_blank" rel="noreferrer" className="block truncate font-medium text-primary underline">
+                                🔗 {n.link_title ?? n.link_url}
+                              </a>
+                            )}
+                            {docUrl && (
+                              <button type="button" onClick={() => void downloadFile(docUrl, n.file_name)} className="inline-flex items-center gap-1 font-semibold text-primary underline">
+                                📥 {n.file_name ?? tr("원본 받기")}
+                              </button>
+                            )}
+                            {n.content && <p className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words leading-relaxed">{n.content}</p>}
+                          </div>
+                        )}
+                        {isEditing && onUpdate && (
+                          <div className="mt-2.5">
+                            <NoteMetaEditor
+                              initialCategory={n.category}
+                              initialTags={n.tags}
+                              onSave={(patch) => { onUpdate(n.id, patch); setEditId(null); }}
+                              onCancel={() => setEditId(null)}
+                            />
+                          </div>
+                        )}
+                        {isDeleting && onDelete && (
+                          <div className="mt-2.5 flex items-center justify-between gap-2 rounded-xl bg-destructive/10 px-3 py-2 text-xs">
+                            <span className="font-medium text-destructive">{tr("삭제할까요?")}</span>
+                            <div className="flex gap-1.5">
+                              <button type="button" onClick={() => setDelId(null)} className="rounded-full bg-card px-2.5 py-1 font-medium text-muted-foreground">{tr("취소")}</button>
+                              <button type="button" onClick={() => { onDelete(n); setDelId(null); }} className="rounded-full bg-destructive px-2.5 py-1 font-semibold text-primary-foreground">{tr("삭제")}</button>
+                            </div>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </>
             )}
@@ -109,10 +277,13 @@ const FORMS = [
 const formOf = (n: Note) => (n.file_name ? "doc" : n.kind);
 
 function SummaryCard({ title, notes }: { title: string; notes: Note[] }) {
-  const cats = [...new Set([...NOTE_CATEGORIES, ...notes.map((x) => x.category)])]
+  const customCats = useCustomCategories();
+  const [showAll, setShowAll] = useState(false);
+  const cats = [...new Set([...NOTE_CATEGORIES, ...customCats.map((c) => c.name), ...notes.map((x) => x.category)])]
     .map((c) => ({ c, e: catEmoji(c), n: notes.filter((x) => x.category === c).length }))
-    .filter((x) => x.n > 0).sort((a, b) => b.n - a.n);
+    .sort((a, b) => b.n - a.n);
   const max = Math.max(1, ...cats.map((x) => x.n));
+  const shownCats = showAll || cats.length <= 8 ? cats : cats.slice(0, 8);
   return (
     <section className="mt-4 rounded-3xl bg-card p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
@@ -134,14 +305,19 @@ function SummaryCard({ title, notes }: { title: string; notes: Note[] }) {
             })}
           </div>
           <ul className="mt-3 space-y-1.5">
-            {cats.map((x) => (
-              <li key={x.c} className="flex items-center gap-2 text-xs">
-                <span className="w-16 shrink-0 text-foreground">{x.e} {tr(x.c)}</span>
+            {shownCats.map((x) => (
+              <li key={x.c} className={`flex items-center gap-2 text-xs ${x.n === 0 ? "opacity-45" : ""}`}>
+                <span className="w-24 shrink-0 truncate text-foreground">{x.e} {tr(x.c)}</span>
                 <span className="h-2 flex-1 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-primary" style={{ width: `${(x.n / max) * 100}%` }} /></span>
                 <span className="w-8 text-right font-semibold text-foreground">{tr("{0}건", x.n)}</span>
               </li>
             ))}
           </ul>
+          {cats.length > 8 && (
+            <button type="button" onClick={() => setShowAll((v) => !v)} className="mt-2.5 w-full rounded-xl bg-muted/60 py-1.5 text-center text-[11px] font-medium text-muted-foreground hover:bg-muted">
+              {showAll ? tr("접기 ▲") : tr("카테고리 {0}개 모두 보기 ▼", cats.length)}
+            </button>
+          )}
         </>
       )}
     </section>
@@ -447,7 +623,7 @@ export function SettingsSheet({ usage, email, joinedAt, prefs, setPrefs, onLogou
                     <span className="flex items-center gap-1"><i className="size-2 rounded-full bg-destructive/70" />🎙️ {tr("음성")} {fmtBytes(u.voice)}</span>
                   </div>
                   {prefs.plan === "free" && <p className="mt-2 rounded-lg bg-muted px-2.5 py-1.5 text-xs text-foreground">{left > 0 ? tr("🌱 무료 체험 {0}일 남았어요 (7일 · 100MB)", left) : tr("⏰ 무료 체험 7일이 끝났어요. 업그레이드하면 계속 보관할 수 있어요")}</p>}
-                  <p className="mt-1.5 text-[11px] text-muted-foreground">{tr("파일 1개당 최대 5MB")}</p>
+                  <p className="mt-1.5 text-[11px] text-muted-foreground">{tr("파일 1개당 최대 20MB")}</p>
                 </>
               );
             })()}

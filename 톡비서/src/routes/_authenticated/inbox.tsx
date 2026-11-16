@@ -2,16 +2,16 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUp, Settings, X, Bell, CalendarDays, MessageCircle, Plus, Image as ImageIcon, Camera, Mic, Square, FileText, Check, Trash2, Pin, Copy } from "lucide-react";
+import { ArrowUp, Settings, X, Bell, CalendarDays, MessageCircle, Plus, Image as ImageIcon, Camera, Mic, Square, FileText, Check, Trash2, Pin, Copy, Pencil } from "lucide-react";
 import { uploadBlockReason, sumUsage, type Usage } from "@/lib/storage-quota";
-import { NotesCalendar, PlanBadge, SettingsSheet, useCustomCategories, usePrefs } from "@/components/inbox-extras";
+import { NoteMetaEditor, NotesCalendar, PlanBadge, SettingsSheet, useCustomCategories, usePrefs } from "@/components/inbox-extras";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { agentTurn, analyzeAndSaveNote, askNotes, editFromChat, routeIntent, transcribeVoice } from "@/lib/notes.functions";
 import { OFFTOPIC_REPLY, offTopicKind, catEmoji, isChitchat, isEdit, isQuestion, isYes } from "@/lib/notes";
 import { isSilenceHallucination } from "@/lib/voice-guard";
 import { blobToDataUrl, compressToWebp } from "@/lib/image-compress";
-import { blobToBase64, extractDocText } from "@/lib/doc-text";
+import { blobToBase64, downloadFile, extractDocText } from "@/lib/doc-text";
 import jungbiAvatar from "@/assets/jungbi-avatar.png";
 import { deleteAccount } from "@/lib/account.functions";
 import { t as tr, locale, getLang, useLang } from "@/lib/i18n";
@@ -159,6 +159,7 @@ function Inbox() {
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const stickBottomRef = useRef(true);
 
   const notes = useMemo(() => data?.notes ?? [], [data]);
   const savedNotes = useMemo(() => notes.filter((n) => n.confirmed), [notes]);
@@ -200,7 +201,13 @@ function Inbox() {
     return items.filter((x) => !clearedAt || x.at > clearedAt).sort((x, y) => x.at.localeCompare(y.at));
   }, [notes, answers, clearedAt]);
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [notes.length, answers.length, pending]);
+  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    endRef.current?.scrollIntoView({ behavior });
+  };
+  useEffect(() => {
+    stickBottomRef.current = true;
+    scrollToBottom("smooth");
+  }, [notes.length, answers.length, pending]);
   useEffect(() => {
     if (!pending) return;
     const t = setInterval(() => setLoaderIdx((i) => (i + 1) % LOADERS.length), 1400);
@@ -236,6 +243,12 @@ function Inbox() {
 
   async function confirmNote(id: string) {
     const { error } = await supabase.from("notes").update({ confirmed: true }).eq("id", id);
+    if (error) { setErr(tr("저장하지 못했어요")); return; }
+    await qc.invalidateQueries({ queryKey: ["notes"] });
+  }
+
+  async function updateNote(id: string, patch: { category: string; tags: string[] }) {
+    const { error } = await supabase.from("notes").update({ category: patch.category, tags: patch.tags, confirmed: true }).eq("id", id);
     if (error) { setErr(tr("저장하지 못했어요")); return; }
     await qc.invalidateQueries({ queryKey: ["notes"] });
   }
@@ -348,15 +361,21 @@ function Inbox() {
     setText(""); setImg(null); setMenu(false); setView("stream");
     try {
       let imagePath: string | null = null;
+      let uploadPromise: Promise<void> | null = null;
       let imageDataUrl: string | null = null;
       if (current) {
         const { data: s } = await supabase.auth.getSession();
         imagePath = `${s.session?.user.id ?? LOCAL_USER_ID}/${crypto.randomUUID()}.webp`;
-        const up = await supabase.storage.from("shots").upload(imagePath, current.blob, { contentType: "image/webp" });
-        if (up.error) throw up.error;
+        uploadPromise = supabase.storage
+          .from("shots")
+          .upload(imagePath, current.blob, { contentType: "image/webp" })
+          .then((up) => { if (up.error) throw up.error; });
         imageDataUrl = await blobToDataUrl(current.blob);
       }
-      await analyze({ data: { text: t, imagePath, imageDataUrl, audioPath: opts?.audioPath ?? null, filePath: opts?.filePath ?? null, fileName: opts?.fileName ?? null, kind: opts?.kind, tzOffsetMin: new Date().getTimezoneOffset(), lang } });
+      await Promise.all([
+        uploadPromise,
+        analyze({ data: { text: t, imagePath, imageDataUrl, audioPath: opts?.audioPath ?? null, filePath: opts?.filePath ?? null, fileName: opts?.fileName ?? null, kind: opts?.kind, tzOffsetMin: new Date().getTimezoneOffset(), lang } }),
+      ]);
       await qc.invalidateQueries({ queryKey: ["notes"] });
       await qc.invalidateQueries({ queryKey: ["usage"] });
     } catch (e) {
@@ -371,17 +390,18 @@ function Inbox() {
   async function onDocFile(f: File) {
     setMenu(false);
     try {
-      const doc = await extractDocText(f);
-      if (!doc) { setErr(tr("아직 PDF·워드·PPT·텍스트 문서만 읽을 수 있어요 (한글·엑셀은 준비 중)")); return; }
-      if (doc.text.split("\n").slice(1).join("").trim().length === 0) { setErr(tr("문서에서 글자를 찾지 못했어요")); return; }
+      if (f.type.startsWith("image/")) { await attach(f); return; }
       const q = quotaErr(f.size);
       if (q) { setErr(q); return; }
+      const doc = await extractDocText(f);
       const { data: s } = await supabase.auth.getSession();
-      const ext = (f.name.split(".").pop() ?? "bin").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const ext = (f.name.split(".").pop() ?? "bin").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
       const filePath = `${s.session?.user.id ?? LOCAL_USER_ID}/doc-${crypto.randomUUID()}.${ext}`;
       const up = await supabase.storage.from("shots").upload(filePath, f, { contentType: f.type || "application/octet-stream" });
       if (up.error) { setErr(tr("원본 파일을 보관하지 못했어요")); return; }
-      await send({ text: doc.text, filePath, fileName: f.name });
+      if (!doc.readable) setErr(tr("본문 글자를 읽을 수 없는 파일이라 원본 파일만 안전하게 보관했어요 📄"));
+      const text = doc.readable ? doc.text : `📄 ${f.name}\n${tr("내용을 읽을 수 없는 파일 형식이라 원본 파일만 보관했어요.")}`;
+      await send({ text, filePath, fileName: f.name });
     } catch { setErr(tr("문서를 읽지 못했어요")); }
   }
 
@@ -545,7 +565,15 @@ function Inbox() {
       )}
       {view === "stream" && <PinnedBar notes={savedNotes} />}
 
-      {view === "calendar" ? <NotesCalendar notes={savedNotes} /> : <main className="flex-1 space-y-4 overflow-y-auto bg-chat px-3 py-4">
+      {view === "calendar" ? <NotesCalendar notes={savedNotes} urls={data?.urls ?? {}} onUpdate={(id, p) => void updateNote(id, p)} onDelete={(n) => void discardNote(n)} /> : <main
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          stickBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+        }}
+        onLoadCapture={() => {
+          if (stickBottomRef.current) scrollToBottom("auto");
+        }}
+        className="flex-1 space-y-4 overflow-y-auto bg-chat px-3 py-4">
         {isLoading && <p className="text-center text-xs text-muted-foreground">{tr("서류함 여는 중...")}</p>}
         {!isLoading && notes.length === 0 && !pending && (
           <div className="mx-auto mt-10 max-w-xs rounded-2xl bg-card/80 p-5 text-center text-sm text-foreground shadow-sm">
@@ -562,9 +590,9 @@ function Inbox() {
             else for (const id of it.a.noteIds) lastRef[id] = `a:${it.a.id}`;
           }
           return stream.map((it) => it.t === "note"
-            ? <NoteThread key={it.n.id} note={lastRef[it.n.id] === `n:${it.n.id}` ? it.n : { ...it.n, confirmed: true }} imageUrl={it.n.image_path ? data?.urls[it.n.image_path] : undefined} audioUrl={it.n.audio_path ? data?.urls[it.n.audio_path] : undefined} fileUrl={it.n.file_path ? data?.urls[it.n.file_path] : undefined} onConfirm={() => void confirmNote(it.n.id)} onDiscard={() => void discardNote(it.n)} />
+            ? <NoteThread key={it.n.id} note={lastRef[it.n.id] === `n:${it.n.id}` ? it.n : { ...it.n, confirmed: true }} imageUrl={it.n.image_path ? data?.urls[it.n.image_path] : undefined} audioUrl={it.n.audio_path ? data?.urls[it.n.audio_path] : undefined} fileUrl={it.n.file_path ? data?.urls[it.n.file_path] : undefined} onConfirm={() => void confirmNote(it.n.id)} onDiscard={() => void discardNote(it.n)} onUpdate={(p) => void updateNote(it.n.id, p)} />
             : <AnswerThread key={it.a.id} a={it.a} notes={notes.filter((n) => it.a.noteIds.includes(n.id) && lastRef[n.id] === `a:${it.a.id}` ? true : it.a.noteIds.includes(n.id)).sort((x, y) => it.a.noteIds.indexOf(x.id) - it.a.noteIds.indexOf(y.id))} urls={data?.urls ?? {}}
-                showConfirm={it.a.noteIds.some((id) => lastRef[id] === `a:${it.a.id}`)} onConfirm={(n) => void confirmNote(n.id)} onDiscard={(n) => void discardNote(n)} />);
+                showConfirm={it.a.noteIds.some((id) => lastRef[id] === `a:${it.a.id}`)} onConfirm={(n) => void confirmNote(n.id)} onDiscard={(n) => void discardNote(n)} onUpdate={(n, p) => void updateNote(n.id, p)} />);
         })()}
         {clearAsk && (
           <>
@@ -635,7 +663,7 @@ function Inbox() {
                     { icon: <ImageIcon className="size-4" />, label: tr("스샷 첨부"), act: () => { setMenu(false); fileRef.current?.click(); } },
                     { icon: <Camera className="size-4" />, label: tr("사진 촬영"), act: () => { setMenu(false); cameraRef.current?.click(); } },
                     { icon: <Mic className="size-4" />, label: tr("음성 녹음"), act: startRecording },
-                    { icon: <FileText className="size-4" />, label: tr("파일 첨부 · PDF·워드·PPT"), act: () => { setMenu(false); docRef.current?.click(); } },
+                    { icon: <FileText className="size-4" />, label: tr("파일 첨부 · 문서·모든 파일"), act: () => { setMenu(false); docRef.current?.click(); } },
                   ].map((o) => (
                     <button key={o.label} onClick={o.act} className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-sm text-foreground hover:bg-muted">
                       {o.icon}{o.label}
@@ -647,7 +675,7 @@ function Inbox() {
           </div>
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void attach(f); e.target.value = ""; }} />
           <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void attach(f); e.target.value = ""; }} />
-          <input ref={docRef} type="file" accept=".pdf,.docx,.pptx,.txt,.md,.csv,.json,application/pdf,text/plain" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void onDocFile(f); e.target.value = ""; }} />
+          <input ref={docRef} type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void onDocFile(f); e.target.value = ""; }} />
           <textarea value={text} onChange={(e) => setText(e.target.value)} onPaste={onPaste} rows={1}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }}
             placeholder={tr("메모, 링크, 스샷을 던져 주세요 (붙여넣기 가능)")}
@@ -687,7 +715,7 @@ function UserBubble({ text, imageUrl, fileUrl, origName }: { text: string; image
   const long = body.length > 300 || body.split("\n").length > 8;
   return (
     <div className="flex flex-col items-end gap-1">
-      {imageUrl && <img src={imageUrl} alt={tr("보낸 스크린샷")} className="max-h-64 max-w-[70%] rounded-2xl object-cover shadow-sm" />}
+      {imageUrl && <img src={imageUrl} alt={tr("보낸 스크린샷")} className="h-auto max-h-64 w-auto max-w-[70%] rounded-2xl object-contain shadow-sm" />}
       {isDoc ? (
         <div className="w-64 max-w-[78%] rounded-2xl rounded-tr-sm bg-bubble px-3.5 py-2.5 text-sm text-bubble-foreground shadow-sm">
           <div className="flex items-center gap-2">
@@ -702,7 +730,7 @@ function UserBubble({ text, imageUrl, fileUrl, origName }: { text: string; image
               {open && <p className="mt-2 max-h-60 overflow-y-auto whitespace-pre-wrap break-words border-t border-current/10 pt-2 text-xs opacity-80">{body}</p>}
               <div className="mt-1.5 flex items-center justify-between">
                 <button onClick={() => setOpen(!open)} className="text-[11px] font-medium underline opacity-70">{open ? tr("접기 ▲") : tr("내용 보기 ▼")}</button>
-                {fileUrl && <a href={fileUrl} download={origName ?? ""} target="_blank" rel="noreferrer" className="text-[11px] font-semibold underline">{tr("📥 원본 받기")}</a>}
+                {fileUrl && <button type="button" onClick={() => void downloadFile(fileUrl, origName)} className="text-[11px] font-semibold underline">{tr("📥 원본 받기")}</button>}
               </div>
             </>
           )}
@@ -786,7 +814,7 @@ function NoteActions({ note }: { note: Note }) {
   );
 }
 
-function NoteThread({ note, imageUrl, audioUrl, fileUrl, onConfirm, onDiscard }: { note: Note; imageUrl: string | undefined; audioUrl: string | undefined; fileUrl?: string | undefined; onConfirm: () => void; onDiscard: () => void }) {
+function NoteThread({ note, imageUrl, audioUrl, fileUrl, onConfirm, onDiscard, onUpdate }: { note: Note; imageUrl: string | undefined; audioUrl: string | undefined; fileUrl?: string | undefined; onConfirm: () => void; onDiscard: () => void; onUpdate: (patch: { category: string; tags: string[] }) => void }) {
   return (
     <div id={`note-${note.id}`} className="space-y-2 animate-in fade-in slide-in-from-bottom-1">
       {audioUrl && (
@@ -804,30 +832,38 @@ function NoteThread({ note, imageUrl, audioUrl, fileUrl, onConfirm, onDiscard }:
           <p className="text-[11px] font-medium text-muted-foreground">{tr("톡비서")}</p>
           <div className="rounded-2xl rounded-tl-sm bg-card px-3.5 py-2 text-sm text-foreground shadow-sm">{note.secretary_reply}</div>
           <NoteCard note={note} />
-          {!note.confirmed && (
-            <div className="flex items-center gap-2 rounded-2xl bg-card px-3.5 py-2 text-sm text-foreground shadow-sm">
-              <span className="flex-1">{tr("이대로 저장할까요?")} <span className="text-[11px] text-muted-foreground">{tr("(\"그래\"라고 답해도 돼요)")}</span></span>
-              <button aria-label={tr("저장")} onClick={onConfirm} className="rounded-full bg-primary p-1.5 text-primary-foreground"><Check className="size-4" /></button>
-              <button aria-label={tr("버리기")} onClick={onDiscard} className="rounded-full bg-muted p-1.5 text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>
-            </div>
-          )}
+          {!note.confirmed && <ConfirmBar note={note} onConfirm={onConfirm} onDiscard={onDiscard} onUpdate={onUpdate} />}
         </div>
       </div>
     </div>
   );
 }
 
-function ConfirmBar({ onConfirm, onDiscard }: { onConfirm: () => void; onDiscard: () => void }) {
+function ConfirmBar({ note, onConfirm, onDiscard, onUpdate }: { note: Note; onConfirm: () => void; onDiscard: () => void; onUpdate: (patch: { category: string; tags: string[] }) => void }) {
+  const [editing, setEditing] = useState(false);
+
+  if (editing) {
+    return (
+      <NoteMetaEditor
+        initialCategory={note.category}
+        initialTags={note.tags}
+        onSave={(patch) => { onUpdate(patch); setEditing(false); }}
+        onCancel={() => setEditing(false)}
+      />
+    );
+  }
+
   return (
-    <div className="flex items-center gap-2 rounded-2xl bg-card px-3.5 py-2 text-sm text-foreground shadow-sm">
+    <div className="flex items-center gap-1.5 rounded-2xl bg-card px-3.5 py-2 text-sm text-foreground shadow-sm">
       <span className="flex-1">{tr("이대로 저장할까요?")} <span className="text-[11px] text-muted-foreground">{tr("(\"그래\"라고 답해도 돼요)")}</span></span>
       <button aria-label={tr("저장")} onClick={onConfirm} className="rounded-full bg-primary p-1.5 text-primary-foreground"><Check className="size-4" /></button>
+      <button aria-label={tr("수정")} onClick={() => setEditing(true)} className="rounded-full bg-muted p-1.5 text-muted-foreground hover:text-foreground"><Pencil className="size-4" /></button>
       <button aria-label={tr("버리기")} onClick={onDiscard} className="rounded-full bg-muted p-1.5 text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>
     </div>
   );
 }
 
-function AnswerThread({ a, notes, urls, showConfirm, onConfirm, onDiscard }: { a: Answer; notes: Note[]; urls: Record<string, string>; showConfirm: boolean; onConfirm: (n: Note) => void; onDiscard: (n: Note) => void }) {
+function AnswerThread({ a, notes, urls, showConfirm, onConfirm, onDiscard, onUpdate }: { a: Answer; notes: Note[]; urls: Record<string, string>; showConfirm: boolean; onConfirm: (n: Note) => void; onDiscard: (n: Note) => void; onUpdate: (n: Note, patch: { category: string; tags: string[] }) => void }) {
   // 먼저 답하고, 카드가 많으면 물어본 뒤 펼친다 (Ask-First)
   const countQ = /몇\s*(개|건|번|가지)|개수|총\s*몇|모두\s*몇|전부\s*몇|얼마나\s*(던|저장|메모|있)|how many|何件|いくつ|何個/i.test(a.q);
   const many = notes.length > 2 || (countQ && notes.length > 0);
@@ -851,9 +887,9 @@ function AnswerThread({ a, notes, urls, showConfirm, onConfirm, onDiscard }: { a
           )}
           {shown.map((n) => (
             <div key={n.id} className="space-y-1">
-              {n.image_path && urls[n.image_path] && <img src={urls[n.image_path]} alt={tr("저장된 스크린샷")} className="max-h-48 rounded-2xl object-cover shadow-sm" />}
+              {n.image_path && urls[n.image_path] && <img src={urls[n.image_path]} alt={tr("저장된 스크린샷")} className="h-auto max-h-48 w-auto max-w-full rounded-2xl object-contain shadow-sm" />}
               <NoteCard note={n} />
-              {showConfirm && !n.confirmed && <ConfirmBar onConfirm={() => onConfirm(n)} onDiscard={() => onDiscard(n)} />}
+              {showConfirm && !n.confirmed && <ConfirmBar note={n} onConfirm={() => onConfirm(n)} onDiscard={() => onDiscard(n)} onUpdate={(p) => onUpdate(n, p)} />}
             </div>
           ))}
         </div>

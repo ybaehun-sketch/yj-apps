@@ -1,7 +1,7 @@
-/** Compress an image in the browser to WebP, max 1200px wide. Call only from event handlers. */
-export async function compressToWebp(file: Blob, maxWidth = 1200, quality = 0.82): Promise<Blob> {
+/** Compress an image in the browser to WebP, max 960x1600. Call only from event handlers. */
+export async function compressToWebp(file: Blob, maxWidth = 960, quality = 0.78, maxHeight = 1600): Promise<Blob> {
   const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, maxWidth / bitmap.width);
+  const scale = Math.min(1, maxWidth / bitmap.width, maxHeight / bitmap.height);
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(bitmap.width * scale);
   canvas.height = Math.round(bitmap.height * scale);
