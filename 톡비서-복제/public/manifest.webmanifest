@@ -1,0 +1,21 @@
+{
+  "name": "톡비서",
+  "short_name": "톡비서",
+  "description": "던지면 AI가 알아서 정리해주는 나만의 기억 비서",
+  "id": "/inbox",
+  "start_url": "/inbox",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FEE500",
+  "lang": "ko",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "share_target": {
+    "action": "/inbox",
+    "method": "GET",
+    "params": { "title": "shared_title", "text": "shared_text", "url": "shared_url" }
+  }
+}

@@ -1,0 +1,1 @@
+ALTER TABLE public.notes ADD COLUMN IF NOT EXISTS file_path text, ADD COLUMN IF NOT EXISTS file_name text;
