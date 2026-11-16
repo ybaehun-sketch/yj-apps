@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>오답노트 — 3초 등록 · 쓱-지우개 · 가림막 복습</title>
+  <link rel="stylesheet" href="styles.css?v=20261116k" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <!-- ================= 1. 홈 화면 (내 오답 목록) ================= -->
+    <section id="screen-home" class="screen active">
+      <header class="top-header">
+        <div class="brand">
+          <h1>오답노트</h1>
+        </div>
+        <div class="header-actions">
+          <button id="btn-open-settings" class="btn-outline-sm">설정</button>
+        </div>
+      </header>
+
+      <!-- 가로 1줄 과목 버튼 -->
+      <div id="home-subject-bar" class="subject-bar" aria-label="과목 선택"></div>
+
+      <!-- 빠른 필터바 -->
+      <div class="control-strip">
+        <label class="toggle-wrap">
+          <input type="checkbox" id="toggle-wrong-only" />
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">또 틀린 문제만 보기</span>
+        </label>
+        <span id="subject-total-summary" class="subject-total-summary">총 0문제</span>
+      </div>
+
+      <!-- 오답 카드 목록 -->
+      <main id="problem-list" class="problem-list"></main>
+
+      <!-- 하단 2버튼 (문제 풀기 / 오답 올리기) -->
+      <div class="home-bottom-bar">
+        <button id="btn-start-review" class="btn-bottom-solve" type="button">문제 풀기</button>
+        <button id="btn-fab-add" class="btn-bottom-add" type="button">＋ 오답 올리기</button>
+      </div>
+    </section>
+
+    <!-- ================= 2. 오답 올리기 화면 ================= -->
+    <section id="screen-add" class="screen">
+      <header class="sub-header">
+        <button id="btn-add-back" class="btn-icon">←</button>
+        <h2 id="add-screen-title">3초 오답 올리기</h2>
+        <div class="spacer"></div>
+      </header>
+
+      <div class="form-body">
+        <!-- 1) 문제 사진 또는 글 -->
+        <div class="card-box">
+          <div class="section-label">1. 틀린 문제</div>
+
+          <div class="upload-actions">
+            <label class="btn-upload">
+              사진 찍기 / 고르기 (최대 2장)
+              <input type="file" id="input-problem-img" accept="image/*" multiple hidden />
+            </label>
+            <button type="button" id="btn-clear-problem-img" class="btn-text-danger hidden">선택 사진 지우기</button>
+          </div>
+
+          <!-- 쓱-지우개 & 자르기 편집기 -->
+          <div id="editor-wrap" class="editor-wrap hidden">
+            <div id="problem-photo-tabs" class="photo-slot-bar"></div>
+            <div class="editor-toolbar">
+              <div class="tool-tabs">
+                <button type="button" id="tool-eraser" class="tool-btn active">쓱-지우개</button>
+                <button type="button" id="tool-crop" class="tool-btn">자르기</button>
+              </div>
+              <button type="button" id="btn-editor-undo" class="btn-undo">되돌리기</button>
+            </div>
+            <p id="editor-hint" class="editor-hint">내가 푼 볼펜·형광펜 자국 위를 손가락으로 쓱 문질러 지우세요.</p>
+            <div class="canvas-container">
+              <canvas id="problem-canvas"></canvas>
+            </div>
+            <div id="eraser-size-row" class="size-row">
+              <span>지우개 크기</span>
+              <input type="range" id="eraser-size" min="10" max="44" value="22" />
+            </div>
+            <div id="crop-action-row" class="crop-row hidden">
+              <span>드래그해서 남길 부분만 고른 뒤</span>
+              <button type="button" id="btn-apply-crop" class="btn-primary-xs">잘라내기 적용</button>
+            </div>
+          </div>
+
+          <textarea id="input-problem-text" class="text-input" rows="2" placeholder="사진 대신 문제 내용을 간단히 적거나, 한 줄 메모를 남기세요 (선택)"></textarea>
+        </div>
+
+        <!-- 2) 정답 및 해설 -->
+        <div class="card-box">
+          <div class="section-label">2. 정답 · 해설</div>
+
+          <div class="upload-actions">
+            <label class="btn-upload">
+              사진 찍기 / 고르기 (최대 2장)
+              <input type="file" id="input-answer-img" accept="image/*" multiple hidden />
+            </label>
+            <button type="button" id="btn-clear-answer-img" class="btn-text-danger hidden">선택 사진 지우기</button>
+          </div>
+
+          <!-- 정답/해설 쓱-지우개 & 자르기 편집기 -->
+          <div id="answer-editor-wrap" class="editor-wrap hidden">
+            <div id="answer-photo-tabs" class="photo-slot-bar"></div>
+            <div class="editor-toolbar">
+              <div class="tool-tabs">
+                <button type="button" id="answer-tool-eraser" class="tool-btn active">쓱-지우개</button>
+                <button type="button" id="answer-tool-crop" class="tool-btn">자르기</button>
+              </div>
+              <button type="button" id="btn-answer-undo" class="btn-undo">되돌리기</button>
+            </div>
+            <p id="answer-editor-hint" class="editor-hint">불필요한 낙서나 주변 여백을 지우거나 잘라내세요.</p>
+            <div class="canvas-container">
+              <canvas id="answer-canvas"></canvas>
+            </div>
+            <div id="answer-eraser-size-row" class="size-row">
+              <span>지우개 크기</span>
+              <input type="range" id="answer-eraser-size" min="10" max="44" value="22" />
+            </div>
+            <div id="answer-crop-action-row" class="crop-row hidden">
+              <span>드래그해서 남길 부분만 고른 뒤</span>
+              <button type="button" id="btn-answer-apply-crop" class="btn-primary-xs">잘라내기 적용</button>
+            </div>
+          </div>
+
+          <textarea id="input-answer-text" class="text-input" rows="2" placeholder="사진 대신 정답·해설을 간단히 적거나, 한 줄 메모를 남기세요 (선택)"></textarea>
+        </div>
+
+        <!-- 3) 과목 선택 (직전 과목 자동 기억) -->
+        <div class="card-box">
+          <div class="section-label">3. 과목 <span class="hint-inline">(방금 고른 과목 자동 선택)</span></div>
+          <div id="add-subject-bar" class="subject-bar compact"></div>
+        </div>
+      </div>
+
+      <div class="bottom-cta-bar">
+        <button id="btn-save-problem" class="btn-primary-lg">저장하기</button>
+      </div>
+    </section>
+
+    <!-- ================= 3. 다시 풀기 (가림막 복습) ================= -->
+    <section id="screen-review" class="screen review-mode">
+      <header class="review-header">
+        <button id="btn-review-exit" class="btn-icon">✕</button>
+        <div id="review-progress" class="review-progress">1 / 1</div>
+        <span id="review-subject-tag" class="badge-subject">전체</span>
+      </header>
+
+      <!-- 진행 중인 문제 카드 -->
+      <div id="review-card-area" class="review-body">
+        <div class="review-problem-card">
+          <div id="review-meta-row" class="review-meta-row"></div>
+          <div id="review-problem-content" class="review-problem-content"></div>
+        </div>
+
+        <!-- 정답 가림막 영역 -->
+        <div id="answer-curtain-box" class="answer-curtain-box is-covered">
+          <div id="review-answer-content" class="review-answer-content"></div>
+          <button id="btn-reveal-answer" class="curtain-overlay">
+            <span class="curtain-title">터치해서 정답 확인</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 복습 완료 화면 -->
+      <div id="review-done-area" class="review-done hidden">
+        <h2>복습 완료!</h2>
+        <p id="review-done-summary" class="done-summary"></p>
+        <div class="ad-preview-box">
+          <span class="ad-tag">안내</span>
+          <p>광고 없는 7일 무료 체험 기간입니다.<br /><strong>매달 구독 없이 약 3달러 1회 결제</strong>로 평생 소장하실 수 있어요.</p>
+        </div>
+        <div class="done-actions">
+          <button id="btn-review-again" class="btn-outline-lg">한 번 더 풀기</button>
+          <button id="btn-review-home" class="btn-primary-lg">홈으로 돌아가기</button>
+        </div>
+      </div>
+
+      <!-- 하단 엄지손가락 2버튼 -->
+      <footer id="review-action-bar" class="review-footer">
+        <button id="btn-mark-wrong" class="btn-wrong">틀렸어요</button>
+        <button id="btn-mark-correct" class="btn-correct">맞혔어요</button>
+      </footer>
+    </section>
+
+    <!-- ================= 4. A4 시험지 뽑기 모달 ================= -->
+    <div id="print-modal" class="modal-backdrop hidden">
+      <div class="modal-sheet">
+        <header class="modal-header">
+          <h3>🖨️ 나만의 A4 오답 시험지</h3>
+          <button id="btn-close-print" class="btn-icon">✕</button>
+        </header>
+        <div class="modal-options">
+          <label class="toggle-wrap">
+            <input type="checkbox" id="print-wrong-only" checked />
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">또 틀린 문제만 모으기</span>
+          </label>
+          <span id="print-count-info" class="print-count-info">0문제</span>
+        </div>
+        <div id="print-preview-area" class="print-preview-area"></div>
+        <footer class="modal-footer">
+          <button id="btn-do-print" class="btn-primary-lg">인쇄 / PDF로 저장하기</button>
+        </footer>
+      </div>
+    </div>
+  </div>
+
+  <!-- 실제 A4 인쇄 시에만 보이는 영역 -->
+  <div id="a4-print-root" class="a4-print-root"></div>
+
+  <!-- ================= 5. 과목설정 (추가/수정/삭제) 모달 ================= -->
+  <div id="subject-modal" class="modal-backdrop hidden">
+    <div class="modal-sheet">
+      <header class="modal-header">
+        <h3>⚙ 과목설정</h3>
+        <button id="btn-close-subject-modal" class="btn-icon">✕</button>
+      </header>
+      <div class="subject-modal-body">
+        <div class="subject-add-row">
+          <input type="text" id="input-new-subject" class="subject-manage-input" placeholder="새 과목 이름 (예: 한국사, 자격증)" />
+          <button type="button" id="btn-add-subject" class="btn-primary-xs">＋ 추가하기</button>
+        </div>
+        <p class="subject-modal-hint">과목 이름을 바꾸거나 필요 없는 과목을 지울 수 있어요. (과목을 지워도 문제는 ‘미분류’로 안전하게 남습니다.)</p>
+        <div id="subject-manage-list" class="subject-manage-list"></div>
+      </div>
+      <footer class="modal-footer">
+        <button id="btn-done-subject-modal" class="btn-primary-lg">완료</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ================= 6. 내 학습 기준 설정 모달 ================= -->
+  <div id="criteria-modal" class="modal-backdrop hidden">
+    <div class="modal-sheet">
+      <header class="modal-header">
+        <h3>내 학습 기준 설정</h3>
+        <button id="btn-close-criteria" class="btn-icon">✕</button>
+      </header>
+      <div class="subject-modal-body">
+        <div class="criteria-group">
+          <div class="criteria-title">1. 정복 후 자동 삭제 기준</div>
+          <p class="criteria-desc">복습할 때 연속으로 몇 번 맞히면 목록에서 바로 지울까요? (1~19회)</p>
+          <div class="criteria-number-row">
+            <span>연속</span>
+            <input type="number" id="input-mastery-target" class="criteria-number-input" min="1" max="19" value="2" />
+            <span>번 맞히면 목록에서 자동 삭제</span>
+          </div>
+        </div>
+
+        <div class="criteria-group">
+          <div class="criteria-title">2. ‘또 틀린 문제만 보기’ 기준</div>
+          <p class="criteria-desc">첫 화면 스위치를 켰을 때 몇 번 이상 틀린 문제만 모아볼까요? (1~19회)</p>
+          <div class="criteria-number-row">
+            <input type="number" id="input-wrong-min-count" class="criteria-number-input small" min="1" max="19" value="2" />
+            <span>번 이상 틀린 문제만 모아보기</span>
+          </div>
+        </div>
+      </div>
+      <footer class="modal-footer">
+        <button id="btn-save-criteria" class="btn-primary-lg">적용하기</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ================= 7. 앱 내 알림 / 확인 팝업 ================= -->
+  <div id="app-dialog" class="modal-backdrop dialog-layer hidden">
+    <div class="dialog-card" role="dialog" aria-modal="true">
+      <div id="app-dialog-title" class="dialog-title">안내</div>
+      <p id="app-dialog-message" class="dialog-message"></p>
+      <div class="dialog-actions">
+        <button type="button" id="app-dialog-cancel" class="dialog-btn-cancel hidden">취소</button>
+        <button type="button" id="app-dialog-ok" class="dialog-btn-ok">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 8. 7일 무료 체험 & 평생 소장 안내 모달 ================= -->
+  <div id="license-modal" class="modal-backdrop hidden">
+    <div class="modal-sheet">
+      <header class="modal-header">
+        <h3 id="license-modal-title">🎁 7일 무료 체험 안내</h3>
+        <button id="btn-close-license" class="btn-icon">✕</button>
+      </header>
+      <div class="subject-modal-body">
+        <div class="license-hero-card">
+          <div id="license-badge-text" class="license-badge">무료 체험 7일 남음</div>
+          <h4 class="license-headline">매달 돈 나가는 구독 없이,<br />딱 한 번 결제로 평생 소장하세요</h4>
+          <p class="license-sub">처음 7일 동안 모든 기능을 광고 없이 무료로 써보신 뒤, 마음에 드실 때만 구글 플레이스토어에서 <strong>단 한 번(약 3달러)</strong> 결제하시면 평생 제한 없이 쓰실 수 있습니다.</p>
+          <ul class="license-perks">
+            <li>✅ 매달 자동 결제되는 정기 구독 없음</li>
+            <li>✅ 광고 없는 쾌적한 오답 복습</li>
+            <li>✅ 쓱-지우개 · 가림막 복습 · 시험지 뽑기 무제한</li>
+          </ul>
+        </div>
+
+        <div class="license-test-box">
+          <div class="license-test-title">대표님 확인용 상태 전환</div>
+          <div class="license-test-btns">
+            <button type="button" id="btn-sim-trial" class="btn-sim">체험 중(7일)</button>
+            <button type="button" id="btn-sim-expired" class="btn-sim">7일 만료 상태</button>
+            <button type="button" id="btn-sim-purchased" class="btn-sim">구매 완료</button>
+          </div>
+        </div>
+      </div>
+      <footer class="modal-footer license-footer">
+        <button id="btn-buy-lifetime" class="btn-primary-lg">구글 스토어에서 평생 소장하기 (약 3달러)</button>
+        <button id="btn-restore-purchase" class="btn-outline-lg">이미 구매했어요 (내역 복원)</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ================= 9. 통합 설정 모달 ================= -->
+  <div id="settings-modal" class="modal-backdrop hidden">
+    <div class="modal-sheet">
+      <header class="modal-header">
+        <h3>설정</h3>
+        <button id="btn-close-settings" class="btn-icon">✕</button>
+      </header>
+      <div class="subject-modal-body">
+        <div class="settings-menu-list">
+          <button type="button" id="menu-open-subjects" class="settings-menu-item">
+            <div>
+              <strong>과목 설정</strong>
+              <span>과목 추가, 이름 변경, 삭제</span>
+            </div>
+            <span class="settings-arrow">›</span>
+          </button>
+          <button type="button" id="menu-open-criteria" class="settings-menu-item">
+            <div>
+              <strong>학습 기준 설정</strong>
+              <span>완전 정복 및 또 틀린 문제 기준 정하기</span>
+            </div>
+            <span class="settings-arrow">›</span>
+          </button>
+          <button type="button" id="menu-open-print" class="settings-menu-item">
+            <div>
+              <strong>시험지 뽑기</strong>
+              <span>모은 오답을 A4 문제지·정답지로 인쇄</span>
+            </div>
+            <span class="settings-arrow">›</span>
+          </button>
+          <button type="button" id="menu-open-license" class="settings-menu-item">
+            <div>
+              <strong>이용권 및 무료 체험</strong>
+              <span id="settings-license-sub">무료 체험 7일 남음</span>
+            </div>
+            <span id="settings-license-badge" class="badge-subject">체험 중</span>
+          </button>
+        </div>
+
+        <div class="settings-footer-links">
+          <button type="button" id="link-guide" class="settings-text-link">이용방법</button>
+          <span class="settings-dot">·</span>
+          <button type="button" id="link-terms" class="settings-text-link">이용약관</button>
+          <span class="settings-dot">·</span>
+          <button type="button" id="link-privacy" class="settings-text-link">개인정보처리방침</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 10. 문제 풀기 선택 팝업 ================= -->
+  <div id="solve-choice-modal" class="modal-backdrop hidden">
+    <div class="dialog-card">
+      <div class="dialog-title">문제 풀기</div>
+      <p id="solve-choice-desc" class="dialog-message">어떤 문제를 풀어볼까요?</p>
+      <div class="solve-choice-btns">
+        <button type="button" id="btn-solve-all" class="solve-choice-btn">
+          <strong>전체 풀기</strong>
+          <span id="solve-all-count">0문제</span>
+        </button>
+        <button type="button" id="btn-solve-wrong" class="solve-choice-btn accent">
+          <strong>틀린 문제만 풀기</strong>
+          <span id="solve-wrong-count">0문제</span>
+        </button>
+      </div>
+      <div class="dialog-actions" style="margin-top: 12px;">
+        <button type="button" id="btn-close-solve-choice" class="dialog-btn-cancel">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="app.js?v=20261116k"></script>
+</body>
+</html>
