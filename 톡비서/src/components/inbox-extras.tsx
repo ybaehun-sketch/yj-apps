@@ -615,24 +615,10 @@ const ACCENTS = [
   { key: "sky", label: "스카이", cls: "bg-[oklch(0.8_0.11_235)]" },
 ] as const;
 
-const PRIVACY = `톡비서 개인정보처리방침
-
-1. 수집 항목: 이메일 주소, 사용자가 업로드한 메모·스크린샷·링크
-2. 이용 목적: AI 자동 분류·요약, 검색 및 일정 알림 제공
-3. 보관 기간: 회원 탈퇴 시 지체 없이 파기
-4. 제3자 제공: AI 분석을 위해 업로드 내용이 AI 모델 제공사에 전송될 수 있으며, 학습에 사용되지 않습니다.
-5. 문의: 앱 내 고객센터
-
-(본 문서는 초안이며 정식 서비스 전 법률 검토가 필요합니다.)`;
-const TERMS = `톡비서 서비스 이용약관
-
-제1조 (목적) 본 약관은 톡비서 서비스 이용에 관한 조건을 정합니다.
-제2조 (서비스) 메모·스크린샷·링크의 AI 자동 정리, 검색, 알림 기능을 제공합니다.
-제3조 (유료 서비스) 월간 4,900원 플랜이 있으며, 하루 최대 50회 공정 사용 한도가 적용됩니다.
-제4조 (이용자 의무) 타인의 권리를 침해하는 콘텐츠를 업로드해서는 안 됩니다.
-제5조 (면책) AI 분석 결과의 정확성은 보장되지 않습니다.
-
-(본 문서는 초안이며 정식 서비스 전 법률 검토가 필요합니다.)`;
+const PRIVACY_URL = "https://yjstudio.app/tokbiseo#privacy";
+const TERMS_URL = "https://yjstudio.app/tokbiseo#terms";
+/** 1차 스토어 심사용 결제 모달 비활성화 (2차 구글 인앱 결제 연동 시 true로 전환). */
+const BILLING_ENABLED = false;
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return <section className="rounded-2xl bg-card p-4 shadow-sm"><p className="mb-2 text-xs font-semibold text-muted-foreground">{title}</p>{children}</section>;
@@ -656,7 +642,6 @@ export function SettingsSheet({ usage, email, joinedAt, prefs, setPrefs, onLogou
   usage?: Usage | undefined; email: string; joinedAt: string | null; prefs: Prefs; setPrefs: (p: Prefs) => void; onLogout: () => void; onDeleteAccount: () => Promise<void>; onClose: () => void;
 }) {
   const [tab, setTab] = useState<"plan" | "organize" | "display">("plan");
-  const [doc, setDoc] = useState<null | "privacy" | "terms">(null);
   const [quitting, setQuitting] = useState(false);
   const [quitText, setQuitText] = useState("");
   const [quitBusy, setQuitBusy] = useState(false);
@@ -708,12 +693,12 @@ export function SettingsSheet({ usage, email, joinedAt, prefs, setPrefs, onLogou
                   <summary className="cursor-pointer text-xs font-semibold text-foreground">{tr("플랜별 혜택 한눈에 비교")}</summary>
                   <div className="mt-2"><PlanCompare current={prefs.plan} /></div>
                 </details>
-                {prefs.plan === "free" && (
+                {BILLING_ENABLED && prefs.plan === "free" && (
                   <button onClick={() => setPaying(true)} className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary py-2 text-sm font-semibold text-primary-foreground">
                     <Crown className="size-4" />{tr("프리미엄으로 업그레이드")}
                   </button>
                 )}
-                {prefs.plan !== "free" && <button onClick={() => setPrefs({ ...prefs, plan: "free" })} className="mt-2 w-full text-xs text-muted-foreground underline">{tr("무료로 되돌리기 (테스트)")}</button>}
+                {BILLING_ENABLED && prefs.plan !== "free" && <button onClick={() => setPrefs({ ...prefs, plan: "free" })} className="mt-2 w-full text-xs text-muted-foreground underline">{tr("무료로 되돌리기 (테스트)")}</button>}
               </Section>
               <Section title={tr("내 보관함")}>
                 {(() => {
@@ -789,8 +774,8 @@ export function SettingsSheet({ usage, email, joinedAt, prefs, setPrefs, onLogou
               </Section>
               <div className="space-y-1 pt-2 text-center">
                 <div className="flex justify-center gap-4 text-xs text-muted-foreground">
-                  <button onClick={() => setDoc("privacy")} className="underline">{tr("개인정보처리방침")}</button>
-                  <button onClick={() => setDoc("terms")} className="underline">{tr("이용약관")}</button>
+                  <a href={PRIVACY_URL} target="_blank" rel="noreferrer" className="underline">{tr("개인정보처리방침")}</a>
+                  <a href={TERMS_URL} target="_blank" rel="noreferrer" className="underline">{tr("이용약관")}</a>
                 </div>
                 <p className="text-xs text-muted-foreground">{tr("톡비서 웹 버전 v1.0.0")}</p>
                 <button onClick={() => setQuitting(true)} className="pt-2 text-xs text-muted-foreground underline">{tr("회원탈퇴")}</button>
@@ -798,7 +783,7 @@ export function SettingsSheet({ usage, email, joinedAt, prefs, setPrefs, onLogou
             </>
           )}
         </div>
-        {paying && <PaymentModal onClose={() => setPaying(false)} onPaid={(plan) => setPrefs({ ...prefs, plan })} />}
+        {BILLING_ENABLED && paying && <PaymentModal onClose={() => setPaying(false)} onPaid={(plan) => setPrefs({ ...prefs, plan })} />}
         {quitting && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-foreground/30 p-4" onClick={() => !quitBusy && setQuitting(false)}>
             <div className="w-full max-w-sm rounded-2xl bg-card p-4" onClick={(e) => e.stopPropagation()}>
@@ -813,14 +798,6 @@ export function SettingsSheet({ usage, email, joinedAt, prefs, setPrefs, onLogou
                   onClick={async () => { setQuitBusy(true); setQuitErr(""); try { await onDeleteAccount(); } catch { setQuitErr(tr("탈퇴하지 못했어요. 잠시 후 다시 시도해 주세요")); setQuitBusy(false); } }}
                   className="rounded-xl bg-destructive py-2 text-sm font-semibold text-destructive-foreground disabled:opacity-40">{quitBusy ? tr("지우는 중…") : tr("탈퇴하기")}</button>
               </div>
-            </div>
-          </div>
-        )}
-        {doc && (
-          <div className="absolute inset-0 z-10 flex justify-center bg-foreground/30" onClick={() => setDoc(null)}>
-            <div className="m-4 mt-16 w-full max-w-md overflow-y-auto rounded-2xl bg-card p-4" onClick={(e) => e.stopPropagation()}>
-              <div className="mb-2 flex justify-end"><button aria-label={tr("닫기")} onClick={() => setDoc(null)} className="rounded-full p-1.5 hover:bg-muted"><X className="size-4" /></button></div>
-              <pre className="whitespace-pre-wrap font-sans text-sm text-foreground">{doc === "privacy" ? PRIVACY : TERMS}</pre>
             </div>
           </div>
         )}
