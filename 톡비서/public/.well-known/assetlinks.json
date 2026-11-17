@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.yjstudio.tokbiseo",
+        "sha256_cert_fingerprints": ["85:F1:91:DF:4F:54:0F:75:E3:EC:79:C9:7F:DD:7B:E7:9B:DF:35:A5:A7:BF:71:9B:64:6F:62:C8:84:03:3F:36"]
+      }
+    }]
