@@ -2,16 +2,44 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUp, Settings, X, Bell, CalendarDays, MessageCircle, Plus, Image as ImageIcon, Camera, Mic, Square, FileText, Check, Trash2, Pin, Copy, Pencil } from "lucide-react";
-import { uploadBlockReason, sumUsage, type Usage } from "@/lib/storage-quota";
+import {
+  ArrowDown,
+  ArrowUp,
+  Bell,
+  Calendar,
+  CalendarDays,
+  Camera,
+  Check,
+  CheckCircle2,
+  Copy,
+  Download,
+  FileText,
+  FolderOpen,
+  Image as ImageIcon,
+  Link2,
+  List,
+  MessageCircle,
+  Mic,
+  Pencil,
+  Pin,
+  Plus,
+  Search,
+  Settings,
+  Square,
+  StickyNote,
+  Trash2,
+  X,
+} from "lucide-react";
+import { dailyLimitReason, uploadBlockReason, sumUsage, type Usage } from "@/lib/storage-quota";
 import { NoteMetaEditor, NotesCalendar, PlanBadge, SettingsSheet, useCustomCategories, usePrefs } from "@/components/inbox-extras";
+import { CategoryIcon } from "@/components/category-icon";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { agentTurn, analyzeAndSaveNote, askNotes, editFromChat, routeIntent, transcribeVoice } from "@/lib/notes.functions";
-import { OFFTOPIC_REPLY, offTopicKind, catEmoji, isChitchat, isEdit, isQuestion, isYes } from "@/lib/notes";
+import { OFFTOPIC_REPLY, offTopicKind, isChitchat, isEdit, isQuestion, isYes } from "@/lib/notes";
 import { isSilenceHallucination } from "@/lib/voice-guard";
 import { blobToDataUrl, compressToWebp } from "@/lib/image-compress";
-import { blobToBase64, downloadFile, extractDocText } from "@/lib/doc-text";
+import { blobToBase64, compressFileForStorage, downloadFile, extractDocText } from "@/lib/doc-text";
 import jungbiAvatar from "@/assets/jungbi-avatar.png";
 import { deleteAccount } from "@/lib/account.functions";
 import { t as tr, locale, getLang, useLang } from "@/lib/i18n";
@@ -33,7 +61,7 @@ export const Route = createFileRoute("/_authenticated/inbox")({
 
 type Note = Tables<"notes">;
 type Answer = { id: string; q: string; answer: string; noteIds: string[]; at: string };
-const LOADERS = ["비서가 서류함을 뒤지는 중... 📂", "스샷 속 글자를 읽는 중... 🔍", "날짜를 챙기는 중... 📅"];
+const LOADERS = ["비서가 서류함을 뒤지는 중...", "스샷 속 글자를 읽는 중...", "날짜를 챙기는 중..."];
 const MAX_REC_SEC = 60;
 
 const fmtDate = (iso: string) =>
@@ -58,6 +86,7 @@ function useNotes() {
 }
 
 const PinCtx = createContext<{ pins: string[]; toggle: (id: string) => void }>({ pins: [], toggle: () => {} });
+const ZoomCtx = createContext<(url: string) => void>(() => {});
 const PIN_KEY = "jungbi.pins";
 const CLEAR_KEY = "jungbi.chatClearedAt";
 const MAX_PINS = 3;
@@ -78,7 +107,7 @@ async function copyText(text: string) {
 }
 
 function noteCopyText(n: Note) {
-  return [n.summary, n.detected_date ? `📅 ${fmtDate(n.detected_date)}` : "", n.tags.length ? n.tags.map((t) => `#${t}`).join(" ") : "", n.link_url ?? ""].filter(Boolean).join("\n");
+  return [n.summary, n.detected_date ? fmtDate(n.detected_date) : "", n.tags.length ? n.tags.map((t) => `#${t}`).join(" ") : "", n.link_url ?? ""].filter(Boolean).join("\n");
 }
 
 function PinnedBar({ notes }: { notes: Note[] }) {
@@ -92,13 +121,14 @@ function PinnedBar({ notes }: { notes: Note[] }) {
       {shown.map((n) => (
         <div key={n.id} className="flex items-center gap-2 py-1 text-xs text-foreground">
           <Pin className="size-3.5 shrink-0 text-primary-foreground fill-primary" />
-          <button className="min-w-0 flex-1 truncate text-left font-medium" onClick={() => document.getElementById(`note-${n.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}>
-            {catEmoji(n.category)} {n.summary}
+          <button className="inline-flex min-w-0 flex-1 items-center gap-1.5 truncate text-left font-medium" onClick={() => document.getElementById(`note-${n.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}>
+            <CategoryIcon name={n.category} className="size-3.5 text-muted-foreground" />
+            <span className="truncate">{n.summary}</span>
           </button>
           <button aria-label={tr("고정 해제")} onClick={() => toggle(n.id)} className="rounded-full p-0.5 text-muted-foreground hover:bg-muted"><X className="size-3.5" /></button>
         </div>
       ))}
-      {list.length > 1 && <button onClick={() => setOpen(!open)} className="w-full text-center text-[11px] text-muted-foreground">{open ? tr("접기 ▲") : tr("고정 {0}개 모두 보기 ▼", list.length)}</button>}
+      {list.length > 1 && <button onClick={() => setOpen(!open)} className="w-full text-center text-xs text-muted-foreground">{open ? tr("접기 ▲") : tr("고정 {0}개 모두 보기 ▼", list.length)}</button>}
     </div>
   );
 }
@@ -107,7 +137,7 @@ function CopyButton({ text, label = tr("복사") }: { text: string; label?: stri
   const [done, setDone] = useState(false);
   return (
     <button aria-label={label} onClick={async () => { if (await copyText(text)) { setDone(true); setTimeout(() => setDone(false), 1500); } }}
-      className="flex items-center gap-1 rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted">
+      className="flex items-center gap-1 rounded-full px-2 py-1 text-xs text-muted-foreground hover:bg-muted">
       {done ? <><Check className="size-3" />{tr("복사됨")}</> : <><Copy className="size-3" />{label}</>}
     </button>
   );
@@ -132,6 +162,13 @@ function Inbox() {
     },
   });
   const quotaErr = (size: number) => { const r = uploadBlockReason(prefs.plan, user.created, usage?.total ?? 0, size); return r ? tr(r) : null; };
+  const dailyErr = () => {
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const ms = start.getTime();
+    const todayCount = notes.filter((n) => Date.parse(n.created_at) >= ms).length + answers.filter((a) => Date.parse(a.at) >= ms).length;
+    const r = dailyLimitReason(prefs.plan, todayCount);
+    return r ? tr(r) : null;
+  };
   const [view, setView] = useState<"stream" | "calendar">("stream");
   const [showSettings, setShowSettings] = useState(false);
   const [prefs, setPrefs] = usePrefs();
@@ -160,6 +197,8 @@ function Inbox() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const stickBottomRef = useRef(true);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [zoomImg, setZoomImg] = useState<string | null>(null);
 
   const notes = useMemo(() => data?.notes ?? [], [data]);
   const savedNotes = useMemo(() => notes.filter((n) => n.confirmed), [notes]);
@@ -214,18 +253,54 @@ function Inbox() {
     return () => clearInterval(t);
   }, [pending]);
 
-  // 다른 앱의 [공유] → 톡비서로 들어온 링크/텍스트를 자동으로 던지기
+  // 서비스 워커 등록 + 다른 앱의 [공유] → 톡비서로 들어온 링크/텍스트/이미지를 자동으로 던지기
   const sharedHandled = useRef(false);
+  const [clipUrl, setClipUrl] = useState<string | null>(null);
+  const seenClipRef = useRef<string>("");
+  useEffect(() => {
+    if ("serviceWorker" in navigator) void navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }, []);
+  useEffect(() => {
+    async function checkClipboard() {
+      if (document.visibilityState !== "visible" || !navigator.clipboard?.readText) return;
+      try {
+        const raw = (await navigator.clipboard.readText()).trim();
+        if (/^https?:\/\/\S+$/i.test(raw) && raw !== seenClipRef.current) {
+          seenClipRef.current = raw;
+          setClipUrl(raw);
+        }
+      } catch { /* clipboard permission not granted; ignore silently */ }
+    }
+    void checkClipboard();
+    window.addEventListener("focus", checkClipboard);
+    return () => window.removeEventListener("focus", checkClipboard);
+  }, []);
   useEffect(() => {
     if (sharedHandled.current) return;
     const p = new URLSearchParams(window.location.search);
     const parts = [p.get("shared_title"), p.get("shared_text"), p.get("shared_url")]
       .map((s) => (s ?? "").trim()).filter(Boolean);
-    if (!parts.length) return;
+    const hasMedia = p.get("shared_media") === "1";
+    if (!parts.length && !hasMedia) return;
     sharedHandled.current = true;
     const shared = parts.filter((s, i) => !parts.some((o, j) => j !== i && o.includes(s) && (o.length > s.length || j < i))).join("\n");
     window.history.replaceState(null, "", window.location.pathname);
-    void send({ text: shared });
+    void (async () => {
+      let sharedImg: { blob: Blob; preview: string } | undefined;
+      if (hasMedia && "caches" in window) {
+        try {
+          const cache = await caches.open("jungbi-share-v1");
+          const res = await cache.match("/__shared_media__");
+          if (res) {
+            const rawBlob = await res.blob();
+            await cache.delete("/__shared_media__");
+            const blob = await compressToWebp(rawBlob);
+            sharedImg = { blob, preview: URL.createObjectURL(blob) };
+          }
+        } catch { /* ignore media cache errors */ }
+      }
+      if (shared || sharedImg) void send({ text: shared, ...(sharedImg ? { image: sharedImg } : {}) });
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -259,8 +334,8 @@ function Inbox() {
     const { error } = await supabase.from("notes").delete().eq("id", n.id);
     if (error) { setErr(tr("지우지 못했어요")); return; }
     // 내 요청은 그대로 남기고, 톡비서 말풍선만 "삭제된 메모예요"로 바꿔 둔다
-    const q = n.content?.trim() || (n.image_path ? tr("📸 스샷") : n.audio_path ? tr("🎙️ 음성 메모") : n.file_name ? `📄 ${n.file_name}` : tr("메모"));
-    await supabase.from("chat_answers").insert({ question: q, answer: tr("🗑️ 삭제된 메모예요"), note_ids: [], created_at: n.created_at });
+    const q = n.content?.trim() || (n.image_path ? tr("스샷") : n.audio_path ? tr("음성 메모") : n.file_name ? n.file_name : tr("메모"));
+    await supabase.from("chat_answers").insert({ question: q, answer: tr("삭제된 메모예요"), note_ids: [], created_at: n.created_at });
     await qc.invalidateQueries({ queryKey: ["notes"] });
     await qc.invalidateQueries({ queryKey: ["chat_answers"] });
     await qc.invalidateQueries({ queryKey: ["usage"] });
@@ -279,9 +354,9 @@ function Inbox() {
     window.location.reload();
   }
 
-  async function send(opts?: { text: string; kind?: "voice"; audioPath?: string; filePath?: string; fileName?: string }) {
+  async function send(opts?: { text: string; image?: { blob: Blob; preview: string }; kind?: "voice"; audioPath?: string; filePath?: string; fileName?: string }) {
     const t = (opts?.text ?? text).trim();
-    const current = opts ? null : img;
+    const current = opts?.image ?? (opts ? null : img);
     if (!t && !current) return;
     if (pending && !opts) return;
     setErr(null);
@@ -351,12 +426,14 @@ function Inbox() {
           const { error: saveErr } = await supabase.from("chat_answers").insert({ question: t, answer: r.answer, note_ids: r.noteIds });
           if (saveErr) console.error("chat_answers insert failed", saveErr);
           await qc.invalidateQueries({ queryKey: ["chat_answers"] });
-        } catch { setErr(tr("찾다가 문제가 생겼어요. 다시 물어봐 주세요 🙏")); setText(t); }
+        } catch { setErr(tr("찾다가 문제가 생겼어요. 다시 물어봐 주세요")); setText(t); }
         finally { setPending(null); }
         return;
       }
     }
     if (current) { const q = quotaErr(current.blob.size); if (q) { setErr(q); return; } }
+    const dErr = dailyErr();
+    if (dErr) { setErr(dErr); return; }
     setPending({ text: t, preview: current?.preview ?? null });
     setText(""); setImg(null); setMenu(false); setView("stream");
     try {
@@ -380,7 +457,7 @@ function Inbox() {
       await qc.invalidateQueries({ queryKey: ["usage"] });
     } catch (e) {
       console.error(e);
-      setErr(tr("앗, 정리하다 문제가 생겼어요. 다시 던져 주세요 🙏"));
+      setErr(tr("앗, 정리하다 문제가 생겼어요. 다시 던져 주세요"));
       if (!opts) setText(t);
     } finally {
       setPending(null);
@@ -391,15 +468,16 @@ function Inbox() {
     setMenu(false);
     try {
       if (f.type.startsWith("image/")) { await attach(f); return; }
-      const q = quotaErr(f.size);
+      const [packed, doc] = await Promise.all([compressFileForStorage(f), extractDocText(f)]);
+      const q = quotaErr(packed.blob.size);
       if (q) { setErr(q); return; }
-      const doc = await extractDocText(f);
+      const dErr = dailyErr();
+      if (dErr) { setErr(dErr); return; }
       const { data: s } = await supabase.auth.getSession();
-      const ext = (f.name.split(".").pop() ?? "bin").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
-      const filePath = `${s.session?.user.id ?? LOCAL_USER_ID}/doc-${crypto.randomUUID()}.${ext}`;
-      const up = await supabase.storage.from("shots").upload(filePath, f, { contentType: f.type || "application/octet-stream" });
+      const filePath = `${s.session?.user.id ?? LOCAL_USER_ID}/doc-${crypto.randomUUID()}.${packed.ext}`;
+      const up = await supabase.storage.from("shots").upload(filePath, packed.blob, { contentType: packed.contentType });
       if (up.error) { setErr(tr("원본 파일을 보관하지 못했어요")); return; }
-      if (!doc.readable) setErr(tr("본문 글자를 읽을 수 없는 파일이라 원본 파일만 안전하게 보관했어요 📄"));
+      if (!doc.readable) setErr(tr("본문 글자를 읽을 수 없는 파일이라 원본 파일만 안전하게 보관했어요"));
       const text = doc.readable ? doc.text : `📄 ${f.name}\n${tr("내용을 읽을 수 없는 파일 형식이라 원본 파일만 보관했어요.")}`;
       await send({ text, filePath, fileName: f.name });
     } catch { setErr(tr("문서를 읽지 못했어요")); }
@@ -413,7 +491,7 @@ function Inbox() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const w = window as any;
     const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (!SR) { setErr(tr("이 브라우저는 말로 입력을 지원하지 않아요. ➕ 메뉴의 음성 녹음을 써 주세요")); return; }
+    if (!SR) { setErr(tr("이 브라우저는 말로 입력을 지원하지 않아요. + 메뉴의 음성 녹음을 써 주세요")); return; }
     const r = new SR();
     r.lang = locale(); r.interimResults = true; r.continuous = true;
     const base = text ? text.trimEnd() + " " : "";
@@ -423,7 +501,7 @@ function Inbox() {
       for (let i = 0; i < e.results.length; i++) s += e.results[i][0].transcript;
       setText(base + s);
     };
-    r.onerror = (e: { error?: string }) => { if (e.error === "not-allowed") setErr(tr("마이크 권한을 허용해 주세요 🎙️")); };
+    r.onerror = (e: { error?: string }) => { if (e.error === "not-allowed") setErr(tr("마이크 권한을 허용해 주세요")); };
     r.onend = () => { setListening(false); speechRef.current = null; };
     speechRef.current = r;
     setErr(null); setListening(true);
@@ -456,7 +534,7 @@ function Inbox() {
           return Math.min(n, MAX_REC_SEC);
         });
       }, 1000);
-    } catch { setErr(tr("마이크 권한을 허용해 주세요 🎙️")); }
+    } catch { setErr(tr("마이크 권한을 허용해 주세요")); }
   }
 
   function stopRecording(cancel = false) {
@@ -476,7 +554,7 @@ function Inbox() {
     const q = quotaErr(blob.size);
     if (q) { setErr(q); return; }
     setErr(null);
-    setPending({ text: tr("🎙️ 음성 메모 듣는 중..."), preview: null });
+    setPending({ text: tr("음성 메모 듣는 중..."), preview: null });
     try {
       const { data: s } = await supabase.auth.getSession();
       const ext = type.includes("mp4") ? "m4a" : type.includes("ogg") ? "ogg" : "webm";
@@ -490,7 +568,7 @@ function Inbox() {
       const durSec = recStartRef.current ? (Date.now() - recStartRef.current) / 1000 : 99;
       if (!said || durSec < 1.5 || isSilenceHallucination(said)) {
         await supabase.storage.from("shots").remove([audioPath]);
-        setErr(tr("녹음된 말이 없어요 🎙️ 다시 말씀해 주세요"));
+        setErr(tr("녹음된 말이 없어요. 다시 말씀해 주세요"));
         return;
       }
       await send({ text: said, kind: "voice", audioPath });
@@ -519,12 +597,14 @@ function Inbox() {
       {dragging && (
         <div className="pointer-events-none absolute inset-0 z-50 rounded-2xl ring-2 ring-inset ring-primary/60">
           <div className="absolute inset-x-0 bottom-24 flex justify-center">
-            <div className="rounded-full border border-dashed border-primary bg-card px-4 py-2 text-xs font-semibold text-foreground shadow-md">
-              {tr("📂 여기에 놓으면 바로 정리해요")}
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-primary bg-card px-4 py-2 text-xs font-semibold text-foreground shadow-md">
+              <FolderOpen className="size-4 text-primary-foreground" />
+              {tr("여기에 놓으면 바로 정리해요")}
             </div>
           </div>
         </div>
       )}
+      <ZoomCtx.Provider value={(u) => setZoomImg(u)}>
       <PinCtx.Provider value={pinState}>
       <header className="border-b border-border bg-card">
         <div className="flex items-center justify-between px-4 py-3">
@@ -549,7 +629,7 @@ function Inbox() {
             <div key={alarm.id} className="flex items-start gap-2.5 rounded-xl bg-card px-3 py-2.5 shadow-sm ring-1 ring-primary/40">
               <Bell className="mt-0.5 size-4 shrink-0 animate-bounce text-primary" />
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-foreground">{tr("톡비서 알림 ⏰")}</p>
+                <p className="text-xs font-bold text-foreground">{tr("톡비서 알림")}</p>
                 <p className="text-xs text-foreground">{alarm.remind_message || alarm.summary}</p>
               </div>
               <button
@@ -568,18 +648,34 @@ function Inbox() {
       {view === "calendar" ? <NotesCalendar notes={savedNotes} urls={data?.urls ?? {}} onUpdate={(id, p) => void updateNote(id, p)} onDelete={(n) => void discardNote(n)} /> : <main
         onScroll={(e) => {
           const el = e.currentTarget;
-          stickBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+          const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+          stickBottomRef.current = dist < 100;
+          setShowScrollBtn(dist > 160);
         }}
         onLoadCapture={() => {
           if (stickBottomRef.current) scrollToBottom("auto");
         }}
-        className="flex-1 space-y-4 overflow-y-auto bg-chat px-3 py-4">
+        className="relative flex-1 space-y-4 overflow-y-auto bg-chat px-3 py-4">
         {isLoading && <p className="text-center text-xs text-muted-foreground">{tr("서류함 여는 중...")}</p>}
         {!isLoading && notes.length === 0 && !pending && (
-          <div className="mx-auto mt-10 max-w-xs rounded-2xl bg-card/80 p-5 text-center text-sm text-foreground shadow-sm">
-            <p className="text-2xl">📂</p>
+          <div className="mx-auto mt-10 max-w-xs rounded-2xl bg-card/90 p-5 text-center text-sm text-foreground shadow-sm">
+            <FolderOpen className="mx-auto size-7 text-muted-foreground" />
             <p className="mt-2 font-semibold">{tr("아직 비어 있어요")}</p>
             <p className="mt-1 text-xs text-muted-foreground">{tr("스크린샷, 메모, 링크를 그냥 던져 주세요. 날짜가 있으면 제가 미리 챙겨 드릴게요.")}</p>
+            <p className="mt-4 text-xs font-semibold text-muted-foreground">{tr("눌러서 바로 체험해 보세요")}</p>
+            <div className="mt-2 flex flex-col gap-1.5">
+              {[
+                { Icon: Calendar, text: tr("내일 오전 10시 회의 9시에 알려줘") },
+                { Icon: StickyNote, text: tr("장보기: 우유, 계란, 커피") },
+                { Icon: Search, text: tr("이번 달 던진 메모 보여줘") },
+              ].map((ex) => (
+                <button key={ex.text} type="button" onClick={() => void send({ text: ex.text })}
+                  className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-left text-xs font-medium text-foreground transition-colors hover:bg-muted">
+                  <ex.Icon className="size-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{ex.text}</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
         {(() => {
@@ -600,7 +696,7 @@ function Inbox() {
             <div className="flex items-end gap-2">
               <Avatar />
               <div className="flex items-center gap-2 rounded-2xl rounded-tl-sm bg-card px-3.5 py-2.5 text-sm text-foreground shadow-sm">
-                <span>{tr("채팅창을 지금 모두 비울까요?")} <span className="block text-[11px] text-muted-foreground">{tr("저장된 메모와 캘린더는 그대로 남아요 🍃")}</span></span>
+                <span>{tr("채팅창을 지금 모두 비울까요?")} <span className="block text-xs text-muted-foreground">{tr("저장된 메모와 캘린더는 그대로 남아요")}</span></span>
                 <button aria-label={tr("비우기")} onClick={() => { setClearAsk(null); void clearChat(); }} className="rounded-full bg-primary p-1.5 text-primary-foreground"><Check className="size-4" /></button>
                 <button aria-label={tr("취소")} onClick={() => setClearAsk(null)} className="rounded-full bg-muted p-1.5 text-muted-foreground"><X className="size-4" /></button>
               </div>
@@ -617,8 +713,25 @@ function Inbox() {
           </>
         )}
         <div ref={endRef} />
+        {showScrollBtn && (
+          <button type="button" aria-label={tr("맨 아래로")}
+            onClick={() => { stickBottomRef.current = true; scrollToBottom("smooth"); }}
+            className="sticky bottom-2 float-right z-10 flex size-9 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-md hover:bg-muted">
+            <ArrowDown className="size-4" />
+          </button>
+        )}
       </main>}
       </PinCtx.Provider>
+      </ZoomCtx.Provider>
+      {zoomImg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4" onClick={() => setZoomImg(null)}>
+          <button type="button" aria-label={tr("닫기")} onClick={() => setZoomImg(null)}
+            className="absolute right-4 top-4 rounded-full bg-white/15 p-2 text-white hover:bg-white/25">
+            <X className="size-5" />
+          </button>
+          <img src={zoomImg} alt={tr("원본")} className="max-h-[90dvh] max-w-[95vw] rounded-xl object-contain" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
       {showSettings && <SettingsSheet usage={usage} email={user.email} joinedAt={user.created} prefs={prefs} setPrefs={setPrefs} onClose={() => setShowSettings(false)} onLogout={async () => { await supabase.auth.signOut(); nav({ to: "/login" }); }}
         onDeleteAccount={async () => {
           await deleteAccount();
@@ -629,6 +742,21 @@ function Inbox() {
 
       <div className="border-t border-border bg-card px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
         {err && <p className="mb-1.5 text-xs text-destructive">{err}</p>}
+        {clipUrl && (
+          <div className="mb-2 flex items-center gap-2 rounded-2xl bg-primary/15 px-3 py-2 text-xs text-foreground">
+            <div className="min-w-0 flex-1">
+              <p className="inline-flex items-center gap-1 font-semibold"><Link2 className="size-3.5 shrink-0" />{tr("복사한 링크를 바로 정리할까요?")}</p>
+              <p className="truncate text-xs text-muted-foreground">{clipUrl}</p>
+            </div>
+            <button type="button" onClick={() => { const u = clipUrl; setClipUrl(null); void send({ text: u }); }}
+              className="shrink-0 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+              {tr("바로 던지기")}
+            </button>
+            <button type="button" aria-label={tr("닫기")} onClick={() => setClipUrl(null)} className="rounded-full p-1 text-muted-foreground hover:bg-muted">
+              <X className="size-3.5" />
+            </button>
+          </div>
+        )}
         {img && (
           <div className="relative mb-2 inline-block">
             <img src={img.preview} alt={tr("첨부 미리보기")} className="h-20 rounded-lg object-cover" />
@@ -644,8 +772,8 @@ function Inbox() {
             <div className="h-1 flex-1 overflow-hidden rounded-full bg-destructive/20">
               <div className="h-full bg-destructive transition-all" style={{ width: `${(recSec / MAX_REC_SEC) * 100}%` }} />
             </div>
-            <button onClick={() => stopRecording(true)} className="flex items-center gap-1 rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted"><X className="size-3" />{tr("취소")}</button>
-            <button onClick={() => stopRecording()} className="flex items-center gap-1 rounded-full bg-destructive px-2.5 py-1 text-[11px] font-semibold text-primary-foreground">
+            <button onClick={() => stopRecording(true)} className="flex items-center gap-1 rounded-full px-2 py-1 text-xs text-muted-foreground hover:bg-muted"><X className="size-3" />{tr("취소")}</button>
+            <button onClick={() => stopRecording()} className="flex items-center gap-1 rounded-full bg-destructive px-2.5 py-1 text-xs font-semibold text-primary-foreground">
               <Square className="size-3" />{tr("완료")}
             </button>
           </div>
@@ -678,7 +806,7 @@ function Inbox() {
           <input ref={docRef} type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void onDocFile(f); e.target.value = ""; }} />
           <textarea value={text} onChange={(e) => setText(e.target.value)} onPaste={onPaste} rows={1}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }}
-            placeholder={tr("메모, 링크, 스샷을 던져 주세요 (붙여넣기 가능)")}
+            placeholder={tr("메모, 링크, 스샷을 던져 주세요")}
             className="max-h-32 min-h-10 flex-1 resize-none rounded-2xl bg-muted px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground" />
           {rec ? (
             <button aria-label={tr("녹음 취소")} onClick={() => stopRecording(true)}
@@ -708,6 +836,7 @@ function Avatar() {
 
 function UserBubble({ text, imageUrl, fileUrl, origName }: { text: string; imageUrl?: string | undefined; fileUrl?: string | undefined; origName?: string | null }) {
   const [open, setOpen] = useState(false);
+  const zoom = useContext(ZoomCtx);
   const isDoc = text.startsWith("📄 ");
   const nl = text.indexOf("\n");
   const fileName = isDoc ? (nl > 0 ? text.slice(2, nl) : text.slice(2)).trim() : "";
@@ -715,22 +844,26 @@ function UserBubble({ text, imageUrl, fileUrl, origName }: { text: string; image
   const long = body.length > 300 || body.split("\n").length > 8;
   return (
     <div className="flex flex-col items-end gap-1">
-      {imageUrl && <img src={imageUrl} alt={tr("보낸 스크린샷")} className="h-auto max-h-64 w-auto max-w-[70%] rounded-2xl object-contain shadow-sm" />}
+      {imageUrl && <img src={imageUrl} alt={tr("보낸 스크린샷")} onClick={() => zoom(imageUrl)} className="h-auto max-h-64 w-auto max-w-[70%] cursor-zoom-in rounded-2xl object-contain shadow-sm" />}
       {isDoc ? (
         <div className="w-64 max-w-[78%] rounded-2xl rounded-tr-sm bg-bubble px-3.5 py-2.5 text-sm text-bubble-foreground shadow-sm">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">📄</span>
+            <FileText className="size-6 shrink-0 opacity-80" />
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium">{fileName}</p>
-              <p className="text-[11px] opacity-70">{tr("문서 · {0}자", body.length.toLocaleString())}</p>
+              <p className="text-xs opacity-70">{tr("문서 · {0}자", body.length.toLocaleString())}</p>
             </div>
           </div>
           {body && (
             <>
               {open && <p className="mt-2 max-h-60 overflow-y-auto whitespace-pre-wrap break-words border-t border-current/10 pt-2 text-xs opacity-80">{body}</p>}
               <div className="mt-1.5 flex items-center justify-between">
-                <button onClick={() => setOpen(!open)} className="text-[11px] font-medium underline opacity-70">{open ? tr("접기 ▲") : tr("내용 보기 ▼")}</button>
-                {fileUrl && <button type="button" onClick={() => void downloadFile(fileUrl, origName)} className="text-[11px] font-semibold underline">{tr("📥 원본 받기")}</button>}
+                <button onClick={() => setOpen(!open)} className="text-xs font-medium underline opacity-70">{open ? tr("접기 ▲") : tr("내용 보기 ▼")}</button>
+                {fileUrl && (
+                  <button type="button" onClick={() => void downloadFile(fileUrl, origName)} className="inline-flex items-center gap-1 text-xs font-semibold underline">
+                    <Download className="size-3.5" />{tr("원본 받기")}
+                  </button>
+                )}
               </div>
             </>
           )}
@@ -738,7 +871,7 @@ function UserBubble({ text, imageUrl, fileUrl, origName }: { text: string; image
       ) : text && (
         <div className="max-w-[78%] whitespace-pre-wrap break-words rounded-2xl rounded-tr-sm bg-bubble px-3.5 py-2 text-sm text-bubble-foreground shadow-sm">
           <span className={long && !open ? "line-clamp-6" : ""}>{body}</span>
-          {long && <button onClick={() => setOpen(!open)} className="mt-1 block text-[11px] font-medium underline opacity-70">{open ? tr("접기 ▲") : tr("... 더보기")}</button>}
+          {long && <button onClick={() => setOpen(!open)} className="mt-1 block text-xs font-medium underline opacity-70">{open ? tr("접기 ▲") : tr("... 더보기")}</button>}
         </div>
       )}
       {(isDoc ? body : text) && <CopyButton text={isDoc ? body : text} label={isDoc ? tr("원문 복사") : tr("복사")} />}
@@ -763,18 +896,22 @@ function LinkPreview({ note }: { note: Note }) {
       <div className="space-y-0.5 px-3.5 py-2">
         <p className="line-clamp-2 text-sm font-semibold text-foreground">{note.link_title ?? host}</p>
         {note.link_description && <p className="line-clamp-2 text-xs text-muted-foreground">{note.link_description}</p>}
-        <p className="text-[11px] text-muted-foreground">🔗 {host}</p>
+        <p className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Link2 className="size-3 shrink-0" />{host}</p>
       </div>
     </a>
   );
 }
 
-function NoteCard({ note }: { note: Note }) {
+function NoteCard({ note, onUpdate, onDelete }: { note: Note; onUpdate?: (patch: { category: string; tags: string[] }) => void; onDelete?: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3.5 py-2">
-        <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-foreground">{catEmoji(note.category)} {tr(note.category)}</span>
-        <span className="text-[11px] text-muted-foreground">{fmtTime(note.created_at)}</span>
+        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-foreground">
+          <CategoryIcon name={note.category} className="size-3.5" /> {tr(note.category)}
+        </span>
+        <span className="text-xs text-muted-foreground">{fmtTime(note.created_at)}</span>
       </div>
       <LinkPreview note={note} />
       <div className="space-y-2 px-3.5 py-3">
@@ -788,28 +925,56 @@ function NoteCard({ note }: { note: Note }) {
       </div>
       {note.remind_at && (
         <div className="flex items-start gap-2 bg-primary/20 px-3.5 py-2 text-xs text-foreground">
-          <Bell className="mt-0.5 size-3.5 shrink-0" />
+          {note.reminded ? <CheckCircle2 className="mt-0.5 size-3.5 shrink-0" /> : <Bell className="mt-0.5 size-3.5 shrink-0" />}
           <span>
-            {note.reminded ? tr("✅ 알림을 전해드렸어요 ({0})", fmtDate(note.remind_at)) : tr("⏰ {0}에 잊지 않게 챙겨드릴게요", fmtDate(note.remind_at))}
+            {note.reminded ? tr("알림을 전해드렸어요 ({0})", fmtDate(note.remind_at)) : tr("{0}에 잊지 않게 챙겨드릴게요", fmtDate(note.remind_at))}
             {note.remind_message ? <><br /><span className="text-muted-foreground">“{note.remind_message}”</span></> : null}
           </span>
         </div>
       )}
-      <NoteActions note={note} />
+      <NoteActions
+        note={note}
+        onEdit={note.confirmed && onUpdate ? () => { setEditing((v) => !v); setDeleting(false); } : undefined}
+        onDelete={note.confirmed && onDelete ? () => { setDeleting((v) => !v); setEditing(false); } : undefined}
+      />
+      {editing && onUpdate && (
+        <div className="border-t border-border">
+          <NoteMetaEditor initialCategory={note.category} initialTags={note.tags} onSave={(p) => { onUpdate(p); setEditing(false); }} onCancel={() => setEditing(false)} />
+        </div>
+      )}
+      {deleting && onDelete && (
+        <div className="flex items-center justify-between gap-2 border-t border-border bg-destructive/10 px-3 py-2 text-xs">
+          <span className="font-medium text-destructive">{tr("삭제할까요?")}</span>
+          <div className="flex gap-1.5">
+            <button type="button" onClick={() => setDeleting(false)} className="rounded-full bg-card px-2.5 py-1 font-medium text-muted-foreground">{tr("취소")}</button>
+            <button type="button" onClick={() => { onDelete(); setDeleting(false); }} className="rounded-full bg-destructive px-2.5 py-1 font-semibold text-primary-foreground">{tr("삭제")}</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function NoteActions({ note }: { note: Note }) {
+function NoteActions({ note, onEdit, onDelete }: { note: Note; onEdit?: (() => void) | undefined; onDelete?: (() => void) | undefined }) {
   const { pins, toggle } = useContext(PinCtx);
   const pinned = pins.includes(note.id);
   return (
     <div className="flex items-center justify-end gap-1 border-t border-border px-2 py-1">
       <CopyButton text={noteCopyText(note)} label={tr("요약 복사")} />
       <button aria-label={pinned ? tr("고정 해제") : tr("상단 고정")} onClick={() => toggle(note.id)}
-        className={`flex items-center gap-1 rounded-full px-2 py-1 text-[11px] hover:bg-muted ${pinned ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+        className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs hover:bg-muted ${pinned ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
         <Pin className={`size-3 ${pinned ? "fill-primary" : ""}`} />{pinned ? tr("고정됨") : tr("고정")}
       </button>
+      {onEdit && (
+        <button aria-label={tr("수정")} onClick={onEdit} className="flex items-center gap-1 rounded-full px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
+          <Pencil className="size-3" />{tr("수정")}
+        </button>
+      )}
+      {onDelete && (
+        <button aria-label={tr("삭제")} onClick={onDelete} className="flex items-center gap-1 rounded-full px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-destructive">
+          <Trash2 className="size-3" />{tr("삭제")}
+        </button>
+      )}
     </div>
   );
 }
@@ -820,7 +985,7 @@ function NoteThread({ note, imageUrl, audioUrl, fileUrl, onConfirm, onDiscard, o
       {audioUrl && (
         <div className="flex justify-end">
           <div className="w-64 max-w-[78%] rounded-2xl rounded-tr-sm bg-bubble p-2 shadow-sm">
-            <p className="mb-1 px-1 text-[11px] font-medium text-bubble-foreground">{tr("🎙️ 음성 메모")}</p>
+            <p className="mb-1 inline-flex items-center gap-1 px-1 text-xs font-medium text-bubble-foreground"><Mic className="size-3" />{tr("음성 메모")}</p>
             <audio controls preload="none" src={audioUrl} className="h-9 w-full" />
           </div>
         </div>
@@ -829,9 +994,9 @@ function NoteThread({ note, imageUrl, audioUrl, fileUrl, onConfirm, onDiscard, o
       <div className="flex items-start gap-2">
         <Avatar />
         <div className="max-w-[82%] space-y-1.5">
-          <p className="text-[11px] font-medium text-muted-foreground">{tr("톡비서")}</p>
+          <p className="text-xs font-medium text-muted-foreground">{tr("톡비서")}</p>
           <div className="rounded-2xl rounded-tl-sm bg-card px-3.5 py-2 text-sm text-foreground shadow-sm">{note.secretary_reply}</div>
-          <NoteCard note={note} />
+          <NoteCard note={note} onUpdate={onUpdate} onDelete={onDiscard} />
           {!note.confirmed && <ConfirmBar note={note} onConfirm={onConfirm} onDiscard={onDiscard} onUpdate={onUpdate} />}
         </div>
       </div>
@@ -855,7 +1020,7 @@ function ConfirmBar({ note, onConfirm, onDiscard, onUpdate }: { note: Note; onCo
 
   return (
     <div className="flex items-center gap-1.5 rounded-2xl bg-card px-3.5 py-2 text-sm text-foreground shadow-sm">
-      <span className="flex-1">{tr("이대로 저장할까요?")} <span className="text-[11px] text-muted-foreground">{tr("(\"그래\"라고 답해도 돼요)")}</span></span>
+      <span className="flex-1">{tr("이대로 저장할까요?")} <span className="text-xs text-muted-foreground">{tr("(\"그래\"라고 답해도 돼요)")}</span></span>
       <button aria-label={tr("저장")} onClick={onConfirm} className="rounded-full bg-primary p-1.5 text-primary-foreground"><Check className="size-4" /></button>
       <button aria-label={tr("수정")} onClick={() => setEditing(true)} className="rounded-full bg-muted p-1.5 text-muted-foreground hover:text-foreground"><Pencil className="size-4" /></button>
       <button aria-label={tr("버리기")} onClick={onDiscard} className="rounded-full bg-muted p-1.5 text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>
@@ -875,20 +1040,21 @@ function AnswerThread({ a, notes, urls, showConfirm, onConfirm, onDiscard, onUpd
       <div className="flex items-start gap-2">
         <Avatar />
         <div className="max-w-[82%] space-y-1.5">
-          <p className="text-[11px] font-medium text-muted-foreground">{tr("톡비서 · 🔍 찾아봤어요")}</p>
+          <p className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground"><Search className="size-3" />{tr("톡비서 · 찾아봤어요")}</p>
           <div className="rounded-2xl rounded-tl-sm bg-card px-3.5 py-2 text-sm text-foreground shadow-sm">
             {a.answer}
             {many && !open && <p className="mt-1 text-xs text-muted-foreground">{tr("메모 {0}건, 모두 보여드릴까요?", notes.length)}</p>}
           </div>
           {many && (
-            <button type="button" onClick={() => setOpen((v) => !v)} className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground shadow-sm">
-              {open ? tr("▲ 목록 접기") : tr("📋 메모 {0}건 모두 보기", notes.length)}
+            <button type="button" onClick={() => setOpen((v) => !v)} className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground shadow-sm">
+              {!open && <List className="size-3.5" />}
+              {open ? tr("▲ 목록 접기") : tr("메모 {0}건 모두 보기", notes.length)}
             </button>
           )}
           {shown.map((n) => (
             <div key={n.id} className="space-y-1">
               {n.image_path && urls[n.image_path] && <img src={urls[n.image_path]} alt={tr("저장된 스크린샷")} className="h-auto max-h-48 w-auto max-w-full rounded-2xl object-contain shadow-sm" />}
-              <NoteCard note={n} />
+              <NoteCard note={n} onUpdate={(p) => onUpdate(n, p)} onDelete={() => onDiscard(n)} />
               {showConfirm && !n.confirmed && <ConfirmBar note={n} onConfirm={() => onConfirm(n)} onDiscard={() => onDiscard(n)} onUpdate={(p) => onUpdate(n, p)} />}
             </div>
           ))}

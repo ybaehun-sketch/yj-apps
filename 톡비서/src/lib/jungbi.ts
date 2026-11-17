@@ -14,8 +14,6 @@ export const CATEGORIES: Record<Category, { label: string; emoji: string; dot: s
 export const PLANS = [
   { id: "trial", name: "7일 무료 체험", price: "0원", note: "현재 이용 중", active: true },
   { id: "monthly", name: "월간 구독", price: "4,900원/월", note: "언제든 해지 가능" },
-  { id: "yearly", name: "연간 구독", price: "39,000원/년", note: "월 3,250원 꼴 · 34% 할인" },
-  { id: "lifetime", name: "평생 소장 얼리버드 라이선스", price: "89,000원", note: "일회성 결제 · 평생 사용" },
 ] as const;
 
 export type Item = {
@@ -38,7 +36,7 @@ const KW: [Category, RegExp][] = [
 ];
 
 export function findCategoryByLabel(label: string): Category | undefined {
-  const l = label.replace(/[\[\]\s]/g, "");
+  const l = label.replace(/[[\]\s]/g, "");
   return (Object.keys(CATEGORIES) as Category[]).find((c) => {
     const n = CATEGORIES[c].label.replace(/\s/g, "");
     return n === l || n.includes(l) || l.includes(n);

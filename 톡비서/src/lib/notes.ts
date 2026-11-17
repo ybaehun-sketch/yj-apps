@@ -15,6 +15,9 @@ export function registerCustomCategories(list: { name: string; emoji: string }[]
 export function catEmoji(name: string): string {
   return (CATEGORY_EMOJI as Record<string, string>)[name] ?? customEmoji[name] ?? "🏷️";
 }
+export function catIconKey(name: string): string | undefined {
+  return customEmoji[name];
+}
 
 /** 플랜별 맞춤 카테고리 최대 개수 (무료 0). */
 export const CUSTOM_CATEGORY_LIMIT = { free: 0, premium: 10, lifetime: 30 } as const;
@@ -142,10 +145,10 @@ export function isChitchat(text: string): boolean {
 }
 
 export const OFFTOPIC_REPLY: Record<OffTopicKind, string> = {
-  web: "저는 톡비서예요~ 🧹 실시간 웹검색은 서툴지만, 저장해주신 메모 검색·정리는 자신 있어요! 화면을 캡처하거나 링크로 툭 던져주시면 깔끔하게 보관해 드릴게요 📂",
-  create: "저는 톡비서예요~ 🧹 표 작성이나 문서 창작은 서툴지만, 던져주신 메모 정리와 검색은 전문이에요! 📂",
-  chat: "저는 톡비서예요~ 🧹 일상 잡담이나 역할놀이는 서툴지만, 저장해주신 메모 정리·검색·알림 수정은 자신 있어요! 뭐든 툭 던져 주세요 📂",
-  self: "저는 초간편 AI 톡비서예요! 🧹 스크린샷·링크·메모를 툭 던져주시면 알아서 분류하고, 필요할 때 쏙쏙 찾아드리고, 중요한 날짜는 먼저 챙겨드려요 📂",
+  web: "저는 톡비서예요. 실시간 웹검색은 서툴지만, 저장해주신 메모 검색·정리는 자신 있어요. 화면을 캡처하거나 링크로 툭 던져주시면 깔끔하게 보관해 드릴게요.",
+  create: "저는 톡비서예요. 표 작성이나 문서 창작은 서툴지만, 던져주신 메모 정리와 검색은 전문이에요.",
+  chat: "저는 톡비서예요. 일상 잡담이나 역할놀이는 서툴지만, 저장해주신 메모 정리·검색·알림 수정은 자신 있어요. 뭐든 툭 던져 주세요.",
+  self: "저는 초간편 AI 톡비서예요. 스크린샷·링크·메모를 툭 던져주시면 알아서 분류하고, 필요할 때 쏙쏙 찾아드리고, 중요한 날짜는 먼저 챙겨드려요.",
 };
 
 export const CHITCHAT_REPLY = OFFTOPIC_REPLY.chat;

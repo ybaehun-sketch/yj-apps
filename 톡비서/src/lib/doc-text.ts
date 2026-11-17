@@ -134,12 +134,39 @@ function truncate(t: string): string {
   return t.length > MAX_CHARS ? t.slice(0, MAX_CHARS) : t;
 }
 
-/** Fetch a signed/cross-origin file as a Blob and trigger a clean local download with its original filename. */
+const ALREADY_COMPRESSED = new Set(["zip", "gz", "7z", "rar", "jpg", "jpeg", "webp", "png", "gif", "mp3", "m4a", "mp4", "webm", "ogg"]);
+
+/** Losslessly compress a file when it saves space (>=5%), returning the blob and storage extension. */
+export async function compressFileForStorage(file: File): Promise<{ blob: Blob; ext: string; contentType: string }> {
+  const rawExt = (file.name.split(".").pop() ?? "bin").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
+  if (ALREADY_COMPRESSED.has(rawExt) || file.size < 512) {
+    return { blob: file, ext: rawExt, contentType: file.type || "application/octet-stream" };
+  }
+  try {
+    const { default: JSZip } = await import("jszip");
+    const zip = new JSZip();
+    zip.file(file.name, await file.arrayBuffer(), { compression: "DEFLATE", compressionOptions: { level: 6 } });
+    const zipped = await zip.generateAsync({ type: "blob" });
+    if (zipped.size < file.size * 0.95) {
+      return { blob: zipped, ext: "jzip", contentType: "application/octet-stream" };
+    }
+  } catch { /* fall back to original file */ }
+  return { blob: file, ext: rawExt, contentType: file.type || "application/octet-stream" };
+}
+
+/** Fetch a signed/cross-origin file as a Blob (auto-decompressing .jzip) and trigger a clean local download. */
 export async function downloadFile(url: string, name?: string | null): Promise<void> {
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error("download failed");
-    const blob = await res.blob();
+    let blob = await res.blob();
+    const isJzip = new URL(url, window.location.href).pathname.endsWith(".jzip");
+    if (isJzip) {
+      const { default: JSZip } = await import("jszip");
+      const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+      const entry = Object.values(zip.files).find((f) => !f.dir);
+      if (entry) blob = await entry.async("blob");
+    }
     const objUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = objUrl;

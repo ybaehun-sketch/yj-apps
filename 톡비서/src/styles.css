@@ -154,6 +154,11 @@
     border-color: var(--color-border);
   }
 
+  html {
+    /* Match KakaoTalk's 15px mobile chat body size (0.875rem * 17.15px ≈ 15px) */
+    font-size: 17.15px;
+  }
+
   body {
     font-family: "Pretendard", system-ui, sans-serif;
     background-color: var(--color-background);

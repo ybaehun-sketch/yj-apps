@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 
-export const GEMINI_MODEL = "gemini-3.1-flash-lite";
-export const GEMINI_FALLBACK_MODEL = "gemini-3.5-flash-lite";
+export const GEMINI_MODEL = "gemini-3.5-flash-lite";
+export const GEMINI_FALLBACK_MODEL = "gemini-3.1-flash-lite";
 
 export function getGeminiApiKey(): string | undefined {
   return process.env["GEMINI_API_KEY"] || process.env["GOOGLE_API_KEY"];
