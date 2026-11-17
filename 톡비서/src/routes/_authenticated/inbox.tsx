@@ -29,6 +29,8 @@ import {
   StickyNote,
   Trash2,
   X,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import { dailyLimitReason, uploadBlockReason, sumUsage, type Usage } from "@/lib/storage-quota";
 import { NoteMetaEditor, NotesCalendar, PlanBadge, SettingsSheet, useCustomCategories, usePrefs } from "@/components/inbox-extras";
@@ -117,18 +119,18 @@ function PinnedBar({ notes }: { notes: Note[] }) {
   if (!list.length) return null;
   const shown = open ? list : list.slice(0, 1);
   return (
-    <div className="border-b border-border bg-card/95 px-3 py-1.5">
+    <div className="border-b border-primary/30 bg-primary/15 px-4 py-2.5 shadow-xs">
       {shown.map((n) => (
-        <div key={n.id} className="flex items-center gap-2 py-1 text-xs text-foreground">
-          <Pin className="size-3.5 shrink-0 text-primary-foreground fill-primary" />
-          <button className="inline-flex min-w-0 flex-1 items-center gap-1.5 truncate text-left font-medium" onClick={() => document.getElementById(`note-${n.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}>
-            <CategoryIcon name={n.category} className="size-3.5 text-muted-foreground" />
+        <div key={n.id} className="flex items-center gap-2.5 py-1 text-[15px] text-foreground">
+          <Pin className="size-[18px] shrink-0 text-primary-foreground fill-primary" />
+          <button className="inline-flex min-w-0 flex-1 items-center gap-2 truncate text-left font-semibold" onClick={() => document.getElementById(`note-${n.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}>
+            <CategoryIcon name={n.category} className="size-4 shrink-0 text-muted-foreground" />
             <span className="truncate">{n.summary}</span>
           </button>
-          <button aria-label={tr("고정 해제")} onClick={() => toggle(n.id)} className="rounded-full p-0.5 text-muted-foreground hover:bg-muted"><X className="size-3.5" /></button>
+          <button aria-label={tr("고정 해제")} onClick={() => toggle(n.id)} className="rounded-full p-1 text-muted-foreground hover:bg-muted"><X className="size-[18px]" /></button>
         </div>
       ))}
-      {list.length > 1 && <button onClick={() => setOpen(!open)} className="w-full text-center text-xs text-muted-foreground">{open ? tr("접기 ▲") : tr("고정 {0}개 모두 보기 ▼", list.length)}</button>}
+      {list.length > 1 && <button onClick={() => setOpen(!open)} className="w-full pt-1 text-center text-xs font-medium text-muted-foreground">{open ? tr("접기 ▲") : tr("고정 {0}개 모두 보기 ▼", list.length)}</button>}
     </div>
   );
 }
@@ -199,6 +201,13 @@ function Inbox() {
   const stickBottomRef = useRef(true);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [zoomImg, setZoomImg] = useState<string | null>(null);
+  const [zoomed, setZoomed] = useState(false);
+  useEffect(() => {
+    if (!zoomImg) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setZoomImg(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zoomImg]);
 
   const notes = useMemo(() => data?.notes ?? [], [data]);
   const savedNotes = useMemo(() => notes.filter((n) => n.confirmed), [notes]);
@@ -253,13 +262,10 @@ function Inbox() {
     return () => clearInterval(t);
   }, [pending]);
 
-  // 서비스 워커 등록 + 다른 앱의 [공유] → 톡비서로 들어온 링크/텍스트/이미지를 자동으로 던지기
+  // 다른 앱의 [공유] → 톡비서로 들어온 링크/텍스트/이미지를 자동으로 던지기
   const sharedHandled = useRef(false);
   const [clipUrl, setClipUrl] = useState<string | null>(null);
   const seenClipRef = useRef<string>("");
-  useEffect(() => {
-    if ("serviceWorker" in navigator) void navigator.serviceWorker.register("/sw.js").catch(() => {});
-  }, []);
   useEffect(() => {
     async function checkClipboard() {
       if (document.visibilityState !== "visible" || !navigator.clipboard?.readText) return;
@@ -333,6 +339,7 @@ function Inbox() {
     if (files.length) await supabase.storage.from("shots").remove(files);
     const { error } = await supabase.from("notes").delete().eq("id", n.id);
     if (error) { setErr(tr("지우지 못했어요")); return; }
+    if (pinState.pins.includes(n.id)) pinState.toggle(n.id);
     // 내 요청은 그대로 남기고, 톡비서 말풍선만 "삭제된 메모예요"로 바꿔 둔다
     const q = n.content?.trim() || (n.image_path ? tr("스샷") : n.audio_path ? tr("음성 메모") : n.file_name ? n.file_name : tr("메모"));
     await supabase.from("chat_answers").insert({ question: q, answer: tr("삭제된 메모예요"), note_ids: [], created_at: n.created_at });
@@ -604,7 +611,7 @@ function Inbox() {
           </div>
         </div>
       )}
-      <ZoomCtx.Provider value={(u) => setZoomImg(u)}>
+      <ZoomCtx.Provider value={(u) => { setZoomed(false); setZoomImg(u); }}>
       <PinCtx.Provider value={pinState}>
       <header className="border-b border-border bg-card">
         <div className="flex items-center justify-between px-4 py-3">
@@ -645,7 +652,7 @@ function Inbox() {
       )}
       {view === "stream" && <PinnedBar notes={savedNotes} />}
 
-      {view === "calendar" ? <NotesCalendar notes={savedNotes} urls={data?.urls ?? {}} onUpdate={(id, p) => void updateNote(id, p)} onDelete={(n) => void discardNote(n)} /> : <main
+      {view === "calendar" ? <NotesCalendar notes={savedNotes} urls={data?.urls ?? {}} onUpdate={(id, p) => void updateNote(id, p)} onDelete={(n) => void discardNote(n)} onZoom={(u) => { setZoomed(false); setZoomImg(u); }} /> : <main
         onScroll={(e) => {
           const el = e.currentTarget;
           const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
@@ -724,12 +731,25 @@ function Inbox() {
       </PinCtx.Provider>
       </ZoomCtx.Provider>
       {zoomImg && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4" onClick={() => setZoomImg(null)}>
-          <button type="button" aria-label={tr("닫기")} onClick={() => setZoomImg(null)}
-            className="absolute right-4 top-4 rounded-full bg-white/15 p-2 text-white hover:bg-white/25">
-            <X className="size-5" />
-          </button>
-          <img src={zoomImg} alt={tr("원본")} className="max-h-[90dvh] max-w-[95vw] rounded-xl object-contain" onClick={(e) => e.stopPropagation()} />
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-xs" onClick={() => setZoomImg(null)}>
+          <div className="fixed right-4 top-4 z-10 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <button type="button" aria-label={zoomed ? tr("축소") : tr("확대")} onClick={() => setZoomed((z) => !z)}
+              className="rounded-full bg-white/15 p-2 text-white hover:bg-white/25">
+              {zoomed ? <ZoomOut className="size-5" /> : <ZoomIn className="size-5" />}
+            </button>
+            <button type="button" aria-label={tr("닫기")} onClick={() => setZoomImg(null)}
+              className="rounded-full bg-white/15 p-2 text-white hover:bg-white/25">
+              <X className="size-5" />
+            </button>
+          </div>
+          <div onClick={(e) => e.stopPropagation()} className={zoomed ? "max-h-[92dvh] max-w-[95vw] overflow-auto rounded-xl" : "flex max-h-[90dvh] max-w-[94vw] items-center justify-center"}>
+            <img
+              src={zoomImg}
+              alt={tr("원본")}
+              onClick={() => setZoomed((z) => !z)}
+              className={zoomed ? "h-auto w-auto max-w-none cursor-zoom-out rounded-xl object-contain" : "max-h-[90dvh] max-w-[95vw] cursor-zoom-in rounded-xl object-contain"}
+            />
+          </div>
         </div>
       )}
       {showSettings && <SettingsSheet usage={usage} email={user.email} joinedAt={user.created} prefs={prefs} setPrefs={setPrefs} onClose={() => setShowSettings(false)} onLogout={async () => { await supabase.auth.signOut(); nav({ to: "/login" }); }}
@@ -1030,6 +1050,7 @@ function ConfirmBar({ note, onConfirm, onDiscard, onUpdate }: { note: Note; onCo
 
 function AnswerThread({ a, notes, urls, showConfirm, onConfirm, onDiscard, onUpdate }: { a: Answer; notes: Note[]; urls: Record<string, string>; showConfirm: boolean; onConfirm: (n: Note) => void; onDiscard: (n: Note) => void; onUpdate: (n: Note, patch: { category: string; tags: string[] }) => void }) {
   // 먼저 답하고, 카드가 많으면 물어본 뒤 펼친다 (Ask-First)
+  const zoom = useContext(ZoomCtx);
   const countQ = /몇\s*(개|건|번|가지)|개수|총\s*몇|모두\s*몇|전부\s*몇|얼마나\s*(던|저장|메모|있)|how many|何件|いくつ|何個/i.test(a.q);
   const many = notes.length > 2 || (countQ && notes.length > 0);
   const [open, setOpen] = useState(false);
@@ -1051,13 +1072,16 @@ function AnswerThread({ a, notes, urls, showConfirm, onConfirm, onDiscard, onUpd
               {open ? tr("▲ 목록 접기") : tr("메모 {0}건 모두 보기", notes.length)}
             </button>
           )}
-          {shown.map((n) => (
-            <div key={n.id} className="space-y-1">
-              {n.image_path && urls[n.image_path] && <img src={urls[n.image_path]} alt={tr("저장된 스크린샷")} className="h-auto max-h-48 w-auto max-w-full rounded-2xl object-contain shadow-sm" />}
-              <NoteCard note={n} onUpdate={(p) => onUpdate(n, p)} onDelete={() => onDiscard(n)} />
-              {showConfirm && !n.confirmed && <ConfirmBar note={n} onConfirm={() => onConfirm(n)} onDiscard={() => onDiscard(n)} onUpdate={(p) => onUpdate(n, p)} />}
-            </div>
-          ))}
+          {shown.map((n) => {
+            const imgUrl = n.image_path ? urls[n.image_path] : undefined;
+            return (
+              <div key={n.id} className="space-y-1">
+                {imgUrl && <img src={imgUrl} alt={tr("저장된 스크린샷")} onClick={() => zoom(imgUrl)} className="h-auto max-h-48 w-auto max-w-full cursor-zoom-in rounded-2xl object-contain shadow-sm" />}
+                <NoteCard note={n} onUpdate={(p) => onUpdate(n, p)} onDelete={() => onDiscard(n)} />
+                {showConfirm && !n.confirmed && <ConfirmBar note={n} onConfirm={() => onConfirm(n)} onDiscard={() => onDiscard(n)} onUpdate={(p) => onUpdate(n, p)} />}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

@@ -163,11 +163,13 @@ export function NotesCalendar({
   urls = {},
   onUpdate,
   onDelete,
+  onZoom,
 }: {
   notes: Note[];
   urls?: Record<string, string>;
   onUpdate?: (id: string, patch: { category: string; tags: string[] }) => void;
   onDelete?: (n: Note) => void;
+  onZoom?: ((url: string) => void) | undefined;
 }) {
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [sel, setSel] = useState<Date | null>(null);
@@ -278,7 +280,7 @@ export function NotesCalendar({
                         {isViewing && (
                           <div className="mt-2.5 space-y-2 rounded-xl bg-muted/60 p-2.5 text-xs text-foreground">
                             <p className="font-semibold text-muted-foreground">{tr("원본")}</p>
-                            {imgUrl && <img src={imgUrl} alt={tr("원본")} className="h-auto max-h-60 w-auto max-w-full rounded-xl object-contain" />}
+                            {imgUrl && <img src={imgUrl} alt={tr("원본")} onClick={() => onZoom?.(imgUrl)} className="h-auto max-h-60 w-auto max-w-full cursor-zoom-in rounded-xl object-contain" />}
                             {audUrl && <audio controls preload="none" src={audUrl} className="h-9 w-full" />}
                             {n.link_url && (
                               <a href={n.link_url} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 truncate font-medium text-primary underline">

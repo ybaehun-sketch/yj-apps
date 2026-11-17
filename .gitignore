@@ -6,6 +6,8 @@ Thumbs.db
 .gemini/
 .system_generated/
 .env
+.env.local
+.gemini_key
 *.keystore
 *.jks
 회사홈페이지/

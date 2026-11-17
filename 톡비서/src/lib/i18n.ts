@@ -164,6 +164,8 @@ const D: [string, string, string][] = [
   ["보기", "View", "表示"],
   ["삭제", "Delete", "削除"],
   ["원본", "Original", "原本"],
+  ["확대", "Zoom in", "拡大"],
+  ["축소", "Zoom out", "縮小"],
   ["삭제할까요?", "Delete this?", "削除しますか？"],
   ["키워드", "Keywords", "キーワード"],
   ["띄어쓰기나 쉼표로 구분", "Separate with spaces or commas", "スペースやカンマで区切る"],
