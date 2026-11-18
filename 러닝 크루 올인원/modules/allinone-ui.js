@@ -12,7 +12,12 @@
     let editingNoticeId = null;
     let activeAttendanceScheduleId = null;
     let pendingConfirmAction = null;
+    let isFeeCalendarMode = false;
+    let feeCalYear = 2026;
+    let feeCalMonth = 10;
+    let selectedFeeCalDate = '';
     const expandedScheduleIds = new Set();
+    const expandedNoticeIds = new Set();
     let openScheduleMoreId = null;
     let isPinnedNoticeExpanded = false;
     let activeCommentEmojiFeedId = null;
@@ -125,36 +130,10 @@
         const me = E.getCurrentMember();
         const isStaff = E.isStaff();
         const subEl = document.getElementById('drawer-crew-sub');
-        const profileBox = document.getElementById('drawer-profile-box');
         const menuList = document.getElementById('drawer-menu-list');
-        if (!me || !profileBox || !menuList) return;
+        if (!me || !menuList) return;
 
         if (subEl) subEl.textContent = `${isStaff ? '운영진 모드' : '크루원 모드'} · 함께 뛰는 ${E.shared.members.length}명`;
-
-        const byDist = E.shared.members.slice().sort((a, b) => (b.totalDistance || 0) - (a.totalDistance || 0));
-        const myRank = byDist.findIndex(m => m.id === me.id) + 1;
-        const goal = Math.max(10, Number(E.extra.monthlyGoalKm) || 50);
-        const pct = Math.min(100, Math.round(((me.totalDistance || 0) / goal) * 100));
-        const feeClass = me.feeStatus === '완납' ? 'pill-mint' : (me.feeStatus === '미납' ? 'pill-red' : 'pill-slate');
-
-        profileBox.innerHTML = `
-            <div class="drawer-profile-head">
-                <div>
-                    <span class="my-hero-badge">${esc(me.role)} · ${esc(me.paceGroup)} (${esc(me.pace)})</span>
-                    <div class="drawer-profile-name">${esc(me.name)}님</div>
-                </div>
-                <span class="pill ${feeClass}">회비 ${esc(me.feeStatus)}</span>
-            </div>
-            <div class="my-stats-grid">
-                <div class="my-stat-item"><span>크루 순위</span><strong>${myRank}위</strong></div>
-                <div class="my-stat-item"><span>출석 도장</span><strong>${me.attendanceCount || 0}회</strong></div>
-                <div class="my-stat-item"><span>누적 거리</span><strong>${Number(me.totalDistance || 0).toFixed(1).replace(/\.0$/, '')}km</strong></div>
-            </div>
-            <div class="goal-wrap">
-                <div class="goal-label-row"><span>이달 목표 (${me.totalDistance || 0} / ${goal}km)</span><strong>${pct}%</strong></div>
-                <div class="goal-track"><div class="goal-fill" style="width:${pct}%"></div></div>
-            </div>
-        `;
 
         menuList.innerHTML = `
             <div class="drawer-section-label">공통 메뉴</div>
@@ -173,10 +152,13 @@
                 <button type="button" class="drawer-menu-item accent" onclick="window.YJAllInOneUI.closeDrawer(); window.YJAllInOneUI.openAdminSection('all');">
                     ${msIcon('group')} <span>회원 관리</span>
                 </button>
+                <button type="button" class="drawer-menu-item accent" onclick="window.YJAllInOneUI.closeDrawer(); window.YJAllInOneUI.openFeeModal();">
+                    ${msIcon('payments')} <span>회비 관리</span>
+                </button>
                 <button type="button" class="drawer-menu-item accent" onclick="window.YJAllInOneUI.closeDrawer(); window.YJAllInOneUI.switchTab('home'); window.YJAllInOneUI.openScheduleModal();">
                     ${msIcon('calendar_month')} <span>스케줄 관리</span>
                 </button>
-                <button type="button" class="drawer-menu-item accent" onclick="window.YJAllInOneUI.closeDrawer(); window.YJAllInOneUI.openNoticesSubTab();">
+                <button type="button" class="drawer-menu-item accent" onclick="window.YJAllInOneUI.closeDrawer(); window.YJAllInOneUI.openNoticeModal();">
                     ${msIcon('campaign')} <span>공지 관리</span>
                 </button>
             ` : ''}
@@ -201,25 +183,81 @@
     function renderHome() {
         const me = E.getCurrentMember();
         const isStaff = E.isStaff();
+        const homeProfileBox = document.getElementById('home-profile-box');
         const noticeBox = document.getElementById('home-pinned-notice');
-        const addSchBtn = document.getElementById('home-add-schedule-btn');
         const schBox = document.getElementById('home-schedule-list');
         if (!noticeBox || !schBox || !me) return;
 
-        if (addSchBtn) addSchBtn.style.display = isStaff ? 'inline-flex' : 'none';
-
-        const notices = E.shared.notices.slice().sort((a, b) => Number(b.pinned) - Number(a.pinned));
-        if (notices.length > 0) {
-            const topNotice = notices[0];
-            noticeBox.innerHTML = `
-                <button type="button" class="slim-notice-bar" onclick="window.YJAllInOneUI.openPinnedNoticeModal('${esc(topNotice.id)}')">
-                    <span class="slim-notice-tag">[${topNotice.pinned ? '필독' : '공지'}]</span>
-                    <span class="slim-notice-title">${esc(topNotice.title)}</span>
-                    <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
-                </button>
+        if (homeProfileBox) {
+            const byDist = E.shared.members.slice().sort((a, b) => (b.totalDistance || 0) - (a.totalDistance || 0));
+            const myRank = byDist.findIndex(m => m.id === me.id) + 1;
+            const goal = Math.max(10, Number(E.extra.monthlyGoalKm) || 50);
+            const pct = Math.min(100, Math.round(((me.totalDistance || 0) / goal) * 100));
+            const feeClass = me.feeStatus === '완납' ? 'pill-mint' : (me.feeStatus === '미납' ? 'pill-red' : 'pill-slate');
+            homeProfileBox.innerHTML = `
+                <div class="drawer-profile-head">
+                    <div>
+                        <span class="my-hero-badge">${esc(me.role)} · ${esc(me.paceGroup)} (${esc(me.pace)})</span>
+                        <div class="drawer-profile-name">${esc(me.name)}님</div>
+                    </div>
+                    <span class="pill ${feeClass}">회비 ${esc(me.feeStatus)}</span>
+                </div>
+                <div class="my-stats-grid">
+                    <div class="my-stat-item"><span>크루 순위</span><strong>${myRank}위</strong></div>
+                    <div class="my-stat-item"><span>출석 도장</span><strong>${me.attendanceCount || 0}회</strong></div>
+                    <div class="my-stat-item"><span>누적 거리</span><strong>${Number(me.totalDistance || 0).toFixed(1).replace(/\.0$/, '')}km</strong></div>
+                </div>
+                <div class="goal-wrap">
+                    <div class="goal-label-row"><span>이달 목표 (${me.totalDistance || 0} / ${goal}km)</span><strong>${pct}%</strong></div>
+                    <div class="goal-track"><div class="goal-fill" style="width:${pct}%"></div></div>
+                </div>
             `;
+        }
+
+        const pinnedNotices = E.shared.notices.filter(n => n.pinned);
+        const totalMembers = Math.max(1, E.shared.members.length);
+        if (pinnedNotices.length > 0) {
+            noticeBox.innerHTML = pinnedNotices.map(n => {
+                const isExpanded = expandedNoticeIds.has(n.id);
+                const readCount = (n.readBy || []).length;
+                const iRead = (n.readBy || []).includes(me.id);
+                return `
+                    <article class="crew-card schedule-card ${isExpanded ? 'is-expanded' : ''}">
+                        <button type="button" class="schedule-summary-trigger" aria-expanded="${isExpanded ? 'true' : 'false'}" onclick="window.YJAllInOneUI.toggleHomeNoticeCard('${esc(n.id)}')">
+                            <div class="card-head" style="width:100%;">
+                                <div class="pill-group">
+                                    <span class="pill pill-orange">${msIcon('push_pin', true)} 필독</span>
+                                    <span class="pill pill-slate">${esc(n.category)}</span>
+                                    ${iRead ? `<span class="pill pill-mint">${msIcon('check_circle', true)} 확인됨</span>` : ''}
+                                </div>
+                                <div class="card-head-right">
+                                    <span class="muted-xs">확인 ${readCount}/${totalMembers}명</span>
+                                    <span class="material-symbols-rounded schedule-chevron" aria-hidden="true">expand_more</span>
+                                </div>
+                            </div>
+                            <div class="schedule-summary-row2" style="width:100%;">
+                                <h3 class="card-title">${esc(n.title)}</h3>
+                                <span class="schedule-summary-sub">${esc(n.author)} · ${esc(n.createdAt)}</span>
+                            </div>
+                        </button>
+                        <div class="schedule-details">
+                            <p class="notice-text">${esc(n.content).replace(/\n/g, '<br>')}</p>
+                            <div class="card-action-row">
+                                <button type="button" class="${iRead ? 'btn-soft-mint' : 'btn-soft'}" onclick="window.YJAllInOneUI.toggleReadNotice('${esc(n.id)}')">
+                                    ${iRead ? `${msIcon('check_circle', true)} 확인됨` : `${msIcon('visibility')} 공지 읽음 확인`}
+                                </button>
+                                ${isStaff ? `
+                                    <button type="button" class="btn-soft-primary" onclick="window.YJAllInOneUI.shareNoticeToChat('${esc(n.id)}')">${msIcon('chat_bubble')} 채팅방 띄우기</button>
+                                    <button type="button" class="icon-btn" title="수정" aria-label="공지 수정" onclick="window.YJAllInOneUI.openNoticeModal('${esc(n.id)}')">${msIcon('edit')}</button>
+                                    <button type="button" class="icon-btn" title="삭제" aria-label="공지 삭제" onclick="window.YJAllInOneUI.deleteNotice('${esc(n.id)}')">${msIcon('delete')}</button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </article>
+                `;
+            }).join('');
         } else {
-            noticeBox.innerHTML = '';
+            noticeBox.innerHTML = '<div class="empty-card">등록된 필독 공지가 없습니다.</div>';
         }
 
         const schedules = E.shared.schedules.slice().sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
@@ -309,6 +347,15 @@
             if (openScheduleMoreId === scheduleId) openScheduleMoreId = null;
         } else {
             expandedScheduleIds.add(scheduleId);
+        }
+        renderHome();
+    }
+
+    function toggleHomeNoticeCard(noticeId) {
+        if (expandedNoticeIds.has(noticeId)) {
+            expandedNoticeIds.delete(noticeId);
+        } else {
+            expandedNoticeIds.add(noticeId);
         }
         renderHome();
     }
@@ -1531,27 +1578,23 @@
         if (!statsEl || !listEl) return;
 
         const members = E.shared.members;
-        const paidTargets = members.filter(m => m.feeStatus !== '면제');
-        const paidCount = paidTargets.filter(m => m.feeStatus === '완납').length;
-        const feeRate = paidTargets.length ? Math.round((paidCount / paidTargets.length) * 100) : 100;
-        const unpaidCount = paidTargets.filter(m => m.feeStatus === '미납').length;
+        const staffCount = members.filter(m => m.role === '크루장' || m.role === '운영진').length;
+        const totalDist = Math.round(members.reduce((sum, m) => sum + (Number(m.totalDistance) || 0), 0));
 
         statsEl.innerHTML = `
             <div class="stat-box"><span class="stat-label">총 크루원</span><strong class="stat-value">${members.length}명</strong></div>
-            <div class="stat-box"><span class="stat-label">회비 완납률</span><strong class="stat-value">${feeRate}%</strong></div>
-            <div class="stat-box"><span class="stat-label">회비 미납</span><strong class="stat-value" style="color:#ef4444;">${unpaidCount}명</strong></div>
+            <div class="stat-box"><span class="stat-label">운영진</span><strong class="stat-value">${staffCount}명</strong></div>
+            <div class="stat-box"><span class="stat-label">총 누적 거리</span><strong class="stat-value">${totalDist}km</strong></div>
         `;
 
         const q = memberQuery.trim().toLowerCase();
         const filtered = members.filter(m => {
-            if (memberFilter === 'unpaid' && m.feeStatus !== '미납') return false;
             if (['A조', 'B조', 'C조'].includes(memberFilter) && m.paceGroup !== memberFilter) return false;
             if (q && !`${m.name} ${m.role} ${m.memo || ''} ${m.pace}`.toLowerCase().includes(q)) return false;
             return true;
         });
 
         listEl.innerHTML = filtered.length ? filtered.map(m => {
-            const feeBadgeClass = m.feeStatus === '완납' ? 'pill-mint' : (m.feeStatus === '미납' ? 'pill-red' : 'pill-slate');
             return `
                 <div class="crew-card">
                     <div class="member-top-row">
@@ -1563,7 +1606,6 @@
                             </div>
                             <div class="muted-xs" style="margin-top:3px;">출석 ${m.attendanceCount}회 · 누적 ${m.totalDistance}km ${m.memo ? `· ${esc(m.memo)}` : ''}</div>
                         </div>
-                        <button type="button" class="pill-btn ${feeBadgeClass}" onclick="window.YJAllInOneUI.cycleFeeStatus('${esc(m.id)}')">회비 ${esc(m.feeStatus)}</button>
                     </div>
                     <div class="card-action-row">
                         <button type="button" class="btn-soft" onclick="window.YJAllInOneUI.openMemberModal('${esc(m.id)}')">${msIcon('edit')} 수정</button>
@@ -1597,14 +1639,12 @@
             document.getElementById('mem-name').value = m.name;
             document.getElementById('mem-role').value = m.role;
             document.getElementById('mem-pace').value = m.pace;
-            document.getElementById('mem-fee').value = m.feeStatus;
             document.getElementById('mem-memo').value = m.memo || '';
         } else {
             titleEl.textContent = '신규 크루원 등록';
             document.getElementById('mem-name').value = '';
             document.getElementById('mem-role').value = '신입';
             document.getElementById('mem-pace').value = "5'30\"";
-            document.getElementById('mem-fee').value = '완납';
             document.getElementById('mem-memo').value = '';
         }
         openModal('member-modal');
@@ -1615,21 +1655,20 @@
         const name = document.getElementById('mem-name').value.trim();
         const role = document.getElementById('mem-role').value;
         const pace = document.getElementById('mem-pace').value.trim() || "5'30\"";
-        const feeStatus = document.getElementById('mem-fee').value;
         const memo = document.getElementById('mem-memo').value.trim();
         if (!name) return showToast('이름을 입력해 주세요.', 'warn');
         const paceGroup = E.autoPaceGroup(pace);
 
         if (editingMemberId) {
             const m = E.shared.members.find(x => x.id === editingMemberId);
-            if (m) { m.name = name; m.role = role; m.pace = pace; m.paceGroup = paceGroup; m.feeStatus = feeStatus; m.memo = memo; }
+            if (m) { m.name = name; m.role = role; m.pace = pace; m.paceGroup = paceGroup; m.memo = memo; }
             showToast(`${name}님 정보를 수정했습니다.`, 'ok');
         } else {
             E.shared.members.push({
                 id: 'm_' + Date.now(),
                 name, role, pace, paceGroup,
                 attendanceCount: 0, totalDistance: 0,
-                feeStatus, phoneLast4: '', memo
+                feeStatus: '미납', feePaidDate: '', phoneLast4: '', memo
             });
             E.playSound('success');
             showToast(`${name}님이 ${paceGroup} 크루원으로 등록되었습니다!`, 'ok');
@@ -1640,16 +1679,341 @@
         renderAll();
     }
 
+    function getInviteUrl() {
+        const code = E.extra.inviteCode || 'HGP-2026';
+        const base = window.location.origin + window.location.pathname;
+        return `${base}?invite=${encodeURIComponent(code)}`;
+    }
+
+    function openInviteModal() {
+        const labelEl = document.getElementById('invite-crew-label');
+        const codeEl = document.getElementById('invite-code-badge');
+        const inputEl = document.getElementById('invite-link-input');
+        const sheetEl = document.getElementById('invite-share-sheet');
+        if (labelEl) labelEl.textContent = `${E.shared.crewName} 초대`;
+        if (codeEl) codeEl.textContent = `코드 ${E.extra.inviteCode || 'HGP-2026'}`;
+        if (inputEl) inputEl.value = getInviteUrl();
+        if (sheetEl) sheetEl.style.display = 'none';
+        openModal('invite-modal');
+    }
+
+    function copyInviteLink() {
+        const url = getInviteUrl();
+        const msg = `[${E.shared.crewName}] 함께 달려요! 아래 초대 링크로 간편하게 크루에 합류하세요.\n${url}`;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(msg).then(() => {
+                E.playSound('success');
+                showToast('초대 문구와 링크가 복사되었습니다!', 'ok');
+            }).catch(() => {
+                const inputEl = document.getElementById('invite-link-input');
+                if (inputEl) { inputEl.select(); document.execCommand('copy'); }
+                showToast('초대 링크가 복사되었습니다!', 'ok');
+            });
+        } else {
+            const inputEl = document.getElementById('invite-link-input');
+            if (inputEl) { inputEl.select(); document.execCommand('copy'); }
+            showToast('초대 링크가 복사되었습니다!', 'ok');
+        }
+    }
+
+    function shareInviteLink() {
+        const url = getInviteUrl();
+        const text = `[${E.shared.crewName}] 러닝 크루 초대 링크입니다. 함께 달려요!`;
+        if (navigator.share) {
+            navigator.share({ title: `${E.shared.crewName} 초대`, text, url }).catch(() => {
+                const sheetEl = document.getElementById('invite-share-sheet');
+                if (sheetEl) sheetEl.style.display = 'flex';
+            });
+            return;
+        }
+        const sheetEl = document.getElementById('invite-share-sheet');
+        if (sheetEl) {
+            sheetEl.style.display = sheetEl.style.display === 'flex' ? 'none' : 'flex';
+        }
+    }
+
+    function shareInviteVia(channel) {
+        const url = getInviteUrl();
+        const msg = `[${E.shared.crewName}] 함께 달려요! 아래 초대 링크로 간편하게 크루에 합류하세요.\n${url}`;
+        if (channel === 'kakao') {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(msg).catch(() => {});
+            }
+            window.open(`kakaotalk://`, '_blank');
+            showToast('초대 문구를 복사했습니다. 카카오톡 대화방에 바로 붙여넣어 주세요!', 'ok');
+            return;
+        }
+        if (channel === 'sms') {
+            window.location.href = `sms:?body=${encodeURIComponent(msg)}`;
+            showToast('문자 메시지 앱을 엽니다.', 'ok');
+            return;
+        }
+        if (channel === 'email') {
+            const subject = `[${E.shared.crewName}] 러닝 크루 초대장`;
+            window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(msg)}`;
+            showToast('이메일 작성 창을 엽니다.', 'ok');
+            return;
+        }
+        if (channel === 'chat') {
+            closeModal('invite-modal');
+            closeModal('admin-modal');
+            switchTab('chat');
+            sendChatMessage(msg);
+            showToast('크루 채팅방에 초대 링크를 올렸습니다!', 'ok');
+        }
+    }
+
+    function regenerateInviteCode() {
+        const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+        E.extra.inviteCode = `HGP-${rand}`;
+        E.saveExtra();
+        openInviteModal();
+        showToast(`새 초대 코드(${E.extra.inviteCode})가 발급되었습니다.`, 'ok');
+    }
+
+    function openJoinInviteModal() {
+        closeModal('invite-modal');
+        const titleEl = document.getElementById('join-invite-title');
+        const descEl = document.getElementById('join-invite-desc');
+        if (titleEl) titleEl.textContent = `${E.shared.crewName} 합류하기`;
+        if (descEl) descEl.textContent = `초대 링크로 오셨습니다! 이름과 주력 페이스를 입력하면 바로 크루원으로 합류합니다.`;
+        const nameEl = document.getElementById('join-name');
+        const paceEl = document.getElementById('join-pace');
+        const memoEl = document.getElementById('join-memo');
+        if (nameEl) nameEl.value = '';
+        if (paceEl) paceEl.value = "5'30\"";
+        if (memoEl) memoEl.value = '';
+        openModal('join-invite-modal');
+    }
+
+    function submitJoinInviteForm(ev) {
+        ev.preventDefault();
+        const name = document.getElementById('join-name')?.value.trim();
+        const pace = document.getElementById('join-pace')?.value.trim() || "5'30\"";
+        const memo = document.getElementById('join-memo')?.value.trim() || '';
+        if (!name) return showToast('이름을 입력해 주세요.', 'warn');
+        const paceGroup = E.autoPaceGroup(pace);
+        const newMember = {
+            id: 'm_' + Date.now(),
+            name, role: '신입', pace, paceGroup,
+            attendanceCount: 0, totalDistance: 0,
+            feeStatus: '미납', feePaidDate: '', phoneLast4: '', memo
+        };
+        E.shared.members.push(newMember);
+        E.saveShared();
+        E.playSound('success');
+        closeModal('join-invite-modal');
+        renderAdminMembers();
+        renderAll();
+        showToast(`${name}님, ${E.shared.crewName} 합류를 환영합니다!`, 'ok');
+    }
+
     function cycleFeeStatus(id) {
         const m = E.shared.members.find(x => x.id === id);
         if (!m) return;
         const order = ['완납', '미납', '면제'];
         m.feeStatus = order[(order.indexOf(m.feeStatus) + 1) % order.length];
+        if (m.feeStatus === '완납' && !m.feePaidDate) {
+            m.feePaidDate = E.extra.feeDueDate || new Date().toISOString().slice(0, 10);
+        } else if (m.feeStatus !== '완납') {
+            m.feePaidDate = '';
+        }
         E.playSound('tap');
         E.saveShared();
-        renderAdminMembers();
+        renderFeeModal();
         renderAll();
         showToast(`${m.name}님 회비 → ${m.feeStatus}`);
+    }
+
+    function openFeeModal() {
+        isFeeCalendarMode = false;
+        const due = E.extra.feeDueDate || new Date().toISOString().slice(0, 10);
+        const parts = due.split('-');
+        if (parts.length === 3) {
+            feeCalYear = Number(parts[0]) || 2026;
+            feeCalMonth = Math.max(0, Math.min(11, (Number(parts[1]) || 11) - 1));
+        }
+        selectedFeeCalDate = '';
+        const amtEl = document.getElementById('fee-amount-input');
+        const dateEl = document.getElementById('fee-due-date-input');
+        if (amtEl) amtEl.value = E.extra.monthlyFeeAmount ?? 20000;
+        if (dateEl) dateEl.value = due;
+        renderFeeModal();
+        openModal('fee-modal');
+    }
+
+    function toggleFeeCalendarView(forceCal) {
+        isFeeCalendarMode = typeof forceCal === 'boolean' ? forceCal : !isFeeCalendarMode;
+        renderFeeModal();
+    }
+
+    function shiftFeeCalendarMonth(delta) {
+        feeCalMonth += delta;
+        if (feeCalMonth < 0) { feeCalMonth = 11; feeCalYear -= 1; }
+        if (feeCalMonth > 11) { feeCalMonth = 0; feeCalYear += 1; }
+        selectedFeeCalDate = '';
+        renderFeeCalendar();
+    }
+
+    function selectFeeCalendarDay(dateStr) {
+        selectedFeeCalDate = dateStr;
+        renderFeeCalendar();
+    }
+
+    function updateMemberFeeDate(memberId, dateStr) {
+        const m = E.shared.members.find(x => x.id === memberId);
+        if (!m) return;
+        m.feePaidDate = dateStr || '';
+        if (dateStr) m.feeStatus = '완납';
+        E.saveShared();
+        renderFeeModal();
+        renderAll();
+        showToast(`${m.name}님 납부일 ${dateStr ? dateStr + ' 저장' : '초기화'}`);
+    }
+
+    function saveFeeSettings(ev) {
+        ev.preventDefault();
+        const amtEl = document.getElementById('fee-amount-input');
+        const dateEl = document.getElementById('fee-due-date-input');
+        E.extra.monthlyFeeAmount = Math.max(0, Number(amtEl?.value) || 0);
+        E.extra.feeDueDate = dateEl?.value || '2026-11-05';
+        const parts = E.extra.feeDueDate.split('-');
+        if (parts.length === 3) {
+            feeCalYear = Number(parts[0]) || feeCalYear;
+            feeCalMonth = Math.max(0, Math.min(11, (Number(parts[1]) || 11) - 1));
+        }
+        E.saveExtra();
+        E.playSound('success');
+        renderFeeModal();
+        showToast(`회비 설정(${E.extra.monthlyFeeAmount.toLocaleString()}원 · ${E.extra.feeDueDate})이 저장되었습니다.`, 'ok');
+    }
+
+    function renderFeeModal() {
+        const settingsView = document.getElementById('fee-settings-view');
+        const calView = document.getElementById('fee-calendar-view');
+        const toggleBtn = document.getElementById('fee-calendar-toggle-btn');
+        if (!settingsView || !calView) return;
+
+        settingsView.style.display = isFeeCalendarMode ? 'none' : 'flex';
+        calView.style.display = isFeeCalendarMode ? 'flex' : 'none';
+        if (toggleBtn) {
+            toggleBtn.innerHTML = isFeeCalendarMode
+                ? `${msIcon('tune')} 회비 설정`
+                : `${msIcon('calendar_month')} 달력 보기`;
+        }
+
+        if (isFeeCalendarMode) {
+            renderFeeCalendar();
+            return;
+        }
+
+        const members = E.shared.members;
+        const paidTargets = members.filter(m => m.feeStatus !== '면제');
+        const paidCount = paidTargets.filter(m => m.feeStatus === '완납').length;
+        const feeRate = paidTargets.length ? Math.round((paidCount / paidTargets.length) * 100) : 100;
+        const unpaidCount = paidTargets.filter(m => m.feeStatus === '미납').length;
+        const statsBar = document.getElementById('fee-stats-bar');
+        if (statsBar) {
+            statsBar.innerHTML = `
+                <div class="stat-box"><span class="stat-label">월 회비</span><strong class="stat-value">${Number(E.extra.monthlyFeeAmount || 0).toLocaleString()}원</strong></div>
+                <div class="stat-box"><span class="stat-label">완납률</span><strong class="stat-value">${feeRate}%</strong></div>
+                <div class="stat-box"><span class="stat-label">미납 인원</span><strong class="stat-value" style="color:#ef4444;">${unpaidCount}명</strong></div>
+            `;
+        }
+
+        const listEl = document.getElementById('fee-member-list');
+        if (listEl) {
+            listEl.innerHTML = members.map(m => {
+                const feeBadgeClass = m.feeStatus === '완납' ? 'pill-mint' : (m.feeStatus === '미납' ? 'pill-red' : 'pill-slate');
+                return `
+                    <div class="crew-card">
+                        <div class="member-top-row">
+                            <div class="member-main">
+                                <div class="member-name-row">
+                                    <strong>${esc(m.name)}</strong>
+                                    <span class="pill pill-slate">${esc(m.role)}</span>
+                                </div>
+                            </div>
+                            <button type="button" class="pill-btn ${feeBadgeClass}" onclick="window.YJAllInOneUI.cycleFeeStatus('${esc(m.id)}')">회비 ${esc(m.feeStatus)}</button>
+                        </div>
+                        <div class="fee-date-row">
+                            <span class="muted-xs">납부 날짜</span>
+                            <input type="date" class="fee-date-input" value="${esc(m.feePaidDate || '')}" onchange="window.YJAllInOneUI.updateMemberFeeDate('${esc(m.id)}', this.value)">
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    function renderFeeCalendar() {
+        const calEl = document.getElementById('fee-calendar-container');
+        const detailEl = document.getElementById('fee-calendar-day-detail');
+        if (!calEl || !detailEl) return;
+
+        const firstDay = new Date(feeCalYear, feeCalMonth, 1).getDay();
+        const daysInMonth = new Date(feeCalYear, feeCalMonth + 1, 0).getDate();
+        const monthStr = `${feeCalYear}-${String(feeCalMonth + 1).padStart(2, '0')}`;
+        const dueDate = E.extra.feeDueDate || '';
+
+        const paidByDate = {};
+        E.shared.members.forEach(m => {
+            if (m.feeStatus === '완납' && m.feePaidDate && m.feePaidDate.startsWith(monthStr)) {
+                if (!paidByDate[m.feePaidDate]) paidByDate[m.feePaidDate] = [];
+                paidByDate[m.feePaidDate].push(m);
+            }
+        });
+
+        let cellsHtml = '';
+        for (let i = 0; i < firstDay; i++) {
+            cellsHtml += '<div class="fee-cal-cell is-empty"></div>';
+        }
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${monthStr}-${String(d).padStart(2, '0')}`;
+            const paidMembers = paidByDate[dateStr] || [];
+            const isDue = dueDate === dateStr;
+            const isSelected = selectedFeeCalDate === dateStr;
+            const chips = paidMembers.slice(0, 2).map(m => `<span class="fee-cal-chip">${esc(m.name)}</span>`).join('');
+            const more = paidMembers.length > 2 ? `<span class="fee-cal-chip">+${paidMembers.length - 2}명</span>` : '';
+            cellsHtml += `
+                <button type="button" class="fee-cal-cell ${isDue ? 'is-due' : ''} ${isSelected ? 'is-selected' : ''}" onclick="window.YJAllInOneUI.selectFeeCalendarDay('${dateStr}')">
+                    <div class="fee-cal-day-num"><span>${d}</span>${isDue ? '<span class="fee-cal-due-dot" title="정기 납부일"></span>' : ''}</div>
+                    ${chips}${more}
+                </button>
+            `;
+        }
+
+        calEl.innerHTML = `
+            <div class="crew-card">
+                <div class="fee-cal-header">
+                    <button type="button" class="icon-btn" aria-label="이전 달" onclick="window.YJAllInOneUI.shiftFeeCalendarMonth(-1)">${msIcon('chevron_left')}</button>
+                    <span class="fee-cal-month">${feeCalYear}년 ${feeCalMonth + 1}월</span>
+                    <button type="button" class="icon-btn" aria-label="다음 달" onclick="window.YJAllInOneUI.shiftFeeCalendarMonth(1)">${msIcon('chevron_right')}</button>
+                </div>
+                <div class="fee-cal-weekdays"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+                <div class="fee-cal-grid">${cellsHtml}</div>
+                <div class="muted-xs" style="margin-top:6px;">파란 점은 정기 납부일(${esc(dueDate || '미지정')}) · 날짜를 누르면 상세 납부 내역을 확인합니다.</div>
+            </div>
+        `;
+
+        if (selectedFeeCalDate) {
+            const list = paidByDate[selectedFeeCalDate] || [];
+            detailEl.innerHTML = `
+                <div class="crew-card">
+                    <strong style="font-size:13.5px;">${esc(selectedFeeCalDate)} 납부 회원 (${list.length}명)</strong>
+                    ${list.length
+                        ? `<div class="pill-group">${list.map(m => `<span class="pill pill-mint">${esc(m.name)} · ${Number(E.extra.monthlyFeeAmount || 0).toLocaleString()}원</span>`).join('')}</div>`
+                        : '<span class="muted-xs">이 날짜에 납부 기록된 회원이 없습니다.</span>'}
+                </div>
+            `;
+        } else {
+            const monthPaidTotal = Object.values(paidByDate).reduce((s, arr) => s + arr.length, 0);
+            detailEl.innerHTML = `
+                <div class="crew-card">
+                    <span class="muted-xs">${feeCalYear}년 ${feeCalMonth + 1}월 달력 내 납부 완료: <strong>${monthPaidTotal}명</strong> (날짜를 누르면 해당일 납부 회원을 볼 수 있습니다.)</span>
+                </div>
+            `;
+        }
     }
 
     function deleteMember(id) {
@@ -1898,6 +2262,8 @@
         document.getElementById('member-form')?.addEventListener('submit', saveMemberForm);
         document.getElementById('feed-form')?.addEventListener('submit', saveFeedPost);
         document.getElementById('admin-settings-form')?.addEventListener('submit', saveCrewSettings);
+        document.getElementById('fee-settings-form')?.addEventListener('submit', saveFeeSettings);
+        document.getElementById('join-invite-form')?.addEventListener('submit', submitJoinInviteForm);
         document.getElementById('chat-input-form')?.addEventListener('submit', ev => { ev.preventDefault(); sendChatMessage(); });
 
         document.getElementById('confirm-modal-ok')?.addEventListener('click', () => {
@@ -1920,6 +2286,11 @@
                 closeScheduleMoreMenu();
             }
         });
+
+        const inviteParam = new URLSearchParams(window.location.search).get('invite');
+        if (inviteParam) {
+            setTimeout(() => openJoinInviteModal(), 150);
+        }
     }
 
     window.YJAllInOneUI = {
@@ -1929,6 +2300,7 @@
         openPinnedNoticeModal,
         openNoticesSubTab: () => { E.extra.feedSubTab = 'notices'; switchTab('feed'); },
         toggleScheduleCard,
+        toggleHomeNoticeCard,
         toggleScheduleMoreMenu,
         closeScheduleMoreMenu,
         copyScheduleText,
@@ -1983,7 +2355,18 @@
         shareNoticeToChat,
         openAdminModal,
         openAdminSection,
+        openFeeModal,
+        toggleFeeCalendarView,
+        shiftFeeCalendarMonth,
+        selectFeeCalendarDay,
+        updateMemberFeeDate,
         openMemberModal,
+        openInviteModal,
+        copyInviteLink,
+        shareInviteLink,
+        shareInviteVia,
+        regenerateInviteCode,
+        openJoinInviteModal,
         cycleFeeStatus,
         deleteMember,
         resetAllData,

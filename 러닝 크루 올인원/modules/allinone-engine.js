@@ -22,12 +22,12 @@
                 icon: '☀️'
             },
             members: [
-                { id: 'm1', name: '김준호', role: '크루장', pace: "4'45\"", paceGroup: 'A조', attendanceCount: 28, totalDistance: 214, feeStatus: '면제', phoneLast4: '4821', memo: '정기런 리드 및 A조 페이서 담당' },
-                { id: 'm2', name: '박서연', role: '운영진', pace: "5'15\"", paceGroup: 'B조', attendanceCount: 24, totalDistance: 176, feeStatus: '완납', phoneLast4: '9104', memo: '회비 총무 및 B조 스트레칭 진행' },
-                { id: 'm3', name: '이도현', role: '정회원', pace: "4'30\"", paceGroup: 'A조', attendanceCount: 19, totalDistance: 162, feeStatus: '완납', phoneLast4: '3372', memo: '하프 마라톤 준비 중' },
-                { id: 'm4', name: '최민지', role: '정회원', pace: "5'30\"", paceGroup: 'B조', attendanceCount: 15, totalDistance: 108, feeStatus: '미납', phoneLast4: '7750', memo: '11월 회비 안내 필요, 야간 반사밴드 대여' },
-                { id: 'm5', name: '정우성', role: '신입', pace: "6'10\"", paceGroup: 'C조', attendanceCount: 4, totalDistance: 22, feeStatus: '완납', phoneLast4: '6219', memo: '입문 러너, 5km 완주 목표' },
-                { id: 'm6', name: '한지우', role: '정회원', pace: "6'00\"", paceGroup: 'C조', attendanceCount: 11, totalDistance: 74, feeStatus: '미납', phoneLast4: '1583', memo: '금요일 번개런 선호' }
+                { id: 'm1', name: '김준호', role: '크루장', pace: "4'45\"", paceGroup: 'A조', attendanceCount: 28, totalDistance: 214, feeStatus: '면제', feePaidDate: '', phoneLast4: '4821', memo: '정기런 리드 및 A조 페이서 담당' },
+                { id: 'm2', name: '박서연', role: '운영진', pace: "5'15\"", paceGroup: 'B조', attendanceCount: 24, totalDistance: 176, feeStatus: '완납', feePaidDate: '2026-11-05', phoneLast4: '9104', memo: '회비 총무 및 B조 스트레칭 진행' },
+                { id: 'm3', name: '이도현', role: '정회원', pace: "4'30\"", paceGroup: 'A조', attendanceCount: 19, totalDistance: 162, feeStatus: '완납', feePaidDate: '2026-11-05', phoneLast4: '3372', memo: '하프 마라톤 준비 중' },
+                { id: 'm4', name: '최민지', role: '정회원', pace: "5'30\"", paceGroup: 'B조', attendanceCount: 15, totalDistance: 108, feeStatus: '미납', feePaidDate: '', phoneLast4: '7750', memo: '11월 회비 안내 필요, 야간 반사밴드 대여' },
+                { id: 'm5', name: '정우성', role: '신입', pace: "6'10\"", paceGroup: 'C조', attendanceCount: 4, totalDistance: 22, feeStatus: '완납', feePaidDate: '2026-11-10', phoneLast4: '6219', memo: '입문 러너, 5km 완주 목표' },
+                { id: 'm6', name: '한지우', role: '정회원', pace: "6'00\"", paceGroup: 'C조', attendanceCount: 11, totalDistance: 74, feeStatus: '미납', feePaidDate: '', phoneLast4: '1583', memo: '금요일 번개런 선호' }
             ],
             schedules: [
                 {
@@ -132,6 +132,9 @@
             activeChatRoom: 'all',
             rankMode: 'distance',
             monthlyGoalKm: 50,
+            monthlyFeeAmount: 20000,
+            feeDueDate: '2026-11-05',
+            inviteCode: 'HGP-2026',
             spm: 175,
             feeds: [
                 {
@@ -224,6 +227,16 @@
                     };
                 }
             } catch (e) {}
+
+            if (this.extra.monthlyFeeAmount == null) this.extra.monthlyFeeAmount = 20000;
+            if (!this.extra.feeDueDate) this.extra.feeDueDate = '2026-11-05';
+            if (!this.extra.inviteCode) this.extra.inviteCode = 'HGP-2026';
+            const defDates = { m2: '2026-11-05', m3: '2026-11-05', m5: '2026-11-10' };
+            this.shared.members.forEach(m => {
+                if (m.feeStatus === '완납' && !m.feePaidDate) {
+                    m.feePaidDate = defDates[m.id] || this.extra.feeDueDate;
+                }
+            });
 
             if (!this.shared.members.some(m => m.id === this.extra.currentMemberId)) {
                 this.extra.currentMemberId = this.shared.members[0]?.id || 'm1';

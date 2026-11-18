@@ -8,7 +8,9 @@ const DEFAULT_DATA = {
   settings: {
     masteryTarget: 2, // 연속 몇 번 맞히면 완전 정복인지 (1~19)
     wrongFilterMode: 'unmastered', // 'unmastered' (정복 전 모두) | 'repeated' (일정 횟수 이상 틀린 문제만)
-    wrongMinCount: 2 // 몇 번 이상 틀린 문제를 약점으로 볼지 (1~19)
+    wrongMinCount: 2, // 몇 번 이상 틀린 문제를 약점으로 볼지 (1~19)
+    themeMode: 'light', // 'light' | 'dark'
+    themeColor: 'indigo' // 'indigo' | 'blue' | 'emerald' | 'amber' | 'rose'
   },
   masteredProblems: [],
   problems: [
@@ -64,7 +66,11 @@ export function loadState() {
       settings: {
         masteryTarget: Math.min(19, Math.max(1, Number(parsed.settings?.masteryTarget) || 2)),
         wrongFilterMode: parsed.settings?.wrongFilterMode === 'repeated' ? 'repeated' : 'unmastered',
-        wrongMinCount: Math.min(19, Math.max(1, Number(parsed.settings?.wrongMinCount) || 2))
+        wrongMinCount: Math.min(19, Math.max(1, Number(parsed.settings?.wrongMinCount) || 2)),
+        themeMode: parsed.settings?.themeMode === 'dark' ? 'dark' : 'light',
+        themeColor: ['indigo', 'blue', 'emerald', 'amber', 'rose'].includes(parsed.settings?.themeColor)
+          ? parsed.settings.themeColor
+          : 'indigo'
       },
       masteredProblems: Array.isArray(parsed.masteredProblems) ? parsed.masteredProblems : [],
       problems: Array.isArray(parsed.problems) ? parsed.problems : []

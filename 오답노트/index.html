@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0" />
-  <link rel="stylesheet" href="styles.css?v=20261118g" />
+  <link rel="stylesheet" href="styles.css?v=20261119a" />
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -443,6 +443,16 @@
             </div>
             <span class="material-symbols-rounded ms-icon settings-arrow" aria-hidden="true">chevron_right</span>
           </button>
+          <button type="button" id="menu-open-theme" class="settings-menu-item">
+            <div class="settings-menu-lead">
+              <span class="material-symbols-rounded ms-icon" aria-hidden="true">palette</span>
+              <div>
+                <strong>테마 설정</strong>
+                <span>밝은·어두운 화면 및 5가지 앱 색상</span>
+              </div>
+            </div>
+            <span id="settings-theme-badge" class="badge-subject">인디고 · 화이트</span>
+          </button>
           <button type="button" id="menu-open-license" class="settings-menu-item">
             <div class="settings-menu-lead">
               <span class="material-symbols-rounded ms-icon" aria-hidden="true">workspace_premium</span>
@@ -466,9 +476,70 @@
     </aside>
   </div>
 
+  <!-- ================= 10. 테마 설정 모달 ================= -->
+  <div id="theme-modal" class="modal-backdrop hidden">
+    <div class="modal-sheet">
+      <header class="modal-header">
+        <h3 class="modal-title-row">
+          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">palette</span>
+          <span>테마 설정</span>
+        </h3>
+        <button id="btn-close-theme" class="btn-icon" type="button" aria-label="닫기">
+          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">close</span>
+        </button>
+      </header>
+      <div class="subject-modal-body">
+        <div class="criteria-group">
+          <div class="criteria-title">1. 화면 모드</div>
+          <p class="criteria-desc">공부하는 환경에 맞게 밝은 화면과 어두운 화면을 고르세요.</p>
+          <div class="theme-mode-grid">
+            <button type="button" id="btn-theme-light" class="theme-mode-btn" data-mode="light">
+              <span class="material-symbols-rounded ms-icon" aria-hidden="true">light_mode</span>
+              <span>화이트 모드</span>
+            </button>
+            <button type="button" id="btn-theme-dark" class="theme-mode-btn" data-mode="dark">
+              <span class="material-symbols-rounded ms-icon" aria-hidden="true">dark_mode</span>
+              <span>다크 모드</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="criteria-group">
+          <div class="criteria-title">2. 앱 테마 색상 (5가지)</div>
+          <p class="criteria-desc">버튼과 강조 색상에 적용될 대표 색을 선택하세요.</p>
+          <div id="theme-color-grid" class="theme-color-grid">
+            <button type="button" class="theme-swatch-btn" data-color="indigo">
+              <span class="swatch-dot" style="background:#4f46e5"></span>
+              <span>인디고</span>
+            </button>
+            <button type="button" class="theme-swatch-btn" data-color="blue">
+              <span class="swatch-dot" style="background:#2563eb"></span>
+              <span>블루</span>
+            </button>
+            <button type="button" class="theme-swatch-btn" data-color="emerald">
+              <span class="swatch-dot" style="background:#059669"></span>
+              <span>에메랄드</span>
+            </button>
+            <button type="button" class="theme-swatch-btn" data-color="amber">
+              <span class="swatch-dot" style="background:#d97706"></span>
+              <span>오렌지</span>
+            </button>
+            <button type="button" class="theme-swatch-btn" data-color="rose">
+              <span class="swatch-dot" style="background:#e11d48"></span>
+              <span>로즈</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <footer class="modal-footer">
+        <button id="btn-done-theme" class="btn-primary-lg" type="button">적용 완료</button>
+      </footer>
+    </div>
+  </div>
+
   <!-- 전역 토스트 알림 -->
   <div id="app-toast" class="app-toast hidden" role="status" aria-live="polite"></div>
 
-  <script type="module" src="app.js?v=20261118j"></script>
+  <script type="module" src="app.js?v=20261119b"></script>
 </body>
 </html>

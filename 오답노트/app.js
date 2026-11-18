@@ -1,4 +1,4 @@
-import { loadState, saveState, compressImageFile } from './modules/storage.js?v=20261118b';
+import { loadState, saveState, compressImageFile } from './modules/storage.js?v=20261119a';
 import { renderSubjectBar } from './modules/subjectBar.js?v=20261118a';
 import { createMagicEraser } from './modules/magicEraser.js?v=20261118a';
 import { buildReviewQueue, renderReviewCard } from './modules/reviewDeck.js?v=20261118b';
@@ -132,12 +132,23 @@ const settingsEls = {
   btnClose: document.getElementById('btn-close-settings'),
   menuSubjects: document.getElementById('menu-open-subjects'),
   menuCriteria: document.getElementById('menu-open-criteria'),
+  menuTheme: document.getElementById('menu-open-theme'),
+  themeBadge: document.getElementById('settings-theme-badge'),
   menuLicense: document.getElementById('menu-open-license'),
   licenseSub: document.getElementById('settings-license-sub'),
   licenseBadge: document.getElementById('settings-license-badge'),
   linkGuide: document.getElementById('link-guide'),
   linkTerms: document.getElementById('link-terms'),
   linkPrivacy: document.getElementById('link-privacy')
+};
+
+const themeEls = {
+  modal: document.getElementById('theme-modal'),
+  btnClose: document.getElementById('btn-close-theme'),
+  btnDone: document.getElementById('btn-done-theme'),
+  btnLight: document.getElementById('btn-theme-light'),
+  btnDark: document.getElementById('btn-theme-dark'),
+  colorGrid: document.getElementById('theme-color-grid')
 };
 
 function createPhotoEditorField(ids) {
@@ -1245,7 +1256,90 @@ function openLicenseModal(expiredNotice = false) {
 
 licenseEls.btnClose.addEventListener('click', () => licenseEls.modal.classList.add('hidden'));
 
-/* ================= 8. 왼쪽 슬라이드 설정 서랍 ================= */
+/* ================= 8. 왼쪽 슬라이드 설정 서랍 & 테마 ================= */
+const THEME_COLOR_LABELS = {
+  indigo: '인디고',
+  blue: '블루',
+  emerald: '에메랄드',
+  amber: '오렌지',
+  rose: '로즈'
+};
+
+const THEME_STORAGE_KEY = 'yj_wrong_note_theme_v1';
+
+function loadSavedThemeIntoState() {
+  try {
+    const raw = localStorage.getItem(THEME_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed.themeMode === 'dark' || parsed.themeMode === 'light') {
+      state.settings.themeMode = parsed.themeMode;
+    }
+    if (THEME_COLOR_LABELS[parsed.themeColor]) {
+      state.settings.themeColor = parsed.themeColor;
+    }
+  } catch {
+    // 무시
+  }
+}
+
+function saveThemePref(mode, color) {
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify({ themeMode: mode, themeColor: color }));
+  } catch {
+    // 무시
+  }
+}
+
+function applyTheme() {
+  const mode = state.settings.themeMode === 'dark' ? 'dark' : 'light';
+  const color = THEME_COLOR_LABELS[state.settings.themeColor] ? state.settings.themeColor : 'indigo';
+  document.documentElement.dataset.theme = mode;
+  document.documentElement.dataset.accent = color;
+  saveThemePref(mode, color);
+
+  if (settingsEls.themeBadge) {
+    settingsEls.themeBadge.textContent = `${THEME_COLOR_LABELS[color]} · ${mode === 'dark' ? '다크' : '화이트'}`;
+  }
+  themeEls.btnLight?.classList.toggle('active', mode === 'light');
+  themeEls.btnDark?.classList.toggle('active', mode === 'dark');
+  themeEls.colorGrid?.querySelectorAll('.theme-swatch-btn').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.color === color);
+  });
+}
+
+function openThemeModal() {
+  applyTheme();
+  themeEls.modal?.classList.remove('hidden');
+}
+
+function closeThemeModal() {
+  themeEls.modal?.classList.add('hidden');
+}
+
+themeEls.btnClose?.addEventListener('click', closeThemeModal);
+themeEls.btnDone?.addEventListener('click', closeThemeModal);
+
+themeEls.btnLight?.addEventListener('click', () => {
+  state.settings.themeMode = 'light';
+  saveState(state);
+  applyTheme();
+});
+
+themeEls.btnDark?.addEventListener('click', () => {
+  state.settings.themeMode = 'dark';
+  saveState(state);
+  applyTheme();
+});
+
+themeEls.colorGrid?.addEventListener('click', (e) => {
+  const btn = e.target.closest('.theme-swatch-btn');
+  if (!btn || !btn.dataset.color) return;
+  state.settings.themeColor = btn.dataset.color;
+  saveState(state);
+  applyTheme();
+});
+
 let drawerCloseTimer = null;
 
 function openSettingsDrawer() {
@@ -1302,6 +1396,11 @@ settingsEls.menuCriteria.addEventListener('click', () => {
   openCriteriaModalFlow();
 });
 
+settingsEls.menuTheme?.addEventListener('click', () => {
+  closeSettingsDrawer({ immediate: true });
+  openThemeModal();
+});
+
 settingsEls.menuLicense.addEventListener('click', () => {
   closeSettingsDrawer({ immediate: true });
   openLicenseModal(false);
@@ -1347,7 +1446,9 @@ licenseEls.btnRestore.addEventListener('click', async () => {
   });
 });
 
-// 초기 화면 그리기 및 물결 터치 반응 연결
+// 초기 화면 그리기 및 테마·물결 터치 반응 연결
+loadSavedThemeIntoState();
+applyTheme();
 initRippleFeedback();
 updateLicenseUI();
 renderHome();
