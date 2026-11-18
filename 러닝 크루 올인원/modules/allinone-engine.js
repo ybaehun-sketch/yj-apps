@@ -313,6 +313,7 @@
 
         playSound(type) {
             try {
+                if (this.extra && this.extra.soundMuted) return;
                 const ctx = this.getAudioContext();
                 if (!ctx) return;
                 const now = ctx.currentTime;

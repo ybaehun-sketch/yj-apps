@@ -1,13 +1,19 @@
-import { loadState, saveState, compressImageFile } from './modules/storage.js?v=20261118a';
+import { loadState, saveState, compressImageFile } from './modules/storage.js?v=20261118b';
 import { renderSubjectBar } from './modules/subjectBar.js?v=20261118a';
-import { createMagicEraser } from './modules/magicEraser.js?v=20261116g';
-import { buildReviewQueue, renderReviewCard } from './modules/reviewDeck.js?v=20261118a';
+import { createMagicEraser } from './modules/magicEraser.js?v=20261118a';
+import { buildReviewQueue, renderReviewCard } from './modules/reviewDeck.js?v=20261118b';
 import { showAlert, showConfirm } from './modules/dialog.js';
 import { loadLicense, saveLicense, getLicenseStatus } from './modules/trialLicense.js?v=20261116d';
+import { initRippleFeedback } from './modules/ripple.js?v=20261118a';
+
+const MAX_SUBJECTS = 10;
+const MAX_PROBLEMS_PER_SUBJECT = 50;
+const MAX_MASTERED_PROBLEMS = 200;
 
 let state = loadState();
 let license = loadLicense();
 let activeSubject = '전체';
+let activeMasteredSubject = '전체';
 
 // 등록/수정 화면 임시 상태
 let addSubject = state.lastSubject && state.lastSubject !== '전체' ? state.lastSubject : '미분류';
@@ -22,6 +28,8 @@ let sessionCleared = 0;
 let sessionWrongIds = new Set();
 let reviewLoopMode = false;
 let loopStartCount = 0;
+let reviewFromMastered = false;
+let reviewReturnScreen = 'home';
 let isAnimatingReview = false;
 let toastTimer = null;
 
@@ -41,7 +49,8 @@ function showToast(text, { cleared = false, icon = 'check_circle', duration = 16
 const screens = {
   home: document.getElementById('screen-home'),
   add: document.getElementById('screen-add'),
-  review: document.getElementById('screen-review')
+  review: document.getElementById('screen-review'),
+  mastered: document.getElementById('screen-mastered')
 };
 
 const homeEls = {
@@ -50,7 +59,17 @@ const homeEls = {
   btnStartReview: document.getElementById('btn-start-review'),
   problemList: document.getElementById('problem-list'),
   btnFabAdd: document.getElementById('btn-fab-add'),
-  btnOpenSettings: document.getElementById('btn-open-settings')
+  btnOpenMastered: document.getElementById('btn-open-mastered'),
+  masteredCountBadge: document.getElementById('home-mastered-count'),
+  btnOpenDrawer: document.getElementById('btn-open-drawer')
+};
+
+const masteredEls = {
+  btnBack: document.getElementById('btn-mastered-back'),
+  subjectBar: document.getElementById('mastered-subject-bar'),
+  totalSummary: document.getElementById('mastered-total-summary'),
+  list: document.getElementById('mastered-list'),
+  btnReviewAll: document.getElementById('btn-review-mastered-all')
 };
 
 const addEls = {
@@ -105,10 +124,7 @@ const licenseEls = {
   badge: document.getElementById('license-badge-text'),
   btnClose: document.getElementById('btn-close-license'),
   btnBuy: document.getElementById('btn-buy-lifetime'),
-  btnRestore: document.getElementById('btn-restore-purchase'),
-  btnSimTrial: document.getElementById('btn-sim-trial'),
-  btnSimExpired: document.getElementById('btn-sim-expired'),
-  btnSimPurchased: document.getElementById('btn-sim-purchased')
+  btnRestore: document.getElementById('btn-restore-purchase')
 };
 
 const settingsEls = {
@@ -133,6 +149,7 @@ function createPhotoEditorField(ids) {
     photoTabs: document.getElementById(ids.photoTabs),
     toolEraser: document.getElementById(ids.toolEraser),
     toolCrop: document.getElementById(ids.toolCrop),
+    rotateBtn: document.getElementById(ids.rotateBtn),
     undoBtn: document.getElementById(ids.undoBtn),
     hint: document.getElementById(ids.hint),
     canvas: document.getElementById(ids.canvas),
@@ -242,6 +259,7 @@ function createPhotoEditorField(ids) {
 
   els.toolEraser.addEventListener('click', () => setTool('eraser'));
   els.toolCrop.addEventListener('click', () => setTool('crop'));
+  els.rotateBtn?.addEventListener('click', () => eraser.rotate90());
   els.undoBtn.addEventListener('click', () => eraser.undo());
   els.sizeInput.addEventListener('input', (e) => eraser.setBrushSize(e.target.value));
   els.applyCropBtn.addEventListener('click', () => {
@@ -277,6 +295,7 @@ const problemEditor = createPhotoEditorField({
   photoTabs: 'problem-photo-tabs',
   toolEraser: 'tool-eraser',
   toolCrop: 'tool-crop',
+  rotateBtn: 'btn-editor-rotate',
   undoBtn: 'btn-editor-undo',
   hint: 'editor-hint',
   canvas: 'problem-canvas',
@@ -293,6 +312,7 @@ const answerEditor = createPhotoEditorField({
   photoTabs: 'answer-photo-tabs',
   toolEraser: 'answer-tool-eraser',
   toolCrop: 'answer-tool-crop',
+  rotateBtn: 'btn-answer-rotate',
   undoBtn: 'btn-answer-undo',
   hint: 'answer-editor-hint',
   canvas: 'answer-canvas',
@@ -316,12 +336,31 @@ function getFilteredProblems() {
   });
 }
 
+function countProblemsInSubject(subjectName, excludeId = null) {
+  const targetSubj = subjectName || '미분류';
+  return state.problems.filter((p) => p.id !== excludeId && (p.subject || '미분류') === targetSubj).length;
+}
+
+function pushMasteredProblem(problem) {
+  state.masteredProblems.unshift({
+    ...problem,
+    mastered: true,
+    masteredAt: Date.now()
+  });
+  if (state.masteredProblems.length > MAX_MASTERED_PROBLEMS) {
+    state.masteredProblems = state.masteredProblems.slice(0, MAX_MASTERED_PROBLEMS);
+  }
+}
+
 function addNewSubject(name) {
+  if (state.subjects.length >= MAX_SUBJECTS) {
+    return false;
+  }
   if (!state.subjects.includes(name)) {
     state.subjects.push(name);
     saveState(state);
   }
-  return name;
+  return true;
 }
 
 function getSubjectCounts() {
@@ -336,7 +375,90 @@ function getSubjectCounts() {
   return counts;
 }
 
+function closeAllCardMenus() {
+  document.querySelectorAll('.card-menu-dropdown').forEach((menu) => menu.classList.add('hidden'));
+  document.querySelectorAll('.problem-card.menu-open').forEach((card) => card.classList.remove('menu-open'));
+}
+
+document.addEventListener('click', () => closeAllCardMenus());
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeAllCardMenus();
+});
+
+function createProblemCardElement(p, { statusText, statusClass, streakBadgeText = '', streakActive = false, subText = '', buildActions }) {
+  const card = document.createElement('div');
+  card.className = 'problem-card';
+
+  const thumbSrc = Array.isArray(p.problemImgs) && p.problemImgs.length
+    ? p.problemImgs[0]
+    : p.problemImg;
+  if (thumbSrc) {
+    const thumb = document.createElement('img');
+    thumb.className = 'problem-thumb';
+    thumb.src = thumbSrc;
+    thumb.alt = '문제 썸네일';
+    card.appendChild(thumb);
+  } else {
+    const thumbBox = document.createElement('div');
+    thumbBox.className = 'problem-thumb-text';
+    thumbBox.innerHTML = '<span class="material-symbols-rounded ms-icon ms-thumb" aria-hidden="true">edit_note</span>';
+    card.appendChild(thumbBox);
+  }
+
+  const info = document.createElement('div');
+  info.className = 'problem-info';
+
+  const badges = document.createElement('div');
+  badges.className = 'problem-badges';
+
+  const sub = document.createElement('span');
+  sub.className = 'badge-subject';
+  sub.textContent = p.subject || '미분류';
+  badges.appendChild(sub);
+
+  const status = document.createElement('span');
+  status.className = statusClass;
+  status.textContent = statusText;
+  badges.appendChild(status);
+
+  if (streakBadgeText) {
+    const streakEl = document.createElement('span');
+    streakEl.className = `badge-streak${streakActive ? ' is-progress' : ''}`;
+    streakEl.textContent = streakBadgeText;
+    badges.appendChild(streakEl);
+  }
+
+  info.appendChild(badges);
+
+  const title = document.createElement('div');
+  title.className = 'problem-title';
+  title.textContent = p.problemText || '사진 문제';
+  info.appendChild(title);
+
+  if (subText) {
+    const subEl = document.createElement('div');
+    subEl.className = 'problem-sub';
+    subEl.textContent = subText;
+    info.appendChild(subEl);
+  }
+
+  card.appendChild(info);
+
+  if (buildActions) {
+    const cardActions = document.createElement('div');
+    cardActions.className = 'card-actions';
+    buildActions(cardActions, card);
+    card.appendChild(cardActions);
+  }
+
+  return card;
+}
+
 function renderHome() {
+  if (homeEls.masteredCountBadge) {
+    homeEls.masteredCountBadge.textContent = String(state.masteredProblems.length);
+  }
+
   renderSubjectBar({
     container: homeEls.subjectBar,
     subjects: state.subjects,
@@ -364,100 +486,198 @@ function renderHome() {
     return;
   }
 
+  const targetCount = state.settings.masteryTarget || 2;
   list.forEach((p) => {
-    const card = document.createElement('div');
-    card.className = 'problem-card';
-
-    const thumbSrc = Array.isArray(p.problemImgs) && p.problemImgs.length
-      ? p.problemImgs[0]
-      : p.problemImg;
-    if (thumbSrc) {
-      const thumb = document.createElement('img');
-      thumb.className = 'problem-thumb';
-      thumb.src = thumbSrc;
-      thumb.alt = '문제 썸네일';
-      card.appendChild(thumb);
-    } else {
-      const thumbBox = document.createElement('div');
-      thumbBox.className = 'problem-thumb-text';
-      thumbBox.innerHTML = '<span class="material-symbols-rounded ms-icon ms-thumb" aria-hidden="true">edit_note</span>';
-      card.appendChild(thumbBox);
-    }
-
-    const info = document.createElement('div');
-    info.className = 'problem-info';
-
-    const badges = document.createElement('div');
-    badges.className = 'problem-badges';
-
-    const sub = document.createElement('span');
-    sub.className = 'badge-subject';
-    sub.textContent = p.subject || '미분류';
-    badges.appendChild(sub);
-
-    const status = document.createElement('span');
-    if (p.wrongCount > 0) {
-      status.className = 'badge-wrong';
-      status.textContent = `${p.wrongCount}번 틀림`;
-    } else {
-      status.className = 'badge-new';
-      status.textContent = '정복 전';
-    }
-    badges.appendChild(status);
-    info.appendChild(badges);
-
-    const title = document.createElement('div');
-    title.className = 'problem-title';
-    title.textContent = p.problemText || '사진 문제 (눌러서 바로 정복)';
-    info.appendChild(title);
-
-    const subText = document.createElement('div');
-    subText.className = 'problem-sub';
-    const targetCount = state.settings.masteryTarget || 2;
     const streak = p.correctStreak || 0;
-    subText.textContent = `연속 ${streak}/${targetCount}번 맞히면 자동 삭제 · 눌러서 풀기`;
-    info.appendChild(subText);
+    const card = createProblemCardElement(p, {
+      statusText: p.wrongCount > 0 ? `${p.wrongCount}번 틀림` : '정복 전',
+      statusClass: p.wrongCount > 0 ? 'badge-wrong' : 'badge-new',
+      streakBadgeText: `연속 ${streak}/${targetCount}`,
+      streakActive: streak > 0,
+      buildActions: (cardActions, cardEl) => {
+        const moreBtn = document.createElement('button');
+        moreBtn.type = 'button';
+        moreBtn.className = 'btn-card-more';
+        moreBtn.setAttribute('aria-label', '문제 메뉴');
+        moreBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">more_vert</span>';
 
-    card.appendChild(info);
+        const dropdown = document.createElement('div');
+        dropdown.className = 'card-menu-dropdown hidden';
 
-    const cardActions = document.createElement('div');
-    cardActions.className = 'card-actions';
+        const editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.className = 'card-menu-item';
+        editBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">edit</span><span>수정하기</span>';
+        editBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeAllCardMenus();
+          openEditProblem(p);
+        });
 
-    const editBtn = document.createElement('button');
-    editBtn.type = 'button';
-    editBtn.className = 'btn-card-edit';
-    editBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">edit</span><span>수정</span>';
-    editBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openEditProblem(p);
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'card-menu-item danger';
+        delBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">delete</span><span>삭제하기</span>';
+        delBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          closeAllCardMenus();
+          const ok = await showConfirm('이 오답 카드를 삭제할까요?', {
+            title: '오답 삭제',
+            okText: '삭제하기',
+            danger: true
+          });
+          if (!ok) return;
+          state.problems = state.problems.filter((item) => item.id !== p.id);
+          saveState(state);
+          renderHome();
+        });
+
+        dropdown.appendChild(editBtn);
+        dropdown.appendChild(delBtn);
+
+        moreBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const wasHidden = dropdown.classList.contains('hidden');
+          closeAllCardMenus();
+          if (wasHidden) {
+            dropdown.classList.remove('hidden');
+            cardEl.classList.add('menu-open');
+          }
+        });
+
+        cardActions.appendChild(moreBtn);
+        cardActions.appendChild(dropdown);
+      }
     });
-    cardActions.appendChild(editBtn);
-
-    const delBtn = document.createElement('button');
-    delBtn.type = 'button';
-    delBtn.className = 'btn-card-del';
-    delBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">delete</span><span>삭제</span>';
-    delBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const ok = await showConfirm('이 오답 카드를 삭제할까요?', {
-        title: '오답 삭제',
-        okText: '삭제하기',
-        danger: true
-      });
-      if (!ok) return;
-      state.problems = state.problems.filter((item) => item.id !== p.id);
-      saveState(state);
-      renderHome();
-    });
-    cardActions.appendChild(delBtn);
-
-    card.appendChild(cardActions);
 
     // 카드를 누르면 해당 문제부터 바로 복습 시작
-    card.addEventListener('click', () => startReview([p]));
+    card.addEventListener('click', () => startReview([p], { returnTo: 'home' }));
     homeEls.problemList.appendChild(card);
   });
 }
+
+function getFilteredMasteredProblems() {
+  return state.masteredProblems.filter((p) => {
+    const subj = p.subject || '미분류';
+    return activeMasteredSubject === '전체' || subj === activeMasteredSubject;
+  });
+}
+
+function renderMastered() {
+  renderSubjectBar({
+    container: masteredEls.subjectBar,
+    subjects: state.subjects,
+    selected: activeMasteredSubject,
+    includeAll: true,
+    onSelect: (subj) => {
+      activeMasteredSubject = subj;
+      renderMastered();
+    }
+  });
+
+  const list = getFilteredMasteredProblems();
+  masteredEls.totalSummary.textContent = `정복 완료 ${list.length}문제`;
+  masteredEls.list.innerHTML = '';
+
+  if (list.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.innerHTML = `
+      <div class="empty-icon"><span class="material-symbols-rounded ms-icon ms-empty" aria-hidden="true">task_alt</span></div>
+      <p><strong>아직 정복 보관함이 비어 있어요</strong></p>
+      <p>오답을 정한 횟수만큼 연속으로 맞히면<br/>이곳에 안전하게 따로 모입니다.</p>
+    `;
+    masteredEls.list.appendChild(empty);
+    return;
+  }
+
+  list.forEach((p) => {
+    const card = createProblemCardElement(p, {
+      statusText: '정복 완료',
+      statusClass: 'badge-mastered',
+      subText: '눌러서 다시 풀거나 복구할 수 있어요',
+      buildActions: (cardActions) => {
+        const restoreBtn = document.createElement('button');
+        restoreBtn.type = 'button';
+        restoreBtn.className = 'btn-card-restore';
+        restoreBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">restore</span><span>복구</span>';
+        restoreBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          restoreMasteredProblem(p.id);
+        });
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'btn-card-more';
+        delBtn.setAttribute('aria-label', '완전 삭제');
+        delBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">delete_outline</span>';
+        delBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const ok = await showConfirm('정복 보관함에서도 이 문제를 완전히 지울까요?', {
+            title: '완전 삭제',
+            okText: '삭제하기',
+            danger: true
+          });
+          if (!ok) return;
+          state.masteredProblems = state.masteredProblems.filter((item) => item.id !== p.id);
+          saveState(state);
+          renderMastered();
+          renderHome();
+        });
+
+        cardActions.appendChild(restoreBtn);
+        cardActions.appendChild(delBtn);
+      }
+    });
+
+    card.addEventListener('click', () => startReview([p], { fromMastered: true, returnTo: 'mastered' }));
+    masteredEls.list.appendChild(card);
+  });
+}
+
+function restoreMasteredProblem(problemId, { silent = false } = {}) {
+  const target = state.masteredProblems.find((item) => item.id === problemId);
+  if (!target) return false;
+  const targetSubj = target.subject || '미분류';
+  if (countProblemsInSubject(targetSubj) >= MAX_PROBLEMS_PER_SUBJECT) {
+    showAlert(`'${targetSubj}' 과목은 최대 ${MAX_PROBLEMS_PER_SUBJECT}문제까지만 저장할 수 있어요.\n먼저 해당 과목의 문제를 조금 비운 뒤 복구해 주세요.`);
+    return false;
+  }
+  state.masteredProblems = state.masteredProblems.filter((item) => item.id !== problemId);
+  const restored = {
+    ...target,
+    mastered: false,
+    correctStreak: 0
+  };
+  delete restored.masteredAt;
+  state.problems.unshift(restored);
+  saveState(state);
+  renderMastered();
+  renderHome();
+  if (!silent) {
+    showToast('오답 목록으로 복구했어요!');
+  }
+  return true;
+}
+
+homeEls.btnOpenMastered?.addEventListener('click', () => {
+  renderMastered();
+  showScreen('mastered');
+});
+
+masteredEls.btnBack?.addEventListener('click', () => {
+  renderHome();
+  showScreen('home');
+});
+
+masteredEls.btnReviewAll?.addEventListener('click', () => {
+  const list = getFilteredMasteredProblems();
+  if (list.length === 0) {
+    showAlert('정복 보관함에 다시 풀 문제가 아직 없어요.');
+    return;
+  }
+  startReview(list, { fromMastered: true, returnTo: 'mastered' });
+});
 
 /* ================= 2. 오답 올리기 ================= */
 function renderAddSubjectBar() {
@@ -469,8 +689,7 @@ function renderAddSubjectBar() {
     onSelect: (subj) => {
       addSubject = subj;
       renderAddSubjectBar();
-    },
-    onOpenManage: openSubjectModal
+    }
   });
 }
 
@@ -528,6 +747,11 @@ addEls.btnSave.addEventListener('click', () => {
     return;
   }
 
+  if (countProblemsInSubject(addSubject, editingProblemId) >= MAX_PROBLEMS_PER_SUBJECT) {
+    showAlert(`'${addSubject}' 과목에는 최대 ${MAX_PROBLEMS_PER_SUBJECT}문제까지만 저장할 수 있어요.\n정복하거나 기존 문제를 정리한 뒤 다시 올려 주세요.`);
+    return;
+  }
+
   const finalProblemImgs = problemEditor.exportImages();
   const finalAnswerImgs = answerEditor.exportImages();
 
@@ -571,13 +795,15 @@ addEls.btnSave.addEventListener('click', () => {
 });
 
 /* ================= 3. 다시 풀기 (가림막 복습) ================= */
-function startReview(customList = null, { loop = false } = {}) {
+function startReview(customList = null, { loop = false, fromMastered = false, returnTo = 'home' } = {}) {
   const source = customList || getFilteredProblems();
   if (!source.length) return;
   reviewQueue = buildReviewQueue(source);
   reviewIdx = 0;
   reviewLoopMode = loop;
   loopStartCount = loop ? source.length : 0;
+  reviewFromMastered = Boolean(fromMastered);
+  reviewReturnScreen = returnTo;
   sessionCorrect = 0;
   sessionWrong = 0;
   sessionCleared = 0;
@@ -618,12 +844,17 @@ function showCurrentReviewCard() {
     reviewEls.doneArea.classList.remove('hidden');
     const stillWrong = state.problems.filter((p) => sessionWrongIds.has(p.id));
     reviewEls.btnReviewAgain.classList.toggle('hidden', stillWrong.length === 0);
-    if (reviewLoopMode) {
-      reviewEls.doneSummary.textContent = `미정복 ${loopStartCount}문제를 전부 정복해서 목록에서 비웠어요!`;
+    if (reviewFromMastered) {
+      reviewEls.doneSummary.textContent =
+        sessionWrong > 0
+          ? `정복 보관함 ${reviewQueue.length}문제 중 ${sessionCorrect}문제 맞혔고, 틀린 ${sessionWrong}문제는 오답 목록으로 복구했어요.`
+          : `정복 보관함 ${reviewQueue.length}문제를 모두 다시 맞혔어요!`;
+    } else if (reviewLoopMode) {
+      reviewEls.doneSummary.textContent = `미정복 ${loopStartCount}문제를 전부 정복해서 보관함으로 옮겼어요!`;
     } else {
       reviewEls.doneSummary.textContent =
         sessionCleared > 0
-          ? `총 ${reviewQueue.length}문제 중 ${sessionCleared}문제를 정복해서 목록에서 비웠어요!`
+          ? `총 ${reviewQueue.length}문제 중 ${sessionCleared}문제를 정복해서 보관함으로 옮겼어요!`
           : `총 ${reviewQueue.length}문제 중 ${sessionCorrect}문제 맞혔고, ${sessionWrong}문제 못 지웠어요.`;
     }
     return;
@@ -632,7 +863,7 @@ function showCurrentReviewCard() {
     problem: reviewQueue[reviewIdx],
     index: reviewIdx,
     total: reviewQueue.length,
-    subjectLabel: activeSubject,
+    subjectLabel: reviewFromMastered ? activeMasteredSubject : activeSubject,
     els: reviewEls
   });
   void reviewEls.cardArea.offsetWidth;
@@ -658,30 +889,59 @@ function handleReviewAnswer(isCorrect) {
   isAnimatingReview = true;
 
   const curr = reviewQueue[reviewIdx];
-  const target = state.problems.find((p) => p.id === curr.id);
   let clearedNow = false;
 
-  if (isCorrect) {
-    if (target) {
-      target.correctStreak = (target.correctStreak || 0) + 1;
-      const targetCount = state.settings.masteryTarget || 2;
-      if (target.correctStreak >= targetCount) {
-        state.problems = state.problems.filter((p) => p.id !== curr.id);
-        sessionCleared += 1;
-        clearedNow = true;
+  if (reviewFromMastered) {
+    if (isCorrect) {
+      sessionCorrect += 1;
+    } else {
+      const mTarget = state.masteredProblems.find((p) => p.id === curr.id);
+      if (mTarget) {
+        const mSubj = mTarget.subject || '미분류';
+        if (countProblemsInSubject(mSubj) >= MAX_PROBLEMS_PER_SUBJECT) {
+          showToast(`'${mSubj}' 과목이 ${MAX_PROBLEMS_PER_SUBJECT}문제 꽉 차서 정복함에 유지했어요`, { icon: 'info', duration: 1800 });
+        } else {
+          state.masteredProblems = state.masteredProblems.filter((p) => p.id !== curr.id);
+          const restored = {
+            ...mTarget,
+            wrongCount: (mTarget.wrongCount || 0) + 1,
+            correctStreak: 0,
+            mastered: false
+          };
+          delete restored.masteredAt;
+          state.problems.unshift(restored);
+          saveState(state);
+          showToast('틀린 문제는 오답 목록으로 복구했어요', { icon: 'restore', duration: 1600 });
+        }
       }
-      saveState(state);
+      sessionWrongIds.add(curr.id);
+      sessionWrong += 1;
     }
-    sessionCorrect += 1;
   } else {
-    if (target) {
-      target.wrongCount += 1;
-      target.correctStreak = 0;
-      target.mastered = false;
-      saveState(state);
+    const target = state.problems.find((p) => p.id === curr.id);
+    if (isCorrect) {
+      if (target) {
+        target.correctStreak = (target.correctStreak || 0) + 1;
+        const targetCount = state.settings.masteryTarget || 2;
+        if (target.correctStreak >= targetCount) {
+          state.problems = state.problems.filter((p) => p.id !== curr.id);
+          pushMasteredProblem(target);
+          sessionCleared += 1;
+          clearedNow = true;
+        }
+        saveState(state);
+      }
+      sessionCorrect += 1;
+    } else {
+      if (target) {
+        target.wrongCount += 1;
+        target.correctStreak = 0;
+        target.mastered = false;
+        saveState(state);
+      }
+      sessionWrongIds.add(curr.id);
+      sessionWrong += 1;
     }
-    sessionWrongIds.add(curr.id);
-    sessionWrong += 1;
   }
 
   const area = reviewEls.cardArea;
@@ -689,7 +949,7 @@ function handleReviewAnswer(isCorrect) {
   area.style.transform = '';
   if (clearedNow) {
     area.classList.add('is-cleared-fly');
-    showToast('완전 정복! 목록에서 비웠어요', { cleared: true, icon: 'task_alt', duration: 1700 });
+    showToast('완전 정복! 정복 보관함으로 옮겼어요', { cleared: true, icon: 'task_alt', duration: 1700 });
   } else if (isCorrect) {
     area.classList.add('is-fly-right');
   } else {
@@ -779,22 +1039,25 @@ reviewEls.btnMarkCorrect.addEventListener('click', () => handleReviewAnswer(true
   area.addEventListener('pointercancel', finishSwipe);
 })();
 
-reviewEls.btnExit.addEventListener('click', () => {
+function exitReviewScreen() {
   renderHome();
-  showScreen('home');
-});
-reviewEls.btnReviewHome.addEventListener('click', () => {
-  renderHome();
-  showScreen('home');
-});
+  if (reviewReturnScreen === 'mastered') {
+    renderMastered();
+    showScreen('mastered');
+  } else {
+    showScreen('home');
+  }
+}
+
+reviewEls.btnExit.addEventListener('click', exitReviewScreen);
+reviewEls.btnReviewHome.addEventListener('click', exitReviewScreen);
 reviewEls.btnReviewAgain.addEventListener('click', () => {
   const retryList = state.problems.filter((p) => sessionWrongIds.has(p.id));
   if (retryList.length === 0) {
-    renderHome();
-    showScreen('home');
+    exitReviewScreen();
     return;
   }
-  startReview(retryList, { loop: true });
+  startReview(retryList, { loop: true, fromMastered: false, returnTo: reviewReturnScreen });
 });
 
 /* ================= 5. 과목 정리하기 (수정/삭제) ================= */
@@ -836,7 +1099,11 @@ function renderSubjectManageList() {
       state.problems.forEach((p) => {
         if (p.subject === subj) p.subject = nextName;
       });
+      state.masteredProblems.forEach((p) => {
+        if (p.subject === subj) p.subject = nextName;
+      });
       if (activeSubject === subj) activeSubject = nextName;
+      if (activeMasteredSubject === subj) activeMasteredSubject = nextName;
       if (state.lastSubject === subj) state.lastSubject = nextName;
       if (addSubject === subj) addSubject = nextName;
       saveState(state);
@@ -858,7 +1125,11 @@ function renderSubjectManageList() {
       state.problems.forEach((p) => {
         if (p.subject === subj) p.subject = '미분류';
       });
+      state.masteredProblems.forEach((p) => {
+        if (p.subject === subj) p.subject = '미분류';
+      });
       if (activeSubject === subj) activeSubject = '전체';
+      if (activeMasteredSubject === subj) activeMasteredSubject = '전체';
       if (state.lastSubject === subj) state.lastSubject = '미분류';
       if (addSubject === subj) addSubject = '미분류';
       saveState(state);
@@ -881,6 +1152,10 @@ function handleAddSubjectFromModal() {
   }
   if (state.subjects.includes(name)) {
     showAlert('이미 같은 이름의 과목이 있습니다.');
+    return;
+  }
+  if (state.subjects.length >= MAX_SUBJECTS) {
+    showAlert(`과목은 최대 ${MAX_SUBJECTS}개까지만 만들 수 있어요.`);
     return;
   }
   addNewSubject(name);
@@ -935,8 +1210,12 @@ criteriaEls.btnSave.addEventListener('click', async () => {
   }
 
   state.settings.masteryTarget = masteryVal;
-  // 새 기준을 이미 채운 문제들은 미련 없이 즉시 정리
-  state.problems = state.problems.filter((p) => (p.correctStreak || 0) < masteryVal);
+  // 새 기준을 이미 채운 문제들은 정복 보관함으로 이동
+  const newlyMastered = state.problems.filter((p) => (p.correctStreak || 0) >= masteryVal);
+  if (newlyMastered.length > 0) {
+    newlyMastered.forEach((p) => pushMasteredProblem(p));
+    state.problems = state.problems.filter((p) => (p.correctStreak || 0) < masteryVal);
+  }
   saveState(state);
   criteriaEls.modal.classList.add('hidden');
   renderHome();
@@ -966,28 +1245,65 @@ function openLicenseModal(expiredNotice = false) {
 
 licenseEls.btnClose.addEventListener('click', () => licenseEls.modal.classList.add('hidden'));
 
-/* ================= 8. 통합 설정 메뉴 ================= */
-homeEls.btnOpenSettings.addEventListener('click', () => {
+/* ================= 8. 왼쪽 슬라이드 설정 서랍 ================= */
+let drawerCloseTimer = null;
+
+function openSettingsDrawer() {
+  if (drawerCloseTimer) {
+    clearTimeout(drawerCloseTimer);
+    drawerCloseTimer = null;
+  }
   updateLicenseUI();
   settingsEls.modal.classList.remove('hidden');
+  settingsEls.modal.setAttribute('aria-hidden', 'false');
+  void settingsEls.modal.offsetWidth;
+  settingsEls.modal.classList.add('is-open');
+}
+
+function closeSettingsDrawer({ immediate = false } = {}) {
+  settingsEls.modal.classList.remove('is-open');
+  settingsEls.modal.setAttribute('aria-hidden', 'true');
+  if (immediate) {
+    settingsEls.modal.classList.add('hidden');
+    return;
+  }
+  if (drawerCloseTimer) clearTimeout(drawerCloseTimer);
+  drawerCloseTimer = setTimeout(() => {
+    if (!settingsEls.modal.classList.contains('is-open')) {
+      settingsEls.modal.classList.add('hidden');
+    }
+    drawerCloseTimer = null;
+  }, 240);
+}
+
+homeEls.btnOpenDrawer?.addEventListener('click', openSettingsDrawer);
+
+settingsEls.btnClose.addEventListener('click', () => closeSettingsDrawer());
+
+settingsEls.modal.addEventListener('click', (e) => {
+  if (e.target === settingsEls.modal) {
+    closeSettingsDrawer();
+  }
 });
 
-settingsEls.btnClose.addEventListener('click', () => {
-  settingsEls.modal.classList.add('hidden');
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && settingsEls.modal.classList.contains('is-open')) {
+    closeSettingsDrawer();
+  }
 });
 
 settingsEls.menuSubjects.addEventListener('click', () => {
-  settingsEls.modal.classList.add('hidden');
+  closeSettingsDrawer({ immediate: true });
   openSubjectModal();
 });
 
 settingsEls.menuCriteria.addEventListener('click', () => {
-  settingsEls.modal.classList.add('hidden');
+  closeSettingsDrawer({ immediate: true });
   openCriteriaModalFlow();
 });
 
 settingsEls.menuLicense.addEventListener('click', () => {
-  settingsEls.modal.classList.add('hidden');
+  closeSettingsDrawer({ immediate: true });
   openLicenseModal(false);
 });
 
@@ -1031,36 +1347,7 @@ licenseEls.btnRestore.addEventListener('click', async () => {
   });
 });
 
-licenseEls.btnSimTrial.addEventListener('click', () => {
-  license.purchased = false;
-  license.simulatedExpired = false;
-  license.tampered = false;
-  license.startedAt = Date.now();
-  license.lastSeenAt = Date.now();
-  saveLicense(license);
-  updateLicenseUI();
-  openLicenseModal(false);
-});
-
-licenseEls.btnSimExpired.addEventListener('click', () => {
-  license.purchased = false;
-  license.simulatedExpired = true;
-  license.tampered = false;
-  saveLicense(license);
-  updateLicenseUI();
-  openLicenseModal(true);
-});
-
-licenseEls.btnSimPurchased.addEventListener('click', () => {
-  license.purchased = true;
-  license.simulatedExpired = false;
-  license.tampered = false;
-  license.lastSeenAt = Date.now();
-  saveLicense(license);
-  updateLicenseUI();
-  openLicenseModal(false);
-});
-
-// 초기 화면 그리기
+// 초기 화면 그리기 및 물결 터치 반응 연결
+initRippleFeedback();
 updateLicenseUI();
 renderHome();

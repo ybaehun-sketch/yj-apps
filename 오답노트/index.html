@@ -7,20 +7,29 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0" />
-  <link rel="stylesheet" href="styles.css?v=20261118c" />
+  <link rel="stylesheet" href="styles.css?v=20261118g" />
 </head>
 <body>
   <div id="app" class="app-shell">
     <!-- ================= 1. 홈 화면 (내 오답 목록) ================= -->
     <section id="screen-home" class="screen active">
-      <header class="top-header">
-        <div class="brand">
+      <header class="top-header top-header-home">
+        <div class="header-left">
+          <button id="btn-open-drawer" class="btn-two-bars" type="button" aria-label="설정 메뉴 열기">
+            <span class="two-bars-icon" aria-hidden="true">
+              <span></span>
+              <span></span>
+            </span>
+          </button>
+        </div>
+        <div class="brand brand-center">
           <h1>오답정복</h1>
         </div>
         <div class="header-actions">
-          <button id="btn-open-settings" class="btn-outline-sm" type="button">
-            <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">settings</span>
-            <span>설정</span>
+          <button id="btn-open-mastered" class="btn-outline-sm btn-mastered-compact" type="button">
+            <span class="material-symbols-rounded ms-icon" aria-hidden="true">task_alt</span>
+            <span>정복함</span>
+            <span id="home-mastered-count" class="header-count-badge">0</span>
           </button>
         </div>
       </header>
@@ -90,10 +99,16 @@
                   <span>자르기</span>
                 </button>
               </div>
-              <button type="button" id="btn-editor-undo" class="btn-undo">
-                <span class="material-symbols-rounded ms-icon" aria-hidden="true">undo</span>
-                <span>되돌리기</span>
-              </button>
+              <div class="editor-right-tools">
+                <button type="button" id="btn-editor-rotate" class="btn-undo">
+                  <span class="material-symbols-rounded ms-icon" aria-hidden="true">rotate_right</span>
+                  <span>회전</span>
+                </button>
+                <button type="button" id="btn-editor-undo" class="btn-undo">
+                  <span class="material-symbols-rounded ms-icon" aria-hidden="true">undo</span>
+                  <span>되돌리기</span>
+                </button>
+              </div>
             </div>
             <p id="editor-hint" class="editor-hint">내가 푼 볼펜·형광펜 자국 위를 손가락으로 쓱 문질러 지우세요.</p>
             <div class="canvas-container">
@@ -145,10 +160,16 @@
                   <span>자르기</span>
                 </button>
               </div>
-              <button type="button" id="btn-answer-undo" class="btn-undo">
-                <span class="material-symbols-rounded ms-icon" aria-hidden="true">undo</span>
-                <span>되돌리기</span>
-              </button>
+              <div class="editor-right-tools">
+                <button type="button" id="btn-answer-rotate" class="btn-undo">
+                  <span class="material-symbols-rounded ms-icon" aria-hidden="true">rotate_right</span>
+                  <span>회전</span>
+                </button>
+                <button type="button" id="btn-answer-undo" class="btn-undo">
+                  <span class="material-symbols-rounded ms-icon" aria-hidden="true">undo</span>
+                  <span>되돌리기</span>
+                </button>
+              </div>
             </div>
             <p id="answer-editor-hint" class="editor-hint">불필요한 낙서나 주변 여백을 지우거나 잘라내세요.</p>
             <div class="canvas-container">
@@ -227,10 +248,6 @@
         </div>
         <h2>이번 판 정복 완료!</h2>
         <p id="review-done-summary" class="done-summary"></p>
-        <div class="ad-preview-box">
-          <span class="ad-tag">안내</span>
-          <p>광고 없는 7일 무료 체험 기간입니다.<br /><strong>매달 구독 없이 약 3달러 1회 결제</strong>로 평생 소장하실 수 있어요.</p>
-        </div>
         <div class="done-actions">
           <button id="btn-review-again" class="btn-outline-lg" type="button">
             <span class="material-symbols-rounded ms-icon" aria-hidden="true">repeat</span>
@@ -254,6 +271,32 @@
           <span>맞혔어요</span>
         </button>
       </footer>
+    </section>
+
+    <!-- ================= 4. 정복 보관함 화면 ================= -->
+    <section id="screen-mastered" class="screen">
+      <header class="sub-header">
+        <button id="btn-mastered-back" class="btn-icon" type="button" aria-label="뒤로 가기">
+          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">arrow_back</span>
+        </button>
+        <h2>정복 보관함</h2>
+        <div class="spacer"></div>
+      </header>
+
+      <div id="mastered-subject-bar" class="subject-bar" aria-label="정복 문제 과목 선택"></div>
+
+      <div class="control-strip">
+        <span id="mastered-total-summary" class="subject-total-summary">정복 완료 0문제</span>
+      </div>
+
+      <main id="mastered-list" class="problem-list"></main>
+
+      <div class="bottom-cta-bar">
+        <button id="btn-review-mastered-all" class="btn-primary-lg" type="button">
+          <span class="material-symbols-rounded ms-icon" aria-hidden="true">replay</span>
+          <span>정복한 문제 다시 풀기</span>
+        </button>
+      </div>
     </section>
 
   </div>
@@ -352,15 +395,6 @@
             <li><span class="material-symbols-rounded ms-icon ms-perk" aria-hidden="true">check_circle</span><span>쓱-지우개 · 가림막 정복 · 미정복 문제 무한 반복</span></li>
           </ul>
         </div>
-
-        <div class="license-test-box">
-          <div class="license-test-title">대표님 확인용 상태 전환</div>
-          <div class="license-test-btns">
-            <button type="button" id="btn-sim-trial" class="btn-sim">체험 중(7일)</button>
-            <button type="button" id="btn-sim-expired" class="btn-sim">7일 만료 상태</button>
-            <button type="button" id="btn-sim-purchased" class="btn-sim">구매 완료</button>
-          </div>
-        </div>
       </div>
       <footer class="modal-footer license-footer">
         <button id="btn-buy-lifetime" class="btn-primary-lg" type="button">
@@ -375,10 +409,10 @@
     </div>
   </div>
 
-  <!-- ================= 9. 통합 설정 모달 ================= -->
-  <div id="settings-modal" class="modal-backdrop hidden">
-    <div class="modal-sheet">
-      <header class="modal-header">
+  <!-- ================= 9. 왼쪽 슬라이드 설정 서랍 ================= -->
+  <div id="settings-modal" class="drawer-backdrop hidden" aria-hidden="true">
+    <aside class="drawer-panel" role="dialog" aria-modal="true" aria-label="설정 메뉴">
+      <header class="drawer-header">
         <h3 class="modal-title-row">
           <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">settings</span>
           <span>설정</span>
@@ -387,7 +421,7 @@
           <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">close</span>
         </button>
       </header>
-      <div class="subject-modal-body">
+      <div class="drawer-body">
         <div class="settings-menu-list">
           <button type="button" id="menu-open-subjects" class="settings-menu-item">
             <div class="settings-menu-lead">
@@ -429,12 +463,12 @@
           <button type="button" id="link-privacy" class="settings-text-link">개인정보처리방침</button>
         </div>
       </div>
-    </div>
+    </aside>
   </div>
 
   <!-- 전역 토스트 알림 -->
   <div id="app-toast" class="app-toast hidden" role="status" aria-live="polite"></div>
 
-  <script type="module" src="app.js?v=20261118e"></script>
+  <script type="module" src="app.js?v=20261118j"></script>
 </body>
 </html>

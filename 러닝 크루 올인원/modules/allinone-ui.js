@@ -12,6 +12,14 @@
     let editingNoticeId = null;
     let activeAttendanceScheduleId = null;
     let pendingConfirmAction = null;
+    const expandedScheduleIds = new Set();
+    let openScheduleMoreId = null;
+    let isPinnedNoticeExpanded = false;
+    let activeCommentEmojiFeedId = null;
+    let isChatAttachOpen = false;
+    let isChatEmojiOpen = false;
+    let pendingChatPhotoDataUrl = '';
+    const CREW_EMOJIS = ['👏', '👍', '🔥', '🏃', '🏆', '💦', '❤️', '😄', '💪', '🙌', '👟', '⚡', '🎉', '🥤', '🌟', '😎'];
 
     function esc(str) {
         return String(str == null ? '' : str)
@@ -81,26 +89,98 @@
     }
 
     function updateHeader() {
-        const me = E.getCurrentMember();
-        const isStaff = E.isStaff();
         const nameEl = document.getElementById('header-crew-name');
-        const subEl = document.getElementById('header-crew-sub');
         const weatherEl = document.getElementById('header-weather-pill');
-        const switchBtn = document.getElementById('header-member-pill');
-        const adminBtn = document.getElementById('header-admin-btn');
 
         if (nameEl) nameEl.textContent = E.shared.crewName;
-        if (subEl) subEl.textContent = `${isStaff ? '운영 모드' : '크루원 모드'} · 함께 뛰는 ${E.shared.members.length}명`;
         if (weatherEl) {
             const w = E.shared.weather;
-            weatherEl.innerHTML = `${msIcon(getWeatherIconName(w.icon))} ${esc(w.city)} ${esc(w.temp)}°C`;
+            weatherEl.textContent = `${w.city} ${w.temp}°C`;
         }
-        if (switchBtn && me) {
-            switchBtn.innerHTML = `${msIcon(isStaff ? 'workspace_premium' : 'directions_run')} ${esc(me.name)}`;
+        renderDrawer();
+    }
+
+    function openDrawer() {
+        renderDrawer();
+        const backdrop = document.getElementById('app-drawer-backdrop');
+        const drawer = document.getElementById('app-drawer');
+        if (backdrop) backdrop.classList.add('open');
+        if (drawer) {
+            drawer.classList.add('open');
+            drawer.setAttribute('aria-hidden', 'false');
         }
-        if (adminBtn) {
-            adminBtn.style.display = isStaff ? 'inline-flex' : 'none';
+    }
+
+    function closeDrawer() {
+        const backdrop = document.getElementById('app-drawer-backdrop');
+        const drawer = document.getElementById('app-drawer');
+        if (backdrop) backdrop.classList.remove('open');
+        if (drawer) {
+            drawer.classList.remove('open');
+            drawer.setAttribute('aria-hidden', 'true');
         }
+    }
+
+    function renderDrawer() {
+        const me = E.getCurrentMember();
+        const isStaff = E.isStaff();
+        const subEl = document.getElementById('drawer-crew-sub');
+        const profileBox = document.getElementById('drawer-profile-box');
+        const menuList = document.getElementById('drawer-menu-list');
+        if (!me || !profileBox || !menuList) return;
+
+        if (subEl) subEl.textContent = `${isStaff ? '운영진 모드' : '크루원 모드'} · 함께 뛰는 ${E.shared.members.length}명`;
+
+        const byDist = E.shared.members.slice().sort((a, b) => (b.totalDistance || 0) - (a.totalDistance || 0));
+        const myRank = byDist.findIndex(m => m.id === me.id) + 1;
+        const goal = Math.max(10, Number(E.extra.monthlyGoalKm) || 50);
+        const pct = Math.min(100, Math.round(((me.totalDistance || 0) / goal) * 100));
+        const feeClass = me.feeStatus === '완납' ? 'pill-mint' : (me.feeStatus === '미납' ? 'pill-red' : 'pill-slate');
+
+        profileBox.innerHTML = `
+            <div class="drawer-profile-head">
+                <div>
+                    <span class="my-hero-badge">${esc(me.role)} · ${esc(me.paceGroup)} (${esc(me.pace)})</span>
+                    <div class="drawer-profile-name">${esc(me.name)}님</div>
+                </div>
+                <span class="pill ${feeClass}">회비 ${esc(me.feeStatus)}</span>
+            </div>
+            <div class="my-stats-grid">
+                <div class="my-stat-item"><span>크루 순위</span><strong>${myRank}위</strong></div>
+                <div class="my-stat-item"><span>출석 도장</span><strong>${me.attendanceCount || 0}회</strong></div>
+                <div class="my-stat-item"><span>누적 거리</span><strong>${Number(me.totalDistance || 0).toFixed(1).replace(/\.0$/, '')}km</strong></div>
+            </div>
+            <div class="goal-wrap">
+                <div class="goal-label-row"><span>이달 목표 (${me.totalDistance || 0} / ${goal}km)</span><strong>${pct}%</strong></div>
+                <div class="goal-track"><div class="goal-fill" style="width:${pct}%"></div></div>
+            </div>
+        `;
+
+        menuList.innerHTML = `
+            <div class="drawer-section-label">공통 메뉴</div>
+            <button type="button" class="drawer-menu-item" onclick="window.YJAllInOneUI.closeDrawer(); window.YJAllInOneUI.openMemberSwitchModal();">
+                ${msIcon('manage_accounts')} <span>프로필 관리</span>
+            </button>
+            <button type="button" class="drawer-menu-item" onclick="window.YJAllInOneUI.closeDrawer(); window.YJAllInOneUI.openMyInfoModal();">
+                ${msIcon('badge')} <span>내 정보 관리</span>
+            </button>
+            <button type="button" class="drawer-menu-item" onclick="window.YJAllInOneUI.closeDrawer(); window.YJAllInOneUI.openAppSettingsModal();">
+                ${msIcon('settings')} <span>앱 설정</span>
+            </button>
+            ${isStaff ? `
+                <div class="drawer-divider"></div>
+                <div class="drawer-section-label">운영진 전용</div>
+                <button type="button" class="drawer-menu-item accent" onclick="window.YJAllInOneUI.closeDrawer(); window.YJAllInOneUI.openAdminSection('all');">
+                    ${msIcon('group')} <span>회원 관리</span>
+                </button>
+                <button type="button" class="drawer-menu-item accent" onclick="window.YJAllInOneUI.closeDrawer(); window.YJAllInOneUI.switchTab('home'); window.YJAllInOneUI.openScheduleModal();">
+                    ${msIcon('calendar_month')} <span>스케줄 관리</span>
+                </button>
+                <button type="button" class="drawer-menu-item accent" onclick="window.YJAllInOneUI.closeDrawer(); window.YJAllInOneUI.openNoticesSubTab();">
+                    ${msIcon('campaign')} <span>공지 관리</span>
+                </button>
+            ` : ''}
+        `;
     }
 
     function switchTab(tab) {
@@ -121,58 +201,22 @@
     function renderHome() {
         const me = E.getCurrentMember();
         const isStaff = E.isStaff();
-        const myCard = document.getElementById('home-my-card');
         const noticeBox = document.getElementById('home-pinned-notice');
         const addSchBtn = document.getElementById('home-add-schedule-btn');
         const schBox = document.getElementById('home-schedule-list');
-        if (!myCard || !noticeBox || !schBox || !me) return;
+        if (!noticeBox || !schBox || !me) return;
 
         if (addSchBtn) addSchBtn.style.display = isStaff ? 'inline-flex' : 'none';
-
-        const byDist = E.shared.members.slice().sort((a, b) => (b.totalDistance || 0) - (a.totalDistance || 0));
-        const myRank = byDist.findIndex(m => m.id === me.id) + 1;
-        const goal = Math.max(10, Number(E.extra.monthlyGoalKm) || 50);
-        const pct = Math.min(100, Math.round(((me.totalDistance || 0) / goal) * 100));
-        const feeClass = me.feeStatus === '완납' ? 'pill-mint' : (me.feeStatus === '미납' ? 'pill-red' : 'pill-slate');
-
-        myCard.innerHTML = `
-            <div class="my-hero-top">
-                <div>
-                    <span class="my-hero-badge">${esc(me.role)} · ${esc(me.paceGroup)} (${esc(me.pace)})</span>
-                    <h2>반가워요, ${esc(me.name)}님!</h2>
-                </div>
-                <span class="pill ${feeClass}">회비 ${esc(me.feeStatus)}</span>
-            </div>
-            <div class="my-stats-grid">
-                <div class="my-stat-item"><span>크루 순위</span><strong>${myRank}위</strong></div>
-                <div class="my-stat-item"><span>출석 도장</span><strong>${me.attendanceCount || 0}회</strong></div>
-                <div class="my-stat-item"><span>누적 거리</span><strong>${Number(me.totalDistance || 0).toFixed(1).replace(/\.0$/, '')}km</strong></div>
-            </div>
-            <div class="goal-wrap">
-                <div class="goal-label-row"><span>이달 목표 (${me.totalDistance || 0} / ${goal}km)</span><strong>${pct}%</strong></div>
-                <div class="goal-track"><div class="goal-fill" style="width:${pct}%"></div></div>
-            </div>
-        `;
 
         const notices = E.shared.notices.slice().sort((a, b) => Number(b.pinned) - Number(a.pinned));
         if (notices.length > 0) {
             const topNotice = notices[0];
-            const isRead = (topNotice.readBy || []).includes(me.id);
             noticeBox.innerHTML = `
-                <div class="crew-card notice-highlight">
-                    <div class="card-head">
-                        <span class="pill pill-orange">${topNotice.pinned ? `${msIcon('push_pin', true)} 필독 공지` : `${msIcon('campaign')} 최신 공지`}</span>
-                        <span class="muted-xs">${esc(topNotice.author)} · ${esc(topNotice.createdAt)}</span>
-                    </div>
-                    <h3 class="card-title">${esc(topNotice.title)}</h3>
-                    <p class="notice-text">${esc(topNotice.content).replace(/\n/g, '<br>')}</p>
-                    <div class="card-action-row">
-                        <button type="button" class="${isRead ? 'btn-soft-mint' : 'btn-soft-primary'}" onclick="window.YJAllInOneUI.toggleReadNotice('${esc(topNotice.id)}')">
-                            ${isRead ? `${msIcon('check_circle', true)} 공지 확인 완료` : `${msIcon('visibility')} 공지 읽음 확인`}
-                        </button>
-                        <button type="button" class="btn-soft" onclick="window.YJAllInOneUI.openNoticesSubTab()">전체 공지 (${notices.length})</button>
-                    </div>
-                </div>
+                <button type="button" class="slim-notice-bar" onclick="window.YJAllInOneUI.openPinnedNoticeModal('${esc(topNotice.id)}')">
+                    <span class="slim-notice-tag">[${topNotice.pinned ? '필독' : '공지'}]</span>
+                    <span class="slim-notice-title">${esc(topNotice.title)}</span>
+                    <span class="material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                </button>
             `;
         } else {
             noticeBox.innerHTML = '';
@@ -187,56 +231,144 @@
         schBox.innerHTML = schedules.map(s => {
             const isJoined = (s.attendees || []).includes(me.id);
             const isChecked = (s.checkedIn || []).includes(me.id);
+            const isExpanded = expandedScheduleIds.has(s.id);
             const dday = E.getDaysLeftLabel(s.date);
             const groups = E.groupAttendeesByPace(s);
             const sameGroupMates = (groups[me.paceGroup] || []).filter(m => m.id !== me.id).map(m => m.name);
 
             return `
-                <article class="crew-card ${s.completed ? 'is-completed' : ''}">
-                    <div class="card-head">
-                        <div class="pill-group">
-                            <span class="pill pill-orange">${esc(s.type)}</span>
-                            <span class="pill ${s.completed ? 'pill-mint' : 'pill-slate'}">${s.completed ? '완료됨' : esc(dday)}</span>
-                            ${isChecked ? `<span class="pill pill-mint">${msIcon('check_circle', true)} 출석 완료</span>` : ''}
+                <article class="crew-card schedule-card ${s.completed ? 'is-completed' : ''} ${isExpanded ? 'is-expanded' : ''}">
+                    <button type="button" class="schedule-summary-trigger" aria-expanded="${isExpanded ? 'true' : 'false'}" onclick="window.YJAllInOneUI.toggleScheduleCard('${esc(s.id)}')">
+                        <div class="card-head" style="width:100%;">
+                            <div class="pill-group">
+                                <span class="pill pill-orange">${esc(s.type)}</span>
+                                <span class="pill ${s.completed ? 'pill-mint' : 'pill-slate'}">${s.completed ? '완료됨' : esc(dday)}</span>
+                                ${isChecked ? `<span class="pill pill-mint">${msIcon('check_circle', true)} 출석 완료</span>` : (isJoined ? `<span class="pill pill-mint">참석 신청</span>` : '')}
+                            </div>
+                            <div class="card-head-right">
+                                <span class="muted-xs">참여 ${s.attendees.length}/${s.maxCount}명</span>
+                                <span class="material-symbols-rounded schedule-chevron" aria-hidden="true">expand_more</span>
+                            </div>
                         </div>
-                        <div class="card-head-right">
-                            <span class="muted-xs">참여 ${s.attendees.length}/${s.maxCount}명</span>
-                            ${isStaff ? `
-                                <button type="button" class="icon-btn" title="수정" aria-label="일정 수정" onclick="window.YJAllInOneUI.openScheduleModal('${esc(s.id)}')">${msIcon('edit')}</button>
-                                <button type="button" class="icon-btn" title="삭제" aria-label="일정 삭제" onclick="window.YJAllInOneUI.deleteSchedule('${esc(s.id)}')">${msIcon('delete')}</button>
-                            ` : ''}
+                        <div class="schedule-summary-row2" style="width:100%;">
+                            <h3 class="card-title">${esc(s.title)}</h3>
+                            <span class="schedule-summary-sub">${esc(E.formatKoreanDate(s.date))} ${esc(s.time)} · ${s.distance}km</span>
                         </div>
-                    </div>
-                    <h3 class="card-title">${esc(s.title)}</h3>
-                    <div class="card-info-grid">
-                        <div>${msIcon('schedule')} <span>${esc(E.formatKoreanDate(s.date))} ${esc(s.time)}</span></div>
-                        <div>${msIcon('straighten')} <span>${s.distance}km · 내 배정 ${esc(me.paceGroup)}</span></div>
-                        <div class="full-span">${msIcon('location_on')} <span>${esc(s.location)}</span></div>
-                    </div>
-                    ${s.courseNote ? `<p class="card-note">${esc(s.courseNote)}</p>` : ''}
-                    <div class="mate-group-hint">
-                        ${msIcon('group')} <span>${sameGroupMates.length ? `같은 ${esc(me.paceGroup)} 러너: <strong>${esc(sameGroupMates.join(', '))}</strong>` : `${esc(me.paceGroup)} 첫 번째 주자로 참여해 보세요!`}</span>
-                    </div>
-                    ${isStaff ? `
-                        <div class="pace-preview-row">
-                            <span class="pace-chip pace-a">A조 ${groups['A조'].length}명</span>
-                            <span class="pace-chip pace-b">B조 ${groups['B조'].length}명</span>
-                            <span class="pace-chip pace-c">C조 ${groups['C조'].length}명</span>
-                            <span class="pace-chip pace-check">출석 ${(s.checkedIn || []).length}명</span>
+                    </button>
+                    <div class="schedule-details">
+                        <div class="card-info-grid">
+                            <div>${msIcon('schedule')} <span>${esc(E.formatKoreanDate(s.date))} ${esc(s.time)}</span></div>
+                            <div>${msIcon('straighten')} <span>${s.distance}km · 내 배정 ${esc(me.paceGroup)}</span></div>
+                            <div class="full-span">${msIcon('location_on')} <span>${esc(s.location)}</span></div>
                         </div>
-                    ` : ''}
-                    <div class="card-action-row">
-                        <button type="button" class="${isJoined ? 'btn-soft-mint' : 'btn-primary-full'}" onclick="window.YJAllInOneUI.toggleJoinSchedule('${esc(s.id)}')">
-                            ${isJoined ? `${msIcon('check_circle', true)} 참석 신청 완료` : `${msIcon('how_to_reg')} 나도 참석하기`}
-                        </button>
+                        ${s.courseNote ? `<p class="card-note">${esc(s.courseNote)}</p>` : ''}
+                        <div class="mate-group-hint">
+                            ${msIcon('group')} <span>${sameGroupMates.length ? `같은 ${esc(me.paceGroup)} 러너: <strong>${esc(sameGroupMates.join(', '))}</strong>` : `${esc(me.paceGroup)} 첫 번째 주자로 참여해 보세요!`}</span>
+                        </div>
                         ${isStaff ? `
-                            <button type="button" class="btn-soft-primary" onclick="window.YJAllInOneUI.openAttendanceModal('${esc(s.id)}')">${msIcon('groups')} 출석·조편성</button>
-                            <button type="button" class="btn-soft" onclick="window.YJAllInOneUI.shareScheduleToChat('${esc(s.id)}')">${msIcon('share')} 공유</button>
+                            <div class="pace-preview-row">
+                                <span class="pace-chip pace-a">A조 ${groups['A조'].length}명</span>
+                                <span class="pace-chip pace-b">B조 ${groups['B조'].length}명</span>
+                                <span class="pace-chip pace-c">C조 ${groups['C조'].length}명</span>
+                                <span class="pace-chip pace-check">출석 ${(s.checkedIn || []).length}명</span>
+                            </div>
                         ` : ''}
+                        <div class="card-action-row">
+                            <button type="button" class="${isJoined ? 'btn-soft-mint' : 'btn-primary-full'}" onclick="window.YJAllInOneUI.toggleJoinSchedule('${esc(s.id)}')">
+                                ${isJoined ? `${msIcon('check_circle', true)} 참석 신청 완료` : `${msIcon('how_to_reg')} 참석하기`}
+                            </button>
+                            ${!s.completed && !isChecked ? `
+                                <button type="button" class="btn-soft-primary" onclick="window.YJAllInOneUI.openQrCheckinModal('${esc(s.id)}')">${msIcon('qr_code_scanner')} QR 출석하기</button>
+                            ` : ''}
+                            ${isStaff ? `
+                                <button type="button" class="btn-soft-primary" onclick="window.YJAllInOneUI.openAttendanceModal('${esc(s.id)}')">${msIcon('groups')} 출석·조편성</button>
+                            ` : ''}
+                            <div class="schedule-more-wrap">
+                                <button type="button" class="icon-btn" title="더보기" aria-label="일정 더보기 메뉴" aria-expanded="${openScheduleMoreId === s.id ? 'true' : 'false'}" onclick="window.YJAllInOneUI.toggleScheduleMoreMenu('${esc(s.id)}', event)">${msIcon('more_vert')}</button>
+                                ${openScheduleMoreId === s.id ? `
+                                    <div class="schedule-more-menu" role="menu">
+                                        <button type="button" class="schedule-more-item" role="menuitem" onclick="window.YJAllInOneUI.closeScheduleMoreMenu(); window.YJAllInOneUI.copyScheduleText('${esc(s.id)}')">${msIcon('content_copy')} 일정 복사하기</button>
+                                        ${isStaff ? `
+                                            <button type="button" class="schedule-more-item" role="menuitem" onclick="window.YJAllInOneUI.closeScheduleMoreMenu(); window.YJAllInOneUI.shareScheduleToChat('${esc(s.id)}')">${msIcon('share')} 채팅방에 공유</button>
+                                            <button type="button" class="schedule-more-item" role="menuitem" onclick="window.YJAllInOneUI.closeScheduleMoreMenu(); window.YJAllInOneUI.openScheduleModal('${esc(s.id)}')">${msIcon('edit')} 일정 수정</button>
+                                            <button type="button" class="schedule-more-item danger" role="menuitem" onclick="window.YJAllInOneUI.closeScheduleMoreMenu(); window.YJAllInOneUI.deleteSchedule('${esc(s.id)}')">${msIcon('delete')} 일정 삭제</button>
+                                        ` : ''}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
                     </div>
                 </article>
             `;
         }).join('');
+    }
+
+    function toggleScheduleCard(scheduleId) {
+        if (expandedScheduleIds.has(scheduleId)) {
+            expandedScheduleIds.delete(scheduleId);
+            if (openScheduleMoreId === scheduleId) openScheduleMoreId = null;
+        } else {
+            expandedScheduleIds.add(scheduleId);
+        }
+        renderHome();
+    }
+
+    function toggleScheduleMoreMenu(scheduleId, ev) {
+        if (ev && typeof ev.stopPropagation === 'function') ev.stopPropagation();
+        openScheduleMoreId = openScheduleMoreId === scheduleId ? null : scheduleId;
+        renderHome();
+    }
+
+    function closeScheduleMoreMenu() {
+        if (openScheduleMoreId !== null) {
+            openScheduleMoreId = null;
+            renderHome();
+        }
+    }
+
+    function copyScheduleText(scheduleId) {
+        const s = E.shared.schedules.find(x => x.id === scheduleId);
+        if (!s) return;
+        const lines = [
+            `[${E.shared.crewName}] ${s.title} (${s.type})`,
+            `일시: ${E.formatKoreanDate(s.date)} ${s.time}`,
+            `장소: ${s.location}`,
+            `거리: ${s.distance}km (참여 ${(s.attendees || []).length}/${s.maxCount}명)`
+        ];
+        if (s.courseNote) lines.push(`안내: ${s.courseNote}`);
+        const text = lines.join('\n');
+
+        const done = () => {
+            E.playSound('success');
+            showToast('일정 안내가 복사되었습니다! 원하는 곳에 붙여넣기 하세요.', 'ok');
+        };
+
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            navigator.clipboard.writeText(text).then(done).catch(() => {
+                fallbackCopyText(text);
+                done();
+            });
+        } else {
+            fallbackCopyText(text);
+            done();
+        }
+    }
+
+    function fallbackCopyText(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch (_) {}
+        document.body.removeChild(ta);
+    }
+
+    function togglePinnedNoticeCard() {
+        isPinnedNoticeExpanded = !isPinnedNoticeExpanded;
+        renderHome();
     }
 
     function toggleJoinSchedule(scheduleId) {
@@ -259,6 +391,32 @@
         renderAll();
     }
 
+    function openPinnedNoticeModal(noticeId) {
+        const me = E.getCurrentMember();
+        const n = E.shared.notices.find(x => x.id === noticeId) || E.shared.notices[0];
+        const titleEl = document.getElementById('notice-detail-modal-title');
+        const bodyEl = document.getElementById('notice-detail-modal-body');
+        if (!n || !bodyEl || !me) return;
+
+        const isRead = (n.readBy || []).includes(me.id);
+        if (titleEl) titleEl.textContent = n.pinned ? '필독 공지' : '크루 공지';
+        bodyEl.innerHTML = `
+            <div class="notice-meta-row">
+                <span class="pill pill-orange">${esc(n.category || (n.pinned ? '필독' : '공지'))}</span>
+                <span>${esc(n.author)} · ${esc(n.createdAt)}</span>
+            </div>
+            <h3 class="card-title">${esc(n.title)}</h3>
+            <p class="notice-text">${esc(n.content).replace(/\n/g, '<br>')}</p>
+            <div class="modal-footer">
+                <button type="button" class="${isRead ? 'btn-soft-mint' : 'btn-soft-primary'}" onclick="window.YJAllInOneUI.toggleReadNotice('${esc(n.id)}')">
+                    ${isRead ? `${msIcon('check_circle', true)} 공지 확인 완료` : `${msIcon('visibility')} 공지 읽음 확인`}
+                </button>
+                <button type="button" class="btn-soft" onclick="document.getElementById('notice-detail-modal').classList.remove('open'); window.YJAllInOneUI.openNoticesSubTab();">전체 공지 (${E.shared.notices.length})</button>
+            </div>
+        `;
+        openModal('notice-detail-modal');
+    }
+
     function toggleReadNotice(noticeId) {
         const me = E.getCurrentMember();
         const n = E.shared.notices.find(x => x.id === noticeId);
@@ -269,6 +427,8 @@
             E.playSound('tap');
             E.saveShared();
             renderAll();
+            const modalEl = document.getElementById('notice-detail-modal');
+            if (modalEl && modalEl.classList.contains('open')) openPinnedNoticeModal(noticeId);
             showToast('공지 확인 완료!', 'ok');
         }
     }
@@ -278,18 +438,16 @@
         const me = E.getCurrentMember();
         const podiumEl = document.getElementById('rank-podium-box');
         const listEl = document.getElementById('rank-list-box');
-
-        document.querySelectorAll('.rank-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === E.extra.rankMode));
         if (!podiumEl || !listEl || !me) return;
 
-        const mode = E.extra.rankMode;
         const sorted = E.shared.members.slice().sort((a, b) => {
-            if (mode === 'attendance') return (b.attendanceCount || 0) - (a.attendanceCount || 0);
-            return (b.totalDistance || 0) - (a.totalDistance || 0);
+            const distDiff = (b.totalDistance || 0) - (a.totalDistance || 0);
+            if (distDiff !== 0) return distDiff;
+            return (b.attendanceCount || 0) - (a.attendanceCount || 0);
         });
 
         podiumEl.innerHTML = sorted.slice(0, 3).map((m, idx) => {
-            const metric = mode === 'attendance' ? `${m.attendanceCount || 0}회 출석` : `${m.totalDistance || 0}km`;
+            const metric = `${m.attendanceCount || 0}회 · ${m.totalDistance || 0}km`;
             return `
                 <div class="podium-card rank-${idx + 1} ${m.id === me.id ? 'is-me' : ''}">
                     <div class="podium-medal medal-${idx + 1}">${msIcon('military_tech', true)}</div>
@@ -301,7 +459,7 @@
         }).join('');
 
         listEl.innerHTML = sorted.map((m, idx) => {
-            const metric = mode === 'attendance' ? `${m.attendanceCount || 0}회 · ${m.totalDistance || 0}km` : `${m.totalDistance || 0}km · ${m.attendanceCount || 0}회`;
+            const metric = `${m.attendanceCount || 0}회 · ${m.totalDistance || 0}km`;
             const isMe = m.id === me.id;
             return `
                 <div class="rank-row ${isMe ? 'is-me' : ''}">
@@ -312,7 +470,6 @@
                     </div>
                     <div class="rank-right">
                         <span class="rank-score">${esc(metric)}</span>
-                        ${!isMe ? `<button type="button" class="cheer-mini-btn" onclick="window.YJAllInOneUI.cheerTeammate('${esc(m.name)}')">${msIcon('thumb_up')} 응원</button>` : ''}
                     </div>
                 </div>
             `;
@@ -492,11 +649,17 @@
                             ${f.photoDataUrl && String(f.photoDataUrl).startsWith('data:image/') ? `<div class="feed-photo-wrap"><img class="feed-photo-img" src="${esc(f.photoDataUrl)}" alt="오운완 인증샷"></div>` : ''}
                             <div class="feed-actions">
                                 <button type="button" class="clap-btn ${clapped ? 'on' : ''}" onclick="window.YJAllInOneUI.toggleClap('${esc(f.id)}')">${msIcon('thumb_up', clapped)} 응원 박수 ${f.claps || 0}</button>
-                                <button type="button" class="btn-soft" onclick="window.YJAllInOneUI.toggleCommentBox('${esc(f.id)}')">${msIcon('chat_bubble')} 댓글 ${(f.comments || []).length}</button>
+                                <button type="button" class="${activeFeedCommentId === f.id ? 'btn-soft-mint' : 'btn-soft'}" style="flex:0 0 auto;" aria-expanded="${activeFeedCommentId === f.id ? 'true' : 'false'}" onclick="window.YJAllInOneUI.toggleCommentBox('${esc(f.id)}')">${msIcon('chat_bubble', activeFeedCommentId === f.id)} 댓글 ${(f.comments || []).length}</button>
                             </div>
-                            ${commentsHtml ? `<div class="feed-comments-box">${commentsHtml}</div>` : ''}
                             ${activeFeedCommentId === f.id ? `
+                                ${commentsHtml ? `<div class="feed-comments-box">${commentsHtml}</div>` : ''}
+                                ${activeCommentEmojiFeedId === f.id ? `
+                                    <div class="emoji-picker-tray">
+                                        ${CREW_EMOJIS.map(em => `<button type="button" class="emoji-pick-btn" onclick="window.YJAllInOneUI.insertCommentEmoji('${esc(f.id)}', '${em}')">${em}</button>`).join('')}
+                                    </div>
+                                ` : ''}
                                 <form class="feed-comment-form" onsubmit="window.YJAllInOneUI.submitFeedComment(event, '${esc(f.id)}')">
+                                    <button type="button" class="emoji-toggle-btn ${activeCommentEmojiFeedId === f.id ? 'active' : ''}" aria-label="이모티콘 모음" onclick="window.YJAllInOneUI.toggleCommentEmojiTray('${esc(f.id)}')">${msIcon('mood')}</button>
                                     <input id="comment-input-${esc(f.id)}" type="text" class="comment-input" placeholder="따뜻한 응원을 남겨주세요..." required>
                                     <button type="submit" class="comment-send-btn">등록</button>
                                 </form>
@@ -570,12 +733,28 @@
     }
 
     function toggleCommentBox(feedId) {
-        activeFeedCommentId = activeFeedCommentId === feedId ? null : feedId;
+        const nextId = activeFeedCommentId === feedId ? null : feedId;
+        activeFeedCommentId = nextId;
+        if (!nextId) activeCommentEmojiFeedId = null;
         renderFeedAndNotices();
         if (activeFeedCommentId) {
             const inp = document.getElementById(`comment-input-${feedId}`);
             if (inp) inp.focus();
         }
+    }
+
+    function toggleCommentEmojiTray(feedId) {
+        activeCommentEmojiFeedId = activeCommentEmojiFeedId === feedId ? null : feedId;
+        renderFeedAndNotices();
+        const inp = document.getElementById(`comment-input-${feedId}`);
+        if (inp) inp.focus();
+    }
+
+    function insertCommentEmoji(feedId, emoji) {
+        const inp = document.getElementById(`comment-input-${feedId}`);
+        if (!inp) return;
+        inp.value += emoji;
+        inp.focus();
     }
 
     function submitFeedComment(ev, feedId) {
@@ -607,7 +786,7 @@
         if (wrap) wrap.classList.remove('show');
     }
 
-    function handleFeedPhotoFile(file) {
+    function compressImageFile(file, onDone) {
         if (!file || !file.type || !file.type.startsWith('image/')) {
             showToast('이미지 파일만 첨부할 수 있습니다.', 'warn');
             return;
@@ -628,15 +807,21 @@
                 canvas.height = h;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, w, h);
-                pendingFeedPhotoDataUrl = canvas.toDataURL('image/jpeg', 0.78);
-                const prevImg = document.getElementById('feed-photo-preview');
-                const prevWrap = document.getElementById('feed-photo-preview-wrap');
-                if (prevImg) prevImg.src = pendingFeedPhotoDataUrl;
-                if (prevWrap) prevWrap.classList.add('show');
+                onDone(canvas.toDataURL('image/jpeg', 0.78));
             };
             img.src = ev.target.result;
         };
         reader.readAsDataURL(file);
+    }
+
+    function handleFeedPhotoFile(file) {
+        compressImageFile(file, dataUrl => {
+            pendingFeedPhotoDataUrl = dataUrl;
+            const prevImg = document.getElementById('feed-photo-preview');
+            const prevWrap = document.getElementById('feed-photo-preview-wrap');
+            if (prevImg) prevImg.src = pendingFeedPhotoDataUrl;
+            if (prevWrap) prevWrap.classList.add('show');
+        });
     }
 
     function normalizePaceInput(raw, fallback) {
@@ -741,13 +926,11 @@
         const pinBanner = document.getElementById('chat-pinned-banner');
         const stream = document.getElementById('chat-message-stream');
         const staffRoomBtn = document.getElementById('chat-staff-room-btn');
-        const staffQuickBtns = document.getElementById('chat-staff-quick-chips');
         const me = E.getCurrentMember();
         const isStaff = E.isStaff();
         if (!pinBanner || !stream || !me) return;
 
         if (staffRoomBtn) staffRoomBtn.style.display = isStaff ? 'inline-flex' : 'none';
-        if (staffQuickBtns) staffQuickBtns.style.display = isStaff ? 'contents' : 'none';
 
         if (!isStaff && E.extra.activeChatRoom === 'staff') {
             E.extra.activeChatRoom = 'all';
@@ -808,12 +991,17 @@
                 }
             }
 
+            const photoHtml = msg.photoDataUrl && String(msg.photoDataUrl).startsWith('data:image/')
+                ? `<img class="chat-photo-img" src="${esc(msg.photoDataUrl)}" alt="채팅 첨부 이미지">`
+                : '';
+
             if (isMine) {
                 return `
                     <div class="chat-row mine">
                         <div class="chat-bubble-wrap">
                             <div class="chat-bubble">
-                                <div class="chat-text">${esc(msg.text).replace(/\n/g, '<br>')}</div>
+                                ${msg.text ? `<div class="chat-text">${esc(msg.text).replace(/\n/g, '<br>')}</div>` : ''}
+                                ${photoHtml}
                                 ${cardHtml}
                             </div>
                             <span class="chat-time">${esc(msg.time)}</span>
@@ -831,7 +1019,8 @@
                         <div class="chat-sender-meta"><strong>${esc(msg.senderName)}</strong> <span>${esc(msg.senderRole)}</span></div>
                         <div class="chat-bubble-wrap">
                             <div class="chat-bubble">
-                                <div class="chat-text">${esc(msg.text).replace(/\n/g, '<br>')}</div>
+                                ${msg.text ? `<div class="chat-text">${esc(msg.text).replace(/\n/g, '<br>')}</div>` : ''}
+                                ${photoHtml}
                                 ${cardHtml}
                             </div>
                             <span class="chat-time">${esc(msg.time)}</span>
@@ -842,11 +1031,61 @@
         }).join('');
     }
 
+    function toggleChatAttachTray(forceState) {
+        isChatAttachOpen = typeof forceState === 'boolean' ? forceState : !isChatAttachOpen;
+        if (isChatAttachOpen) isChatEmojiOpen = false;
+        syncChatTrays();
+    }
+
+    function toggleChatEmojiTray(forceState) {
+        isChatEmojiOpen = typeof forceState === 'boolean' ? forceState : !isChatEmojiOpen;
+        if (isChatEmojiOpen) isChatAttachOpen = false;
+        syncChatTrays();
+    }
+
+    function syncChatTrays() {
+        document.getElementById('chat-attach-tray')?.classList.toggle('open', isChatAttachOpen);
+        document.getElementById('chat-plus-btn')?.classList.toggle('active', isChatAttachOpen);
+        document.getElementById('chat-emoji-tray')?.classList.toggle('open', isChatEmojiOpen);
+        document.getElementById('chat-emoji-btn')?.classList.toggle('active', isChatEmojiOpen);
+    }
+
+    function insertChatEmoji(emoji) {
+        const input = document.getElementById('chat-message-input');
+        if (!input) return;
+        input.value += emoji;
+        input.focus();
+    }
+
+    function clearChatPhoto() {
+        pendingChatPhotoDataUrl = '';
+        const cam = document.getElementById('chat-photo-camera');
+        const gal = document.getElementById('chat-photo-gallery');
+        const bar = document.getElementById('chat-photo-preview-bar');
+        const img = document.getElementById('chat-photo-preview');
+        if (cam) cam.value = '';
+        if (gal) gal.value = '';
+        if (img) img.src = '';
+        if (bar) bar.classList.remove('show');
+    }
+
+    function handleChatPhotoFile(file) {
+        compressImageFile(file, dataUrl => {
+            pendingChatPhotoDataUrl = dataUrl;
+            const img = document.getElementById('chat-photo-preview');
+            const bar = document.getElementById('chat-photo-preview-bar');
+            if (img) img.src = pendingChatPhotoDataUrl;
+            if (bar) bar.classList.add('show');
+            toggleChatAttachTray(false);
+        });
+    }
+
     function sendChatMessage(textOverride, cardType, cardRefId) {
         const me = E.getCurrentMember();
         const input = document.getElementById('chat-message-input');
         const text = typeof textOverride === 'string' ? textOverride : (input ? input.value.trim() : '');
-        if (!me || (!text && !cardType)) return;
+        const hasPhoto = typeof textOverride !== 'string' && Boolean(pendingChatPhotoDataUrl);
+        if (!me || (!text && !cardType && !hasPhoto)) return;
 
         E.shared.chats.push({
             id: 'c_' + Date.now(),
@@ -855,11 +1094,16 @@
             senderName: me.name,
             senderRole: me.role,
             text,
+            photoDataUrl: hasPhoto ? pendingChatPhotoDataUrl : null,
             time: E.getCurrentTimeLabel(),
             cardType: cardType || null,
             cardRefId: cardRefId || null
         });
         if (input && typeof textOverride !== 'string') input.value = '';
+        if (hasPhoto) clearChatPhoto();
+        isChatAttachOpen = false;
+        isChatEmojiOpen = false;
+        syncChatTrays();
         E.playSound('tap');
         E.saveShared();
         renderChat();
@@ -1024,6 +1268,152 @@
         renderAll();
     }
 
+    function getScheduleQrPin(s) {
+        const str = `${s.id || ''}_${s.date || ''}`;
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            hash = ((hash * 31) + str.charCodeAt(i)) | 0;
+        }
+        return String(Math.abs(hash) % 9000 + 1000);
+    }
+
+    function buildQrSvg(seedText) {
+        const size = 21;
+        const cells = Array.from({ length: size }, () => Array(size).fill(false));
+        const markFinder = (r0, c0) => {
+            for (let r = 0; r < 7; r++) {
+                for (let c = 0; c < 7; c++) {
+                    const border = r === 0 || r === 6 || c === 0 || c === 6;
+                    const inner = r >= 2 && r <= 4 && c >= 2 && c <= 4;
+                    cells[r0 + r][c0 + c] = border || inner;
+                }
+            }
+        };
+        markFinder(0, 0);
+        markFinder(0, size - 7);
+        markFinder(size - 7, 0);
+
+        let seed = 2166136261;
+        for (let i = 0; i < seedText.length; i++) {
+            seed ^= seedText.charCodeAt(i);
+            seed = Math.imul(seed, 16777619);
+        }
+        for (let r = 0; r < size; r++) {
+            for (let c = 0; c < size; c++) {
+                const inTopLeft = r < 8 && c < 8;
+                const inTopRight = r < 8 && c >= size - 8;
+                const inBotLeft = r >= size - 8 && c < 8;
+                if (inTopLeft || inTopRight || inBotLeft) continue;
+                seed ^= (r * 37 + c * 17);
+                seed = Math.imul(seed, 16777619);
+                cells[r][c] = (seed >>> 0) % 2 === 0;
+            }
+        }
+        let rects = '';
+        for (let r = 0; r < size; r++) {
+            for (let c = 0; c < size; c++) {
+                if (cells[r][c]) {
+                    rects += `<rect x="${c * 8}" y="${r * 8}" width="8" height="8" rx="1"/>`;
+                }
+            }
+        }
+        return `<svg width="168" height="168" viewBox="0 0 ${size * 8} ${size * 8}" fill="#202124" aria-label="현장 출석 QR 코드">${rects}</svg>`;
+    }
+
+    function openQrShowModal(scheduleId) {
+        const sid = scheduleId || activeAttendanceScheduleId;
+        const s = E.shared.schedules.find(x => x.id === sid);
+        const body = document.getElementById('qr-show-modal-body');
+        if (!s || !body) return;
+        const pin = getScheduleQrPin(s);
+        const svg = buildQrSvg(`${s.id}_${pin}`);
+        body.innerHTML = `
+            <div class="qr-box-card">
+                <strong style="font-size:15px;">${esc(s.title)}</strong>
+                <span class="muted-xs">${esc(E.formatKoreanDate(s.date))} ${esc(s.time)} · ${esc(s.location)}</span>
+                <div class="qr-svg-wrap">${svg}</div>
+                <span class="muted-xs">카메라 스캔이 어려울 때 아래 4자리 번호 안내</span>
+                <div class="qr-pin-badge">${pin}</div>
+                <span class="muted-xs">현재 현장 출석 완료: <strong>${(s.checkedIn || []).length}명</strong></span>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-modal-submit" data-close-modal="qr-show-modal" onclick="document.getElementById('qr-show-modal').classList.remove('open')">닫기</button>
+            </div>
+        `;
+        openModal('qr-show-modal');
+    }
+
+    function openQrCheckinModal(scheduleId) {
+        const s = E.shared.schedules.find(x => x.id === scheduleId);
+        const body = document.getElementById('qr-checkin-modal-body');
+        if (!s || !body) return;
+        body.innerHTML = `
+            <div class="qr-box-card">
+                <strong style="font-size:15px;">${esc(s.title)}</strong>
+                <span class="muted-xs">${esc(s.location)} 현장에서 QR을 찍거나 4자리 번호를 입력하세요</span>
+                <button type="button" class="btn-soft-primary" style="width:100%;" onclick="window.YJAllInOneUI.startQrCameraScan('${esc(s.id)}')">
+                    ${msIcon('photo_camera')} 카메라로 QR 스캔하기
+                </button>
+                <button type="button" class="btn-soft" style="width:100%;" onclick="window.YJAllInOneUI.completeQrCheckinNow('${esc(s.id)}')">
+                    ${msIcon('qr_code_scanner')} 현장 QR 스캔 즉시 체험하기
+                </button>
+            </div>
+            <form onsubmit="window.YJAllInOneUI.submitQrPinCheckin(event, '${esc(s.id)}')" style="display:flex; flex-direction:column; gap:8px;">
+                <div class="form-field">
+                    <label for="qr-checkin-pin-input">현장 4자리 확인 번호 입력</label>
+                    <input id="qr-checkin-pin-input" type="text" inputmode="numeric" maxlength="4" class="qr-pin-input" placeholder="0000" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-modal-cancel" onclick="document.getElementById('qr-checkin-modal').classList.remove('open')">취소</button>
+                    <button type="submit" class="btn-modal-submit">출석 확인</button>
+                </div>
+            </form>
+        `;
+        openModal('qr-checkin-modal');
+    }
+
+    function completeQrCheckinNow(scheduleId) {
+        const me = E.getCurrentMember();
+        const s = E.shared.schedules.find(x => x.id === scheduleId);
+        if (!me || !s) return;
+        if (!(s.checkedIn || []).includes(me.id)) {
+            toggleCheckIn(scheduleId, me.id);
+        }
+        closeModal('qr-checkin-modal');
+        if (typeof window.confetti === 'function') window.confetti({ particleCount: 45, spread: 60, origin: { y: 0.7 } });
+        showToast(`'${s.title}' 현장 QR 출석 완료!`, 'ok');
+    }
+
+    function submitQrPinCheckin(ev, scheduleId) {
+        ev.preventDefault();
+        const s = E.shared.schedules.find(x => x.id === scheduleId);
+        const inp = document.getElementById('qr-checkin-pin-input');
+        if (!s || !inp) return;
+        const entered = inp.value.trim();
+        const expected = getScheduleQrPin(s);
+        if (entered !== expected) {
+            showToast('현장 번호가 일치하지 않습니다. 크루장에게 번호를 확인해 주세요.', 'warn');
+            inp.focus();
+            return;
+        }
+        completeQrCheckinNow(scheduleId);
+    }
+
+    function startQrCameraScan(scheduleId) {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            showToast('현재 화면에서는 카메라를 연결할 수 없어 아래 체험 버튼이나 4자리 번호를 이용해 주세요.', 'warn');
+            return;
+        }
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(stream => {
+                stream.getTracks().forEach(t => t.stop());
+                showToast('카메라 연결 확인! 아래 4자리 번호 또는 스캔 체험으로 출석하세요.', 'ok');
+            })
+            .catch(() => {
+                showToast('카메라 권한이 없어 4자리 번호 입력 또는 스캔 체험을 이용해 주세요.', 'warn');
+            });
+    }
+
     function completeScheduleRun() {
         const s = E.shared.schedules.find(x => x.id === activeAttendanceScheduleId);
         if (!s) return;
@@ -1184,6 +1574,12 @@
         }).join('') : '<div class="empty-card">조건에 맞는 크루원이 없습니다.</div>';
     }
 
+    function openAdminSection(filterKey) {
+        memberFilter = filterKey || 'all';
+        document.querySelectorAll('.filter-chip').forEach(b => b.classList.toggle('active', b.dataset.filter === memberFilter));
+        openAdminModal();
+    }
+
     function openAdminModal() {
         document.getElementById('admin-crew-name').value = E.shared.crewName;
         document.getElementById('admin-goal-km').value = E.extra.monthlyGoalKm || 50;
@@ -1297,6 +1693,101 @@
     }
 
     // ==================== 프로필 전환 ====================
+    function openMyInfoModal() {
+        const me = E.getCurrentMember();
+        const body = document.getElementById('my-info-modal-body');
+        if (!me || !body) return;
+        const feeClass = me.feeStatus === '완납' ? 'pill-mint' : (me.feeStatus === '미납' ? 'pill-red' : 'pill-slate');
+        body.innerHTML = `
+            <div class="stats-bar">
+                <div class="stat-box"><span class="stat-label">소속 조</span><strong class="stat-value">${esc(me.paceGroup)}</strong></div>
+                <div class="stat-box"><span class="stat-label">출석 도장</span><strong class="stat-value">${me.attendanceCount || 0}회</strong></div>
+                <div class="stat-box"><span class="stat-label">누적 거리</span><strong class="stat-value">${me.totalDistance || 0}km</strong></div>
+            </div>
+            <div class="notice-meta-row" style="padding:2px 2px;">
+                <span>현재 역할: <strong>${esc(me.role)}</strong></span>
+                <span class="pill ${feeClass}">회비 ${esc(me.feeStatus)}</span>
+            </div>
+            <form onsubmit="window.YJAllInOneUI.saveMyInfoForm(event)" style="display:flex; flex-direction:column; gap:10px;">
+                <div class="form-row-2">
+                    <div class="form-field">
+                        <label for="myinfo-name">이름</label>
+                        <input id="myinfo-name" type="text" value="${esc(me.name)}" required>
+                    </div>
+                    <div class="form-field">
+                        <label for="myinfo-pace">주력 페이스</label>
+                        <input id="myinfo-pace" type="text" value="${esc(me.pace)}">
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label for="myinfo-memo">내 러닝 메모</label>
+                    <textarea id="myinfo-memo" rows="2" placeholder="목표나 특이사항을 적어두세요">${esc(me.memo || '')}</textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-modal-cancel" onclick="document.getElementById('my-info-modal').classList.remove('open')">닫기</button>
+                    <button type="submit" class="btn-modal-submit">내 정보 저장</button>
+                </div>
+            </form>
+        `;
+        openModal('my-info-modal');
+    }
+
+    function saveMyInfoForm(ev) {
+        ev.preventDefault();
+        const me = E.getCurrentMember();
+        if (!me) return;
+        const name = document.getElementById('myinfo-name')?.value.trim();
+        const pace = normalizePaceInput(document.getElementById('myinfo-pace')?.value, me.pace);
+        const memo = document.getElementById('myinfo-memo')?.value.trim() || '';
+        if (!name) return;
+        me.name = name;
+        me.pace = pace;
+        me.paceGroup = E.computePaceGroup(pace);
+        me.memo = memo;
+        E.playSound('success');
+        E.saveShared();
+        closeModal('my-info-modal');
+        renderAll();
+        showToast('내 정보가 저장되었습니다!', 'ok');
+    }
+
+    function openAppSettingsModal() {
+        const body = document.getElementById('app-settings-modal-body');
+        if (!body) return;
+        const isMuted = Boolean(E.extra.soundMuted);
+        const goal = Math.max(10, Number(E.extra.monthlyGoalKm) || 50);
+        body.innerHTML = `
+            <form onsubmit="window.YJAllInOneUI.saveAppSettingsForm(event)" style="display:flex; flex-direction:column; gap:12px;">
+                <div class="form-field">
+                    <label for="appset-goal-km">내 이달 목표 거리 (km)</label>
+                    <input id="appset-goal-km" type="number" min="10" max="500" value="${goal}" required>
+                </div>
+                <label class="checkbox-row" style="padding:6px 2px;">
+                    <input id="appset-sound-on" type="checkbox" ${!isMuted ? 'checked' : ''}>
+                    <span>버튼 및 알림 효과음 켜기</span>
+                </label>
+                <div class="modal-footer">
+                    <button type="button" class="btn-modal-cancel" onclick="document.getElementById('app-settings-modal').classList.remove('open')">취소</button>
+                    <button type="submit" class="btn-modal-submit">설정 저장</button>
+                </div>
+            </form>
+        `;
+        openModal('app-settings-modal');
+    }
+
+    function saveAppSettingsForm(ev) {
+        ev.preventDefault();
+        const goal = Math.max(10, Number(document.getElementById('appset-goal-km')?.value) || 50);
+        const soundOn = Boolean(document.getElementById('appset-sound-on')?.checked);
+        E.extra.monthlyGoalKm = goal;
+        E.extra.soundMuted = !soundOn;
+        E.saveExtra();
+        if (soundOn) E.playSound('success');
+        closeModal('app-settings-modal');
+        renderAll();
+        showToast('앱 설정이 저장되었습니다!', 'ok');
+    }
+
     function openMemberSwitchModal() {
         const list = document.getElementById('switch-member-list');
         if (!list) return;
@@ -1384,6 +1875,16 @@
         document.getElementById('feed-photo-gallery')?.addEventListener('change', e => {
             if (e.target.files && e.target.files[0]) handleFeedPhotoFile(e.target.files[0]);
         });
+        document.getElementById('chat-photo-camera')?.addEventListener('change', e => {
+            if (e.target.files && e.target.files[0]) handleChatPhotoFile(e.target.files[0]);
+        });
+        document.getElementById('chat-photo-gallery')?.addEventListener('change', e => {
+            if (e.target.files && e.target.files[0]) handleChatPhotoFile(e.target.files[0]);
+        });
+        const chatEmojiTray = document.getElementById('chat-emoji-tray');
+        if (chatEmojiTray) {
+            chatEmojiTray.innerHTML = CREW_EMOJIS.map(em => `<button type="button" class="emoji-pick-btn" onclick="window.YJAllInOneUI.insertChatEmoji('${em}')">${em}</button>`).join('');
+        }
 
         document.getElementById('feed-dist')?.addEventListener('input', () => {
             hasStartedDistAccum = true;
@@ -1413,11 +1914,25 @@
         document.querySelectorAll('.crew-modal-backdrop').forEach(bg => {
             bg.addEventListener('click', ev => { if (ev.target === bg) closeModal(bg.id); });
         });
+
+        document.addEventListener('click', ev => {
+            if (openScheduleMoreId && !ev.target.closest('.schedule-more-wrap')) {
+                closeScheduleMoreMenu();
+            }
+        });
     }
 
     window.YJAllInOneUI = {
         switchTab,
+        openDrawer,
+        closeDrawer,
+        openPinnedNoticeModal,
         openNoticesSubTab: () => { E.extra.feedSubTab = 'notices'; switchTab('feed'); },
+        toggleScheduleCard,
+        toggleScheduleMoreMenu,
+        closeScheduleMoreMenu,
+        copyScheduleText,
+        togglePinnedNoticeCard,
         toggleJoinSchedule,
         toggleReadNotice,
         toggleLiveRun,
@@ -1427,7 +1942,13 @@
         cheerTeammate,
         toggleClap,
         toggleCommentBox,
+        toggleCommentEmojiTray,
+        insertCommentEmoji,
         submitFeedComment,
+        toggleChatAttachTray,
+        toggleChatEmojiTray,
+        insertChatEmoji,
+        clearChatPhoto,
         openFeedModal: () => { hasStartedDistAccum = false; clearFeedPhoto(); openModal('feed-modal'); },
         clearFeedPhoto,
         setFeedDist,
@@ -1447,6 +1968,11 @@
         openScheduleModal,
         deleteSchedule,
         openAttendanceModal,
+        openQrShowModal,
+        openQrCheckinModal,
+        submitQrPinCheckin,
+        completeQrCheckinNow,
+        startQrCameraScan,
         toggleAttendee,
         toggleCheckIn,
         completeScheduleRun,
@@ -1456,11 +1982,16 @@
         deleteNotice,
         shareNoticeToChat,
         openAdminModal,
+        openAdminSection,
         openMemberModal,
         cycleFeeStatus,
         deleteMember,
         resetAllData,
         openMemberSwitchModal,
+        openMyInfoModal,
+        saveMyInfoForm,
+        openAppSettingsModal,
+        saveAppSettingsForm,
         selectMember
     };
 

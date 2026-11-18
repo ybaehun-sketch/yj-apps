@@ -10,6 +10,7 @@ const DEFAULT_DATA = {
     wrongFilterMode: 'unmastered', // 'unmastered' (정복 전 모두) | 'repeated' (일정 횟수 이상 틀린 문제만)
     wrongMinCount: 2 // 몇 번 이상 틀린 문제를 약점으로 볼지 (1~19)
   },
+  masteredProblems: [],
   problems: [
     {
       id: 'sample-1',
@@ -65,6 +66,7 @@ export function loadState() {
         wrongFilterMode: parsed.settings?.wrongFilterMode === 'repeated' ? 'repeated' : 'unmastered',
         wrongMinCount: Math.min(19, Math.max(1, Number(parsed.settings?.wrongMinCount) || 2))
       },
+      masteredProblems: Array.isArray(parsed.masteredProblems) ? parsed.masteredProblems : [],
       problems: Array.isArray(parsed.problems) ? parsed.problems : []
     };
   } catch {

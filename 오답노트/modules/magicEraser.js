@@ -367,6 +367,34 @@ export function createMagicEraser({
     }
   });
 
+  function rotate90() {
+    if (canvas.width === 0 || canvas.height === 0) return;
+    if (baseBeforeCropOverlay) {
+      ctx.putImageData(baseBeforeCropOverlay, 0, 0);
+      baseBeforeCropOverlay = null;
+      cropRect = null;
+    }
+    const oldW = canvas.width;
+    const oldH = canvas.height;
+    const temp = document.createElement('canvas');
+    temp.width = oldW;
+    temp.height = oldH;
+    temp.getContext('2d').drawImage(canvas, 0, 0);
+
+    canvas.width = oldH;
+    canvas.height = oldW;
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(Math.PI / 2);
+    ctx.drawImage(temp, -oldW / 2, -oldH / 2);
+    ctx.restore();
+
+    pushHistory();
+    if (mode === 'crop') {
+      setMode('crop');
+    }
+  }
+
   function exportDataUrl() {
     if (baseBeforeCropOverlay) {
       ctx.putImageData(baseBeforeCropOverlay, 0, 0);
@@ -380,6 +408,7 @@ export function createMagicEraser({
     setMode,
     setBrushSize,
     undo,
+    rotate90,
     applyCrop,
     exportDataUrl
   };

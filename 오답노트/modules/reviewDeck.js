@@ -29,7 +29,10 @@ export function renderReviewCard({
   els.metaRow.appendChild(subBadge);
 
   const statusBadge = document.createElement('span');
-  if (problem.wrongCount > 0) {
+  if (problem.mastered) {
+    statusBadge.className = 'badge-mastered';
+    statusBadge.textContent = '정복 완료';
+  } else if (problem.wrongCount > 0) {
     statusBadge.className = 'badge-wrong';
     statusBadge.textContent = `${problem.wrongCount}번 틀림`;
   } else {
