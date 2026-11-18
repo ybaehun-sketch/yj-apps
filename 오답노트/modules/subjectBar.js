@@ -98,7 +98,7 @@ export function renderSubjectBar({
     const manageBtn = document.createElement('button');
     manageBtn.type = 'button';
     manageBtn.className = 'subject-pill manage-pill';
-    manageBtn.textContent = '과목설정';
+    manageBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">tune</span><span>과목설정</span>';
     manageBtn.addEventListener('click', onOpenManage);
     fixedActions.appendChild(manageBtn);
 

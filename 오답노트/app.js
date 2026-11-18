@@ -371,9 +371,9 @@ function renderHome() {
     const empty = document.createElement('div');
     empty.className = 'empty-state';
     empty.innerHTML = `
-      <div class="empty-icon">📒</div>
+      <div class="empty-icon"><span class="material-symbols-rounded ms-icon ms-empty" aria-hidden="true">menu_book</span></div>
       <p><strong>아직 등록된 오답이 없어요</strong></p>
-      <p>오른쪽 아래 <b>+ 오답 올리기</b>를 눌러<br/>3초 만에 첫 오답을 등록해 보세요.</p>
+      <p>오른쪽 아래 <b>오답 올리기</b>를 눌러<br/>3초 만에 첫 오답을 등록해 보세요.</p>
     `;
     homeEls.problemList.appendChild(empty);
     return;
@@ -395,7 +395,7 @@ function renderHome() {
     } else {
       const thumbBox = document.createElement('div');
       thumbBox.className = 'problem-thumb-text';
-      thumbBox.textContent = '📝';
+      thumbBox.innerHTML = '<span class="material-symbols-rounded ms-icon ms-thumb" aria-hidden="true">edit_note</span>';
       card.appendChild(thumbBox);
     }
 
@@ -441,7 +441,7 @@ function renderHome() {
     const editBtn = document.createElement('button');
     editBtn.type = 'button';
     editBtn.className = 'btn-card-edit';
-    editBtn.textContent = '수정';
+    editBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">edit</span><span>수정</span>';
     editBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       openEditProblem(p);
@@ -451,7 +451,7 @@ function renderHome() {
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.className = 'btn-card-del';
-    delBtn.textContent = '삭제';
+    delBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">delete</span><span>삭제</span>';
     delBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const ok = await showConfirm('이 오답 카드를 삭제할까요?', {
@@ -747,7 +747,7 @@ function renderSubjectManageList() {
     const saveBtn = document.createElement('button');
     saveBtn.type = 'button';
     saveBtn.className = 'btn-subject-save';
-    saveBtn.textContent = '이름 변경';
+    saveBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">check</span><span>이름 변경</span>';
     saveBtn.addEventListener('click', () => {
       const nextName = input.value.trim();
       if (!nextName) {
@@ -774,7 +774,7 @@ function renderSubjectManageList() {
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.className = 'btn-subject-del';
-    delBtn.textContent = '삭제';
+    delBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">delete</span><span>삭제</span>';
     delBtn.addEventListener('click', async () => {
       const ok = await showConfirm(
         `'${subj}' 과목을 삭제할까요?\n(이 과목에 있던 문제는 '미분류'로 안전하게 남습니다.)`,

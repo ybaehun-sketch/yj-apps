@@ -2,9 +2,49 @@ import { GoogleGenAI } from "@google/genai";
 
 export const GEMINI_MODEL = "gemini-3.5-flash-lite";
 export const GEMINI_FALLBACK_MODEL = "gemini-3.1-flash-lite";
+export const GEMINI_MODELS = [
+  GEMINI_MODEL,
+  GEMINI_FALLBACK_MODEL,
+  "gemini-flash-lite-latest",
+] as const;
+
+const QUOTA_COOLDOWN_MS = 20_000;
+const modelCooldownUntil = new Map<string, number>();
 
 export function getGeminiApiKey(): string | undefined {
-  return process.env["GEMINI_API_KEY"] || process.env["GOOGLE_API_KEY"];
+  return (process.env["GEMINI_API_KEY"] || process.env["GOOGLE_API_KEY"])?.trim() || undefined;
+}
+
+export function isQuotaError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const status = (error as { status?: unknown }).status;
+  if (status === 429) return true;
+  const msg = String((error as { message?: unknown }).message ?? error);
+  return /\b429\b|rate.?limit|quota|resource.?exhausted/i.test(msg);
+}
+
+/**
+ * Return candidate models ordered with healthy (non-cooled-down) models first.
+ */
+export function getCandidateModels(now = Date.now()): string[] {
+  const healthy: string[] = [];
+  const cooled: Array<{ model: string; until: number }> = [];
+  for (const model of GEMINI_MODELS) {
+    const until = modelCooldownUntil.get(model) ?? 0;
+    if (until <= now) {
+      modelCooldownUntil.delete(model);
+      healthy.push(model);
+    } else {
+      cooled.push({ model, until });
+    }
+  }
+  cooled.sort((a, b) => a.until - b.until);
+  return [...healthy, ...cooled.map((c) => c.model)];
+}
+
+/** Clear cached model cooldowns (intended for tests). */
+export function resetGeminiCooldowns(): void {
+  modelCooldownUntil.clear();
 }
 
 export type GeminiInputPart =
@@ -14,6 +54,7 @@ export type GeminiInputPart =
 
 /**
  * Call Gemini Interactions API with optional multimodal parts and return text output.
+ * Automatically fails over across verified backup models and cools down quota-limited models.
  */
 export async function callGemini(opts: {
   instructions?: string;
@@ -25,7 +66,7 @@ export async function callGemini(opts: {
   if (!apiKey) return null;
 
   const ai = new GoogleGenAI({ apiKey, apiVersion: "v1beta" });
-  const models = [GEMINI_MODEL, GEMINI_FALLBACK_MODEL];
+  const models = getCandidateModels();
   for (const model of models) {
     try {
       const interaction = await withTimeout(
@@ -49,15 +90,18 @@ export async function callGemini(opts: {
         .filter((o) => o.type === "text" && typeof o.text === "string")
         .map((o) => o.text)
         .join("");
-      if (fallback) return fallback;
+      if (fallback.trim()) return fallback;
     } catch (e) {
+      if (isQuotaError(e)) {
+        modelCooldownUntil.set(model, Date.now() + QUOTA_COOLDOWN_MS);
+      }
       console.error(`gemini call failed (${model})`, e);
     }
   }
   return null;
 }
 
-const CALL_TIMEOUT_MS = 20_000;
+const CALL_TIMEOUT_MS = 12_000;
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {

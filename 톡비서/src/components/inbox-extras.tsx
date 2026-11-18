@@ -163,11 +163,13 @@ export function NotesCalendar({
   urls = {},
   onUpdate,
   onDelete,
+  onZoom,
 }: {
   notes: Note[];
   urls?: Record<string, string>;
   onUpdate?: (id: string, patch: { category: string; tags: string[] }) => void;
   onDelete?: (n: Note) => void;
+  onZoom?: ((url: string) => void) | undefined;
 }) {
   const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [sel, setSel] = useState<Date | null>(null);
@@ -278,7 +280,7 @@ export function NotesCalendar({
                         {isViewing && (
                           <div className="mt-2.5 space-y-2 rounded-xl bg-muted/60 p-2.5 text-xs text-foreground">
                             <p className="font-semibold text-muted-foreground">{tr("원본")}</p>
-                            {imgUrl && <img src={imgUrl} alt={tr("원본")} className="h-auto max-h-60 w-auto max-w-full rounded-xl object-contain" />}
+                            {imgUrl && <img src={imgUrl} alt={tr("원본")} onClick={() => onZoom?.(imgUrl)} className="h-auto max-h-60 w-auto max-w-full cursor-zoom-in rounded-xl object-contain" />}
                             {audUrl && <audio controls preload="none" src={audUrl} className="h-9 w-full" />}
                             {n.link_url && (
                               <a href={n.link_url} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 truncate font-medium text-primary underline">
@@ -454,31 +456,106 @@ export function useCustomCategories() {
   return q.data ?? [];
 }
 
-function CustomCategories({ plan, onUpgrade }: { plan: Plan; onUpgrade: () => void }) {
+export function CustomCategories({ plan, onUpgrade }: { plan: Plan; onUpgrade: () => void }) {
   const cats = useCustomCategories();
   const qc = useQueryClient();
   const limit = CUSTOM_CATEGORY_LIMIT[plan];
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("book");
   const [hintTags, setHintTags] = useState<string[]>([]);
   const [hintInput, setHintInput] = useState("");
   const [err, setErr] = useState("");
-  const add = async () => {
+  const [notice, setNotice] = useState("");
+  const editingCat = editingId ? cats.find((c) => c.id === editingId) : undefined;
+
+  const showNotice = (msg: string) => {
+    setNotice(msg);
+    setTimeout(() => setNotice(""), 2500);
+  };
+
+  const resetForm = () => {
+    setFormOpen(false);
+    setEditingId(null);
+    setName("");
+    setEmoji("book");
+    setHintTags([]);
+    setHintInput("");
+    setErr("");
+  };
+
+  const startCreate = () => {
+    setEditingId(null);
+    setName("");
+    setEmoji("book");
+    setHintTags([]);
+    setHintInput("");
+    setErr("");
+    setNotice("");
+    setFormOpen(true);
+  };
+
+  const startEdit = (c: { id: string; name: string; emoji: string; hint: string | null }) => {
+    if (formOpen && editingId === c.id) {
+      resetForm();
+      return;
+    }
+    setEditingId(c.id);
+    setName(c.name);
+    setEmoji(c.emoji || "book");
+    setHintTags(parseTagTokens(c.hint ?? "", [], 10));
+    setHintInput("");
+    setErr("");
+    setNotice("");
+    setFormOpen(true);
+  };
+
+  const save = async () => {
     const n = name.trim();
     if (!n) return;
-    if ((NOTE_CATEGORIES as readonly string[]).includes(n) || cats.some((c) => c.name === n)) { setErr(tr("이미 있는 카테고리예요")); return; }
-    if (cats.length >= limit) { setErr(tr("최대 {0}개까지 만들 수 있어요", limit)); return; }
+    if ((NOTE_CATEGORIES as readonly string[]).includes(n) || cats.some((c) => c.name === n && c.id !== editingId)) {
+      setErr(tr("이미 있는 카테고리예요"));
+      return;
+    }
     const finalTags = parseTagTokens(hintInput, hintTags, 10);
     const hintStr = finalTags.map((t) => `#${t}`).join(" ").slice(0, 80);
+
+    if (editingId) {
+      const { error } = await supabase
+        .from("user_categories")
+        .update({ name: n.slice(0, 12), emoji, hint: hintStr })
+        .eq("id", editingId);
+      if (error) {
+        setErr(tr("수정하지 못했어요"));
+        return;
+      }
+      resetForm();
+      showNotice(tr("‘{0}’ 카테고리가 수정되었어요!", n.slice(0, 12)));
+      qc.invalidateQueries({ queryKey: ["user_categories"] });
+      return;
+    }
+
+    if (cats.length >= limit) {
+      setErr(tr("최대 {0}개까지 만들 수 있어요", limit));
+      return;
+    }
     const { error } = await supabase.from("user_categories").insert({ name: n.slice(0, 12), emoji, hint: hintStr });
-    if (error) { setErr(tr("추가하지 못했어요")); return; }
-    setName(""); setHintTags([]); setHintInput(""); setErr("");
+    if (error) {
+      setErr(tr("추가하지 못했어요"));
+      return;
+    }
+    resetForm();
+    showNotice(tr("‘{0}’ 카테고리가 추가되었어요!", n.slice(0, 12)));
     qc.invalidateQueries({ queryKey: ["user_categories"] });
   };
+
   const remove = async (id: string) => {
     await supabase.from("user_categories").delete().eq("id", id);
+    if (editingId === id) resetForm();
     qc.invalidateQueries({ queryKey: ["user_categories"] });
   };
+
   return (
     <>
       <div className="flex flex-wrap gap-1.5">
@@ -501,15 +578,57 @@ function CustomCategories({ plan, onUpgrade }: { plan: Plan; onUpgrade: () => vo
           <p className="mt-3 text-xs font-semibold text-foreground">{tr("나만의 카테고리")} <span className="text-muted-foreground">{cats.length}/{limit}</span></p>
           <ul className="mt-1.5 space-y-1.5">
             {cats.map((c) => (
-              <li key={c.id} className="flex items-center gap-2 rounded-xl bg-muted/60 px-3 py-2">
+              <li
+                key={c.id}
+                onClick={() => startEdit(c)}
+                role="button"
+                tabIndex={0}
+                className={`flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2 transition-colors ${
+                  editingId === c.id ? "bg-sky-500/15 ring-1 ring-sky-500" : "bg-muted/60 hover:bg-muted"
+                }`}
+              >
                 <CustomIcon iconKey={c.emoji} className="size-4 text-muted-foreground" />
-                <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-foreground">{c.name}</p>{c.hint && <p className="truncate text-xs text-muted-foreground">{c.hint}</p>}</div>
-                <button aria-label={tr("{0} 삭제", c.name)} onClick={() => remove(c.id)} className="rounded-full p-1 text-muted-foreground hover:bg-muted"><X className="size-4" /></button>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-foreground">{c.name}</p>
+                  {c.hint && <p className="truncate text-xs text-muted-foreground">{c.hint}</p>}
+                </div>
+                <button
+                  type="button"
+                  aria-label={tr("{0} 삭제", c.name)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void remove(c.id);
+                  }}
+                  className="rounded-full p-1 text-muted-foreground hover:bg-muted"
+                >
+                  <X className="size-4" />
+                </button>
               </li>
             ))}
           </ul>
-          {cats.length < limit && (
-            <div className="mt-2.5 space-y-2 rounded-xl border border-border p-3">
+          {notice && (
+            <p className="mt-2 flex items-center gap-1.5 rounded-xl bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+              <CheckCircle2 className="size-4 shrink-0" />
+              <span>{notice}</span>
+            </p>
+          )}
+          {!formOpen && cats.length < limit && (
+            <button
+              type="button"
+              onClick={startCreate}
+              className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-sky-500/50 bg-sky-500/10 py-2.5 text-sm font-semibold text-sky-600 dark:text-sky-400 hover:bg-sky-500/15 transition-colors"
+            >
+              <Plus className="size-4" />
+              <span>{tr("새 카테고리 만들기")}</span>
+            </button>
+          )}
+          {formOpen && (cats.length < limit || editingId) && (
+            <div className="mt-2.5 space-y-2 rounded-xl border border-border p-3 animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-bold ${editingCat ? "text-sky-600 dark:text-sky-400" : "text-muted-foreground"}`}>
+                  {editingCat ? tr("‘{0}’ 카테고리 수정 중", editingCat.name) : tr("새 카테고리 만들기")}
+                </span>
+              </div>
               <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-10">
                 {CUSTOM_ICON_CHOICES.map(({ key, Icon }) => (
                   <button key={key} type="button" onClick={() => setEmoji(key)}
@@ -530,9 +649,24 @@ function CustomCategories({ plan, onUpgrade }: { plan: Plan; onUpgrade: () => vo
                 textClassName="text-sm"
               />
               {err && <p className="text-xs text-destructive">{err}</p>}
-              <button onClick={add} disabled={!name.trim()} className="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
-                <Plus className="size-4" />{tr("카테고리 추가")}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="rounded-lg bg-muted px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/80"
+                >
+                  {tr("취소")}
+                </button>
+                <button
+                  type="button"
+                  onClick={save}
+                  disabled={!name.trim()}
+                  className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                >
+                  <CheckCircle2 className="size-4" />
+                  <span>{editingId ? tr("수정 완료") : tr("저장하기")}</span>
+                </button>
+              </div>
             </div>
           )}
           <p className="mt-2 text-xs text-muted-foreground">{tr("다음에 던지는 것부터 AI가 이 카테고리로도 분류해요")}</p>
@@ -542,23 +676,23 @@ function CustomCategories({ plan, onUpgrade }: { plan: Plan; onUpgrade: () => vo
   );
 }
 
-export type Prefs = { alarm: boolean; mode: "light" | "dark"; accent: "yellow" | "mint" | "pink" | "sky"; plan: Plan };
-const DEFAULT: Prefs = { alarm: true, mode: "light", accent: "yellow", plan: "free" };
+export type Prefs = { alarm: boolean; mode: "light" | "dark"; accent: "sky" | "lavender" | "mint" | "pink" | "yellow"; plan: Plan };
+const DEFAULT: Prefs = { alarm: true, mode: "light", accent: "sky", plan: "free" };
 
 const PAY_PLANS = [
   { key: "monthly", plan: "premium" as Plan, name: "월간 구독", price: "4,900원", unit: "/월" },
 ];
 const METHODS = ["카카오페이", "토스페이", "신용/체크카드"];
 
-function PaymentModal({ onClose, onPaid }: { onClose: () => void; onPaid: (p: Plan) => void }) {
+export function PaymentModal({ onClose, onPaid }: { onClose: () => void; onPaid: (p: Plan) => void }) {
   const [sel, setSel] = useState("monthly");
   const [method, setMethod] = useState(METHODS[0]);
   const [step, setStep] = useState<"form" | "paying" | "done">("form");
   const chosen = PAY_PLANS.find((p) => p.key === sel)!;
   const pay = () => { setStep("paying"); setTimeout(() => { setStep("done"); onPaid(chosen.plan); }, 1400); };
   return (
-    <div className="absolute inset-0 z-20 flex items-end justify-center bg-foreground/40" onClick={onClose}>
-      <div className="max-h-[90%] w-full max-w-md overflow-y-auto rounded-t-3xl bg-card p-5 animate-in slide-in-from-bottom" onClick={(e) => e.stopPropagation()}>
+    <div className="absolute inset-0 z-70 flex items-end justify-center bg-black/45 backdrop-blur-[2px]" onClick={onClose}>
+      <div className="max-h-[90%] w-full max-w-md overflow-y-auto rounded-t-3xl bg-card p-5 shadow-2xl animate-in slide-in-from-bottom" onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-center justify-between">
           <p className="font-bold text-foreground">{tr("결제하기")} <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[0.7rem] text-muted-foreground">{tr("테스트")}</span></p>
           <button aria-label={tr("닫기")} onClick={onClose} className="rounded-full p-1.5 hover:bg-muted"><X className="size-4" /></button>
@@ -603,16 +737,30 @@ export function applyPrefs(p: Prefs) {
 }
 export function usePrefs() {
   const [p, setP] = useState<Prefs>(DEFAULT);
-  useEffect(() => { try { const s = localStorage.getItem("jungbi-prefs"); if (s) setP({ ...DEFAULT, ...JSON.parse(s) }); } catch { /* ignore */ } }, []);
-  useEffect(() => { applyPrefs(p); localStorage.setItem("jungbi-prefs", JSON.stringify(p)); }, [p]);
+  useEffect(() => {
+    try {
+      const s2 = localStorage.getItem("jungbi-prefs-v2");
+      if (s2) {
+        setP({ ...DEFAULT, ...JSON.parse(s2) });
+        return;
+      }
+      const s1 = localStorage.getItem("jungbi-prefs");
+      if (s1) {
+        const parsed = JSON.parse(s1);
+        setP({ ...DEFAULT, ...parsed, accent: "sky" });
+      }
+    } catch { /* ignore */ }
+  }, []);
+  useEffect(() => { applyPrefs(p); localStorage.setItem("jungbi-prefs-v2", JSON.stringify(p)); }, [p]);
   return [p, setP] as const;
 }
 
-const ACCENTS = [
-  { key: "yellow", label: "카카오 옐로우", cls: "bg-[oklch(0.9_0.17_100)]" },
-  { key: "mint", label: "민트", cls: "bg-[oklch(0.82_0.12_170)]" },
-  { key: "pink", label: "핑크", cls: "bg-[oklch(0.82_0.11_0)]" },
-  { key: "sky", label: "스카이", cls: "bg-[oklch(0.8_0.11_235)]" },
+export const ACCENTS = [
+  { key: "sky", label: "스카이", cls: "bg-[oklch(0.62_0.17_240)]" },
+  { key: "lavender", label: "라벤더", cls: "bg-[oklch(0.58_0.19_290)]" },
+  { key: "mint", label: "민트", cls: "bg-[oklch(0.60_0.15_165)]" },
+  { key: "pink", label: "핑크", cls: "bg-[oklch(0.62_0.18_355)]" },
+  { key: "yellow", label: "앰버", cls: "bg-[oklch(0.76_0.16_82)]" },
 ] as const;
 
 const PRIVACY_URL = "https://yjstudio.app/tokbiseo#privacy";

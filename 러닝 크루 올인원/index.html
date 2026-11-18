@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>러닝 크루 올인원</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..400,0..1,-50..200" />
+    <script src="modules/yj-runtime-shield.js"></script>
+    <script src="modules/confetti.min.js"></script>
+    <style>
+        :root {
+            --navy: #0f172a;
+            --emerald: #059669;
+            --mint: #10b981;
+            --mint-soft: #ecfdf5;
+            --orange: #ff5a1f;
+            --orange-soft: #fff2ed;
+            --red: #ef4444;
+            --red-soft: #fef2f2;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --border: #e2e8f0;
+            --text: #0f172a;
+            --muted: #64748b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Apple SD Gothic Neo', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Google Material Symbols (Rounded) 표준 규격 */
+        .material-symbols-rounded {
+            font-family: 'Material Symbols Rounded' !important;
+            font-weight: normal;
+            font-style: normal;
+            font-size: 18px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            flex-shrink: 0;
+            user-select: none;
+            vertical-align: middle;
+            font-variation-settings: 'FILL' 0, 'wght' 350, 'GRAD' 0, 'opsz' 24;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .app-header .material-symbols-rounded {
+            font-size: 22px;
+            font-variation-settings: 'FILL' 0, 'wght' 350, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .ms-fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100dvh;
+            overflow: hidden;
+            background: radial-gradient(circle at top, #1e293b 0%, #090d16 100%);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .app-shell {
+            width: 100%;
+            max-width: 520px;
+            height: 100%;
+            max-height: 100dvh;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+        }
+
+        @media (min-width: 540px) {
+            .app-shell {
+                height: 94dvh;
+                border-radius: 26px;
+                border: 1px solid rgba(255, 255, 255, 0.14);
+            }
+        }
+
+        /* 상단 헤더 */
+        .app-header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #ffffff;
+            padding: 14px 15px 12px;
+            flex-shrink: 0;
+            z-index: 15;
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.22);
+        }
+
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-wrap {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            min-width: 0;
+        }
+
+        .brand-mark {
+            width: 36px;
+            height: 36px;
+            border-radius: 11px;
+            background: linear-gradient(135deg, #ff5a1f 0%, #ff824d 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .brand-text { min-width: 0; }
+        .brand-text h1 {
+            font-size: 15px;
+            font-weight: 800;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .brand-text p {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex-shrink: 0;
+        }
+
+        .weather-pill {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            color: #f8fafc;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 5px 9px;
+            border-radius: 999px;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            min-height: 36px;
+        }
+
+        .admin-pill-btn {
+            background: #ff5a1f;
+            color: #ffffff;
+            border: none;
+            border-radius: 999px;
+            padding: 6px 11px;
+            min-width: 40px;
+            min-height: 40px;
+            font-size: 11.5px;
+            font-weight: 800;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+
+        .member-switch-pill {
+            background: #ffffff;
+            color: var(--navy);
+            border: none;
+            border-radius: 999px;
+            padding: 6px 11px;
+            min-width: 40px;
+            min-height: 40px;
+            font-size: 11.5px;
+            font-weight: 800;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+
+        /* 메인 뷰 */
+        .main-content {
+            flex: 1;
+            min-height: 0;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tab-panel {
+            display: none;
+            flex: 1;
+            min-height: 0;
+            flex-direction: column;
+        }
+
+        .tab-panel.active { display: flex; }
+
+        .tab-scroll-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 14px 14px 96px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .section-top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-heading {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--navy);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .muted-xs { font-size: 11.5px; color: var(--muted); }
+
+        /* 내 성장 히어로 카드 */
+        .my-hero-card {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            color: #ffffff;
+            border-radius: 18px;
+            padding: 16px;
+            box-shadow: 0 10px 24px rgba(5, 150, 105, 0.25);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .my-hero-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+        .my-hero-badge {
+            display: inline-block;
+            background: rgba(15, 23, 42, 0.25);
+            padding: 3px 9px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        .my-hero-top h2 { font-size: 18px; font-weight: 800; }
+
+        .my-stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .my-stat-item {
+            background: rgba(255, 255, 255, 0.14);
+            border-radius: 12px;
+            padding: 9px 8px;
+            text-align: center;
+        }
+        .my-stat-item span { display: block; font-size: 11px; color: #d1fae5; margin-bottom: 2px; }
+        .my-stat-item strong { font-size: 15px; font-weight: 800; }
+
+        .goal-wrap { display: flex; flex-direction: column; gap: 5px; }
+        .goal-label-row { display: flex; justify-content: space-between; font-size: 12px; color: #ecfdf5; }
+        .goal-track { width: 100%; height: 8px; background: rgba(15, 23, 42, 0.28); border-radius: 999px; overflow: hidden; }
+        .goal-fill { height: 100%; background: #fde047; border-radius: 999px; transition: width 0.3s ease; }
+
+        /* 공통 카드 */
+        .crew-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 14px;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+        }
+
+        .crew-card.is-completed { opacity: 0.84; background: #f8fafc; }
+        .crew-card.is-pinned { border-color: #fdba74; background: linear-gradient(180deg, #fffaf5 0%, #ffffff 45%); }
+        .notice-highlight { border-color: #fed7aa; background: linear-gradient(180deg, #fffaf5 0%, #ffffff 50%); }
+
+        .card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .card-head-right { display: flex; align-items: center; gap: 5px; }
+        .pill-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+        .pill, .pill-btn {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 9px;
+            border-radius: 999px;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        .pill-btn {
+            cursor: pointer;
+            min-width: 40px;
+            min-height: 40px;
+            padding: 6px 12px;
+        }
+        .pill-orange { background: var(--orange-soft); color: var(--orange); }
+        .pill-mint { background: var(--mint-soft); color: #059669; }
+        .pill-red { background: var(--red-soft); color: var(--red); }
+        .pill-slate { background: #e2e8f0; color: #334155; }
+
+        .icon-btn {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            min-width: 40px;
+            min-height: 40px;
+            width: 40px;
+            height: 40px;
+            color: #475569;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .icon-btn:active { background: #e2e8f0; }
+
+        .card-title { font-size: 15.5px; font-weight: 800; color: var(--navy); }
+        .notice-text { font-size: 13px; color: #334155; line-height: 1.5; }
+
+        .card-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px 10px;
+            font-size: 12.5px;
+            color: #334155;
+        }
+        .card-info-grid > div {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .card-info-grid > div .material-symbols-rounded { color: var(--muted); }
+        .card-info-grid .full-span { grid-column: 1 / -1; }
+
+        .card-note { font-size: 12.5px; color: var(--muted); background: #f8fafc; padding: 8px 10px; border-radius: 10px; }
+        .mate-group-hint {
+            font-size: 12.5px;
+            color: #065f46;
+            background: #ecfdf5;
+            padding: 8px 10px;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pace-preview-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .pace-chip { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 8px; }
+        .pace-a { background: #fee2e2; color: #b91c1c; }
+        .pace-b { background: #dbeafe; color: #1d4ed8; }
+        .pace-c { background: #dcfce7; color: #15803d; }
+        .pace-check { background: #f1f5f9; color: #0f172a; }
+
+        .card-action-row { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 2px; }
+
+        .btn-primary-sm {
+            background: var(--orange);
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            padding: 8px 13px;
+            min-width: 40px;
+            min-height: 40px;
+            font-size: 12.5px;
+            font-weight: 800;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+
+        .btn-primary-full {
+            flex: 1;
+            min-width: 130px;
+            min-height: 40px;
+            background: var(--orange);
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            padding: 9px 12px;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .btn-soft-primary {
+            flex: 1;
+            min-width: 40px;
+            min-height: 40px;
+            background: var(--navy);
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            padding: 8px 10px;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .btn-soft-mint {
+            flex: 1;
+            min-width: 40px;
+            min-height: 40px;
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+            border-radius: 10px;
+            padding: 8px 10px;
+            font-size: 12.5px;
+            font-weight: 800;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .btn-soft {
+            min-width: 40px;
+            min-height: 40px;
+            background: #f1f5f9;
+            color: #1e293b;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 8px 11px;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .btn-soft-danger {
+            min-width: 40px;
+            min-height: 40px;
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+            border-radius: 10px;
+            padding: 8px 11px;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        /* 기록 & 메트로놈 & 랭킹 */
+        .runner-studio-card {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #ffffff;
+            border-radius: 18px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .studio-head { display: flex; justify-content: space-between; align-items: center; }
+        .studio-head h3 { font-size: 14.5px; font-weight: 800; color: #34d399; }
+        .timer-display { font-size: 38px; font-weight: 900; text-align: center; font-variant-numeric: tabular-nums; padding: 4px 0; }
+        .run-ctrl-row { display: grid; grid-template-columns: 1fr 90px 1fr; gap: 8px; align-items: center; }
+        .btn-run-start { background: #10b981; color: #ffffff; border: none; border-radius: 11px; padding: 10px; font-size: 13px; font-weight: 800; cursor: pointer; }
+        .btn-run-pause { background: #f59e0b; color: #ffffff; border: none; border-radius: 11px; padding: 10px; font-size: 13px; font-weight: 800; cursor: pointer; }
+        .dist-quick-input {
+            width: 100%; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+            color: #ffffff; border-radius: 11px; padding: 9px 6px; text-align: center; font-size: 13.5px; font-weight: 800; outline: none;
+        }
+        .btn-run-save { background: var(--orange); color: #ffffff; border: none; border-radius: 11px; padding: 10px; font-size: 13px; font-weight: 800; cursor: pointer; }
+
+        .metro-box {
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 14px;
+            padding: 11px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .metro-top { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; font-weight: 700; }
+        .metro-dot-wrap { display: flex; align-items: center; gap: 7px; }
+        .metro-beat-dot { width: 12px; height: 12px; border-radius: 50%; background: #475569; transition: transform 0.07s ease, background 0.07s ease; }
+        .metro-beat-dot.beat { transform: scale(1.45); background: #34d399; box-shadow: 0 0 12px #34d399; }
+        .metro-presets { display: flex; gap: 6px; align-items: center; }
+        .spm-chip { background: rgba(255,255,255,0.12); border: none; color: #e2e8f0; border-radius: 8px; padding: 5px 8px; font-size: 11.5px; font-weight: 700; cursor: pointer; }
+        .btn-metro-off { flex: 1; background: #334155; color: #ffffff; border: none; border-radius: 9px; padding: 7px 10px; font-size: 12px; font-weight: 800; cursor: pointer; }
+        .btn-metro-on { flex: 1; background: #e11d48; color: #ffffff; border: none; border-radius: 9px; padding: 7px 10px; font-size: 12px; font-weight: 800; cursor: pointer; }
+
+        .rank-tabs { display: flex; gap: 6px; }
+        .rank-mode-btn {
+            background: #ffffff; border: 1px solid var(--border); color: #475569; border-radius: 999px;
+            padding: 6px 13px; min-width: 40px; min-height: 40px; font-size: 12px; font-weight: 700; cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+        }
+        .rank-mode-btn.active { background: var(--navy); color: #ffffff; border-color: var(--navy); }
+
+        .podium-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .podium-card { background: #ffffff; border: 1px solid var(--border); border-radius: 14px; padding: 11px 6px; text-align: center; display: flex; flex-direction: column; gap: 3px; }
+        .podium-card.rank-1 { border-color: #fbbf24; background: linear-gradient(180deg, #fffbeb 0%, #ffffff 70%); }
+        .podium-card.is-me { box-shadow: 0 0 0 2px var(--mint); }
+        .podium-medal { display: flex; justify-content: center; align-items: center; min-height: 24px; }
+        .podium-medal.medal-1 .material-symbols-rounded { color: #d97706; font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .podium-medal.medal-2 .material-symbols-rounded { color: #64748b; font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .podium-medal.medal-3 .material-symbols-rounded { color: #b45309; font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .podium-name { font-size: 13.5px; font-weight: 800; }
+        .podium-group { font-size: 11px; color: var(--muted); }
+        .podium-metric { font-size: 12.5px; font-weight: 800; color: var(--emerald); margin-top: 2px; }
+
+        .rank-list-card { background: #ffffff; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+        .rank-row { display: flex; align-items: center; gap: 10px; padding: 11px 13px; border-bottom: 1px solid #f1f5f9; }
+        .rank-row:last-child { border-bottom: none; }
+        .rank-row.is-me { background: #ecfdf5; }
+        .rank-num { width: 24px; font-size: 14px; font-weight: 900; color: #475569; text-align: center; }
+        .rank-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+        .rank-info strong { font-size: 13.5px; }
+        .rank-info span { font-size: 11.5px; color: var(--muted); }
+        .me-tag { display: inline-block; background: var(--emerald); color: #ffffff; font-size: 10px; padding: 1px 6px; border-radius: 999px; margin-left: 4px; }
+        .rank-right { display: flex; align-items: center; gap: 7px; }
+        .rank-score { font-size: 12.5px; font-weight: 800; color: var(--navy); }
+        .cheer-mini-btn {
+            background: #fff7ed; border: 1px solid #fed7aa; color: #c2410c; border-radius: 10px;
+            padding: 6px 10px; min-width: 40px; min-height: 40px; font-size: 11.5px; font-weight: 700; cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+        }
+
+        /* 오운완 & 공지 서브탭 */
+        .sub-pill-bar {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            background: #e2e8f0;
+            padding: 4px;
+            border-radius: 12px;
+        }
+        .sub-pill-btn {
+            background: transparent;
+            border: none;
+            padding: 8px;
+            min-width: 40px;
+            min-height: 40px;
+            border-radius: 9px;
+            font-size: 13px;
+            font-weight: 800;
+            color: #475569;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        .sub-pill-btn.active { background: #ffffff; color: var(--navy); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+
+        .sub-section { display: flex; flex-direction: column; gap: 12px; }
+        .chip-scroll { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+        .tpl-chip {
+            background: #fff7ed; border: 1px solid #fed7aa; color: #c2410c; border-radius: 999px;
+            padding: 6px 12px; min-width: 40px; min-height: 40px; font-size: 12px; font-weight: 700;
+            cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+        }
+        .filter-chip {
+            background: #ffffff; border: 1px solid var(--border); color: #475569; border-radius: 999px;
+            padding: 6px 12px; min-width: 40px; min-height: 40px; font-size: 12px; font-weight: 700;
+            cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center;
+        }
+        .filter-chip.active { background: var(--navy); color: #ffffff; border-color: var(--navy); }
+
+        .feed-top-row { display: flex; align-items: center; gap: 10px; }
+        .feed-avatar { width: 38px; height: 38px; border-radius: 12px; background: #d1fae5; color: #065f46; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; flex-shrink: 0; }
+        .feed-author-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+        .feed-metrics-strip { display: flex; gap: 14px; background: #f8fafc; padding: 8px 11px; border-radius: 10px; font-size: 12.5px; color: #334155; }
+        .feed-metrics-strip > span { display: inline-flex; align-items: center; gap: 5px; }
+        .feed-metrics-strip .material-symbols-rounded { color: var(--muted); }
+        .feed-text { font-size: 13.5px; line-height: 1.5; color: #0f172a; }
+        .feed-photo-wrap { border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: #f8fafc; max-height: 280px; display: flex; justify-content: center; align-items: center; }
+        .feed-photo-img { width: 100%; max-height: 280px; object-fit: cover; display: block; }
+        .feed-photo-picker-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .feed-photo-btn {
+            background: #f8fafc; border: 1px dashed #94a3b8; color: #1e293b; border-radius: 11px;
+            padding: 10px 8px; min-width: 40px; min-height: 40px; font-size: 12.5px; font-weight: 700;
+            cursor: pointer; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+        }
+        .feed-photo-btn:hover { border-color: var(--orange); background: #fff7ed; color: #c2410c; }
+        .feed-photo-preview-wrap { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); margin-top: 6px; display: none; }
+        .feed-photo-preview-wrap.show { display: block; }
+        .feed-photo-preview { width: 100%; max-height: 200px; object-fit: cover; display: block; }
+        .feed-photo-remove-btn {
+            position: absolute; top: 8px; right: 8px; background: rgba(15, 23, 42, 0.78); color: #ffffff;
+            border: none; border-radius: 999px; padding: 6px 12px; min-width: 40px; min-height: 40px;
+            font-size: 11.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+        }
+        .quick-pick-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px; }
+        .quick-pick-btn {
+            background: #f1f5f9; border: 1px solid #cbd5e1; color: #334155; border-radius: 8px;
+            padding: 6px 10px; min-width: 40px; min-height: 40px; font-size: 11.5px; font-weight: 700; cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .quick-pick-btn:active { background: var(--orange-soft); border-color: var(--orange); color: var(--orange); }
+        .quick-nudge-btn {
+            background: #fff7ed; border: 1px solid #fed7aa; color: #c2410c; border-radius: 8px;
+            padding: 6px 10px; min-width: 40px; min-height: 40px; font-size: 11.5px; font-weight: 800; cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .feed-actions { display: flex; gap: 8px; }
+        .clap-btn {
+            background: #f8fafc; border: 1px solid var(--border); color: #334155; border-radius: 10px;
+            padding: 7px 12px; min-width: 40px; min-height: 40px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+        }
+        .clap-btn.on { background: #fff7ed; border-color: #fb923c; color: #c2410c; }
+        .clap-btn.on .material-symbols-rounded { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .feed-comments-box { background: #f8fafc; border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; }
+        .feed-comment-item { font-size: 12.5px; color: #334155; }
+        .feed-comment-form { display: flex; gap: 6px; }
+        .comment-input { flex: 1; padding: 8px 11px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 12.5px; outline: none; min-height: 40px; }
+        .comment-send-btn {
+            background: var(--navy); color: #ffffff; border: none; border-radius: 10px;
+            padding: 8px 14px; min-width: 40px; min-height: 40px; font-size: 12px; font-weight: 700; cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .notice-meta-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); }
+        .read-counter { font-weight: 700; color: #059669; display: inline-flex; align-items: center; gap: 4px; }
+
+        /* 크루 채팅 */
+        .chat-shell { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-bottom: 68px; }
+        .chat-room-bar { display: flex; gap: 6px; padding: 10px 14px; background: #ffffff; border-bottom: 1px solid var(--border); overflow-x: auto; flex-shrink: 0; }
+        .room-chip {
+            background: #ffffff; border: 1px solid var(--border); color: #475569; border-radius: 999px;
+            padding: 6px 13px; min-width: 40px; min-height: 40px; font-size: 12px; font-weight: 700;
+            cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center;
+        }
+        .room-chip.active { background: var(--navy); color: #ffffff; border-color: var(--navy); }
+        .pinned-strip-btn { width: 100%; min-height: 40px; background: #fff7ed; border: none; border-bottom: 1px solid #fed7aa; padding: 8px 14px; display: flex; align-items: center; gap: 8px; cursor: pointer; text-align: left; }
+        .pinned-strip-text { flex: 1; font-size: 12.5px; font-weight: 700; color: #9a3412; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .pinned-strip-arrow { font-size: 11.5px; font-weight: 700; color: var(--orange); display: inline-flex; align-items: center; gap: 2px; }
+
+        .chat-stream { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 14px; display: flex; flex-direction: column; gap: 18px; }
+        .chat-row { display: flex; max-width: 90%; }
+        .chat-row.mine { align-self: flex-end; flex-direction: column; align-items: flex-end; }
+        .chat-row.theirs { align-self: flex-start; flex-direction: row; align-items: flex-start; gap: 10px; }
+        .chat-avatar { width: 34px; height: 34px; border-radius: 50%; background: #e2e8f0; color: #334155; font-size: 13.5px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08); }
+        .chat-avatar.staff { background: #fef3c7; color: #b45309; border: 1.5px solid #fcd34d; }
+        .chat-theirs-col { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+        .chat-sender-meta { font-size: 12px; color: #475569; margin-bottom: 6px; }
+        .chat-sender-meta span { color: var(--orange); font-weight: 700; margin-left: 3px; }
+        .chat-row.theirs .chat-bubble-wrap { padding-left: 8px; }
+        .chat-bubble-wrap { display: flex; align-items: flex-end; gap: 6px; }
+        .chat-row.mine .chat-bubble-wrap { flex-direction: row-reverse; }
+        .chat-bubble { background: #ffffff; border: 1px solid var(--border); color: var(--navy); border-radius: 16px; border-top-left-radius: 4px; padding: 12px 15px; font-size: 13.5px; line-height: 1.65; letter-spacing: 0.01em; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); }
+        .chat-row.mine .chat-bubble { background: var(--navy); color: #ffffff; border-color: var(--navy); border-top-left-radius: 16px; border-top-right-radius: 4px; }
+        .chat-time { font-size: 10.5px; color: #94a3b8; flex-shrink: 0; }
+        .chat-embed-card { margin-top: 8px; background: #fff7ed; border: 1px solid #fed7aa; color: #0f172a; border-radius: 12px; padding: 10px; }
+        .chat-embed-card.notice { background: #f0fdf4; border-color: #bbf7d0; }
+        .embed-label { font-size: 11px; font-weight: 800; color: var(--orange); margin-bottom: 3px; display: flex; align-items: center; gap: 4px; }
+        .chat-embed-card.notice .embed-label { color: var(--emerald); }
+        .embed-title { font-size: 13px; font-weight: 800; margin-bottom: 3px; }
+        .embed-meta { font-size: 11.5px; color: #475569; margin-bottom: 7px; }
+        .embed-btn {
+            width: 100%; min-height: 40px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px;
+            padding: 6px 8px; font-size: 12px; font-weight: 700; color: var(--navy); cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+        }
+
+        .chat-composer-wrap { background: #ffffff; border-top: 1px solid var(--border); padding: 8px 12px 10px; flex-shrink: 0; }
+        .chat-quick-bar { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 8px; }
+        .quick-chip {
+            background: #f8fafc; border: 1px solid var(--border); border-radius: 999px;
+            padding: 6px 11px; min-width: 40px; min-height: 40px; font-size: 11.5px; font-weight: 700;
+            color: #334155; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+        }
+        .chat-input-form { display: flex; gap: 8px; }
+        .chat-input { flex: 1; padding: 10px 13px; border-radius: 999px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 13.5px; outline: none; min-height: 40px; }
+        .chat-send-btn {
+            background: var(--orange); color: #ffffff; border: none; border-radius: 999px;
+            padding: 10px 16px; min-width: 40px; min-height: 40px; font-size: 13px; font-weight: 800; cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+        }
+
+        /* 하단 고정 탭바 */
+        .bottom-nav {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 68px;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid var(--border);
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            z-index: 20;
+        }
+        .nav-btn {
+            background: transparent; border: none; min-width: 40px; min-height: 40px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+            color: #64748b; font-size: 11.5px; font-weight: 700; cursor: pointer; position: relative;
+        }
+        .nav-btn .nav-ico { font-size: 22px; line-height: 1; }
+        .nav-btn.active { color: var(--orange); }
+        .nav-btn.active .nav-ico { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .nav-btn.active::after {
+            content: ''; position: absolute; top: 0; width: 36px; height: 3px;
+            border-radius: 0 0 4px 4px; background: var(--orange);
+        }
+
+        /* 모달 */
+        .crew-modal-backdrop {
+            position: fixed; inset: 0; background: rgba(15, 23, 42, 0.58);
+            display: none; pointer-events: none; align-items: center; justify-content: center;
+            padding: 16px; z-index: 100;
+        }
+        .crew-modal-backdrop.open { display: flex; pointer-events: auto; }
+        .crew-modal-card {
+            width: 100%; max-width: 450px; max-height: 86dvh; background: #ffffff;
+            border-radius: 20px; overflow: hidden; display: flex; flex-direction: column;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+        }
+        .modal-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h2 { font-size: 16px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; }
+        .modal-close-btn {
+            background: #f1f5f9; border: none; min-width: 40px; min-height: 40px; width: 40px; height: 40px;
+            border-radius: 999px; cursor: pointer; color: #334155; display: inline-flex; align-items: center; justify-content: center;
+        }
+        .modal-body { padding: 16px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 11px; }
+
+        .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .form-field { display: flex; flex-direction: column; gap: 5px; }
+        .form-field label { font-size: 12px; font-weight: 700; color: #334155; }
+        .form-field input, .form-field select, .form-field textarea {
+            width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 13.5px; outline: none;
+        }
+        .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #1e293b; cursor: pointer; }
+        .modal-footer { display: flex; gap: 8px; margin-top: 6px; }
+        .btn-modal-cancel { flex: 1; min-height: 42px; background: #f1f5f9; color: #334155; border: none; border-radius: 12px; padding: 11px; font-size: 13.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+        .btn-modal-submit { flex: 2; min-height: 42px; background: var(--orange); color: #ffffff; border: none; border-radius: 12px; padding: 11px; font-size: 13.5px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+
+        .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .stat-box { background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; padding: 9px 6px; text-align: center; }
+        .stat-label { display: block; font-size: 11px; color: var(--muted); }
+        .stat-value { font-size: 14px; font-weight: 800; }
+        .search-input { width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border); font-size: 13px; outline: none; }
+        .member-top-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .member-main { flex: 1; min-width: 0; }
+        .member-name-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+
+        .att-subtitle { font-size: 13px; font-weight: 700; color: var(--orange); }
+        .att-section-label { font-size: 12px; font-weight: 800; color: #475569; margin-top: 4px; }
+        .att-groups-box { background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+        .att-group-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+        .att-checklist { display: flex; flex-direction: column; gap: 8px; }
+        .att-member-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 12px; }
+        .att-member-info { display: flex; flex-direction: column; }
+        .att-member-info strong { font-size: 13.5px; }
+        .att-member-sub { font-size: 11.5px; color: var(--muted); }
+        .att-toggle-pair { display: flex; gap: 5px; }
+        .toggle-chip {
+            border: 1px solid #cbd5e1; background: #ffffff; color: #475569; border-radius: 8px;
+            padding: 6px 10px; min-width: 40px; min-height: 40px; font-size: 11.5px; font-weight: 700;
+            cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+        }
+        .toggle-chip.on { background: var(--navy); color: #ffffff; border-color: var(--navy); }
+        .toggle-chip.mint.on { background: var(--mint); border-color: var(--mint); }
+
+        .switch-member-btn { display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 11px 12px; border: 1px solid var(--border); background: #ffffff; border-radius: 12px; cursor: pointer; font-size: 13px; }
+        .switch-member-btn > span:last-child { display: inline-flex; align-items: center; gap: 4px; }
+        .switch-member-btn.active { border-color: var(--orange); background: #fff7ed; font-weight: 700; }
+        .empty-card { background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 16px; padding: 24px 16px; text-align: center; color: var(--muted); font-size: 13.5px; }
+
+        #toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 6px; pointer-events: none; width: max-content; max-width: 90vw; }
+        .crew-toast { background: rgba(15, 23, 42, 0.94); color: #ffffff; padding: 10px 16px; border-radius: 999px; font-size: 13px; font-weight: 700; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25); opacity: 0; transform: translateY(-10px); transition: all 0.22s ease; }
+        .crew-toast.show { opacity: 1; transform: translateY(0); }
+        .crew-toast.toast-ok { background: #065f46; }
+        .crew-toast.toast-warn { background: #9a3412; }
+    </style>
+</head>
+<body>
+    <div id="toast-container"></div>
+
+    <div class="app-shell">
+        <header class="app-header">
+            <div class="header-row">
+                <div class="brand-wrap">
+                    <div class="brand-mark"><span class="material-symbols-rounded ms-ico">directions_run</span></div>
+                    <div class="brand-text">
+                        <h1 id="header-crew-name">한강 페이스 러너스</h1>
+                        <p id="header-crew-sub">운영 모드 · 함께 뛰는 6명</p>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <span id="header-weather-pill" class="weather-pill"><span class="material-symbols-rounded ms-ico">wb_sunny</span> 서울 반포 14°C</span>
+                    <button type="button" id="header-admin-btn" class="admin-pill-btn" onclick="window.YJAllInOneUI.openAdminModal()"><span class="material-symbols-rounded ms-ico">workspace_premium</span> 운영실</button>
+                    <button type="button" id="header-member-pill" class="member-switch-pill" onclick="window.YJAllInOneUI.openMemberSwitchModal()"><span class="material-symbols-rounded ms-ico">person</span> 김준호</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- 1. 홈 · 일정 -->
+            <section class="tab-panel active" data-tab="home">
+                <div class="tab-scroll-area">
+                    <div id="home-my-card" class="my-hero-card"></div>
+                    <div id="home-pinned-notice"></div>
+                    <div class="section-top-bar">
+                        <h2 class="section-heading"><span class="material-symbols-rounded ms-ico">calendar_month</span> 크루 러닝 스케줄</h2>
+                        <button type="button" id="home-add-schedule-btn" class="btn-primary-sm" onclick="window.YJAllInOneUI.openScheduleModal()"><span class="material-symbols-rounded ms-ico">add</span> 일정 작성</button>
+                    </div>
+                    <div id="home-schedule-list"></div>
+                </div>
+            </section>
+
+            <!-- 2. 기록 · 랭킹 -->
+            <section class="tab-panel" data-tab="rank">
+                <div class="tab-scroll-area">
+                    <div class="section-top-bar">
+                        <h2 class="section-heading"><span class="material-symbols-rounded ms-ico">emoji_events</span> 이달의 크루 랭킹</h2>
+                        <div class="rank-tabs">
+                            <button type="button" class="rank-mode-btn active" data-mode="distance">누적 거리</button>
+                            <button type="button" class="rank-mode-btn" data-mode="attendance">출석 횟수</button>
+                        </div>
+                    </div>
+                    <div id="rank-podium-box" class="podium-grid"></div>
+                    <div id="rank-list-box" class="rank-list-card"></div>
+                </div>
+            </section>
+
+            <!-- 3. 오운완 · 공지 -->
+            <section class="tab-panel" data-tab="feed">
+                <div class="tab-scroll-area">
+                    <div class="sub-pill-bar">
+                        <button type="button" class="sub-pill-btn active" data-sub="feed"><span class="material-symbols-rounded ms-ico">photo_camera</span> 오운완 피드</button>
+                        <button type="button" class="sub-pill-btn" data-sub="notices"><span class="material-symbols-rounded ms-ico">campaign</span> 크루 공지함</button>
+                    </div>
+
+                    <div id="subview-feed" class="sub-section">
+                        <div class="section-top-bar">
+                            <h2 class="section-heading">크루원 오운완 인증</h2>
+                            <button type="button" class="btn-primary-sm" onclick="window.YJAllInOneUI.openFeedModal()"><span class="material-symbols-rounded ms-ico">add</span> 오운완 자랑</button>
+                        </div>
+                        <div id="feed-list-container"></div>
+                    </div>
+
+                    <div id="subview-notices" class="sub-section" style="display:none;">
+                        <div id="staff-notice-tools" style="display:flex; flex-direction:column; gap:10px;">
+                            <div class="section-top-bar">
+                                <h2 class="section-heading">공지 관리 및 빠른 양식</h2>
+                                <button type="button" class="btn-primary-sm" onclick="window.YJAllInOneUI.openNoticeModal()"><span class="material-symbols-rounded ms-ico">add</span> 공지 작성</button>
+                            </div>
+                            <div class="chip-scroll">
+                                <button type="button" class="tpl-chip" onclick="window.YJAllInOneUI.openNoticeModal(null, 'regular')"><span class="material-symbols-rounded ms-ico">directions_run</span> 정기런 모집</button>
+                                <button type="button" class="tpl-chip" onclick="window.YJAllInOneUI.openNoticeModal(null, 'rain')"><span class="material-symbols-rounded ms-ico">umbrella</span> 우천 안내</button>
+                                <button type="button" class="tpl-chip" onclick="window.YJAllInOneUI.openNoticeModal(null, 'fee')"><span class="material-symbols-rounded ms-ico">credit_card</span> 회비 안내</button>
+                                <button type="button" class="tpl-chip" onclick="window.YJAllInOneUI.openNoticeModal(null, 'after')"><span class="material-symbols-rounded ms-ico">sports_bar</span> 뒷풀이 공지</button>
+                            </div>
+                        </div>
+                        <div id="notice-list-container"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. 크루 채팅 -->
+            <section class="tab-panel" data-tab="chat">
+                <div class="chat-shell">
+                    <div class="chat-room-bar">
+                        <button type="button" class="room-chip active" data-room="all">전체 크루방</button>
+                        <button type="button" class="room-chip" data-room="schedule">일정·번개방</button>
+                        <button type="button" id="chat-staff-room-btn" class="room-chip" data-room="staff">운영진방</button>
+                    </div>
+                    <div id="chat-pinned-banner"></div>
+                    <div id="chat-message-stream" class="chat-stream"></div>
+                    <div class="chat-composer-wrap">
+                        <div class="chat-quick-bar">
+                            <span id="chat-staff-quick-chips">
+                                <button type="button" class="quick-chip" onclick="window.YJAllInOneUI.quickShareNextSchedule()"><span class="material-symbols-rounded ms-ico">calendar_month</span> 다음 일정 공유</button>
+                                <button type="button" class="quick-chip" onclick="window.YJAllInOneUI.quickShareLatestNotice()"><span class="material-symbols-rounded ms-ico">campaign</span> 필독 공지 공유</button>
+                            </span>
+                            <button type="button" class="quick-chip" onclick="window.YJAllInOneUI.sendQuickChat('이번 러닝 저도 참석합니다!')"><span class="material-symbols-rounded ms-ico">front_hand</span> 참석할게요</button>
+                            <button type="button" class="quick-chip" onclick="window.YJAllInOneUI.sendQuickChat('오늘도 다 같이 화이팅!')"><span class="material-symbols-rounded ms-ico">local_fire_department</span> 화이팅</button>
+                            <button type="button" class="quick-chip" onclick="window.YJAllInOneUI.sendQuickChat('러닝 후 뒷풀이 가실 분?')"><span class="material-symbols-rounded ms-ico">sports_bar</span> 뒷풀이</button>
+                        </div>
+                        <form id="chat-input-form" class="chat-input-form">
+                            <input id="chat-message-input" type="text" class="chat-input" placeholder="크루원에게 보낼 메시지를 입력하세요...">
+                            <button type="submit" class="chat-send-btn"><span class="material-symbols-rounded ms-ico">send</span> 전송</button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <nav class="bottom-nav" aria-label="메인 메뉴">
+            <button type="button" class="nav-btn active" data-tab="home">
+                <span class="material-symbols-rounded nav-ico">home</span>
+                <span>홈·일정</span>
+            </button>
+            <button type="button" class="nav-btn" data-tab="rank">
+                <span class="material-symbols-rounded nav-ico">emoji_events</span>
+                <span>기록·랭킹</span>
+            </button>
+            <button type="button" class="nav-btn" data-tab="feed">
+                <span class="material-symbols-rounded nav-ico">celebration</span>
+                <span>오운완·공지</span>
+            </button>
+            <button type="button" class="nav-btn" data-tab="chat">
+                <span class="material-symbols-rounded nav-ico">chat_bubble</span>
+                <span>크루채팅</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- 운영실 (회원·회비·크루 설정 통합 모달) -->
+    <div id="admin-modal" class="crew-modal-backdrop" aria-hidden="true">
+        <div class="crew-modal-card">
+            <div class="modal-header">
+                <h2><span class="material-symbols-rounded ms-ico">workspace_premium</span> 크루장 운영실 (회원 · 회비 · 설정)</h2>
+                <button type="button" class="modal-close-btn" data-close-modal="admin-modal"><span class="material-symbols-rounded ms-ico">close</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="admin-member-stats" class="stats-bar"></div>
+                <div class="section-top-bar">
+                    <strong style="font-size:14px;">크루원 명부</strong>
+                    <button type="button" class="btn-primary-sm" onclick="window.YJAllInOneUI.openMemberModal()"><span class="material-symbols-rounded ms-ico">person_add</span> 크루원 등록</button>
+                </div>
+                <input id="admin-member-search" type="search" class="search-input" placeholder="이름, 페이스, 특이사항 검색...">
+                <div class="chip-scroll">
+                    <button type="button" class="filter-chip active" data-filter="all">전체</button>
+                    <button type="button" class="filter-chip" data-filter="A조">A조</button>
+                    <button type="button" class="filter-chip" data-filter="B조">B조</button>
+                    <button type="button" class="filter-chip" data-filter="C조">C조</button>
+                    <button type="button" class="filter-chip" data-filter="unpaid">회비 미납</button>
+                </div>
+                <div id="admin-member-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+                <hr style="border:none; border-top:1px solid #e2e8f0; margin:4px 0;">
+                <form id="admin-settings-form" style="display:flex; flex-direction:column; gap:8px;">
+                    <div class="form-row-2">
+                        <div class="form-field">
+                            <label for="admin-crew-name">크루 이름</label>
+                            <input id="admin-crew-name" type="text" required>
+                        </div>
+                        <div class="form-field">
+                            <label for="admin-goal-km">이달 공동 목표 (km)</label>
+                            <input id="admin-goal-km" type="number" min="10" max="500" value="50">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-soft-danger" onclick="window.YJAllInOneUI.resetAllData()">초기화</button>
+                        <button type="submit" class="btn-modal-submit">설정 저장</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 스케줄 작성/수정 모달 -->
+    <div id="schedule-modal" class="crew-modal-backdrop" aria-hidden="true">
+        <div class="crew-modal-card">
+            <div class="modal-header">
+                <h2 id="schedule-modal-title">새 러닝 스케줄 작성</h2>
+                <button type="button" class="modal-close-btn" data-close-modal="schedule-modal"><span class="material-symbols-rounded ms-ico">close</span></button>
+            </div>
+            <form id="schedule-form" class="modal-body">
+                <div class="form-field">
+                    <label for="sch-title">일정 제목</label>
+                    <input id="sch-title" type="text" placeholder="예: 목요 한강 여의도 정기런" required>
+                </div>
+                <div class="form-row-2">
+                    <div class="form-field">
+                        <label for="sch-type">러닝 구분</label>
+                        <select id="sch-type"><option value="정기런">정기런</option><option value="번개런">번개런</option><option value="대회참가">대회참가</option></select>
+                    </div>
+                    <div class="form-field">
+                        <label for="sch-distance">목표 거리 (km)</label>
+                        <input id="sch-distance" type="number" min="1" max="100" value="8">
+                    </div>
+                </div>
+                <div class="form-row-2">
+                    <div class="form-field"><label for="sch-date">날짜</label><input id="sch-date" type="date" required></div>
+                    <div class="form-field"><label for="sch-time">출발 시간</label><input id="sch-time" type="time" value="20:00" required></div>
+                </div>
+                <div class="form-row-2">
+                    <div class="form-field"><label for="sch-location">집결 장소</label><input id="sch-location" type="text" placeholder="예: 여의나루역 2번 출구" required></div>
+                    <div class="form-field"><label for="sch-max">정원 (명)</label><input id="sch-max" type="number" min="2" max="200" value="20"></div>
+                </div>
+                <div class="form-field"><label for="sch-note">코스 및 준비물</label><textarea id="sch-note" rows="2"></textarea></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-modal-cancel" data-close-modal="schedule-modal">취소</button>
+                    <button type="submit" class="btn-modal-submit">스케줄 저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 출석 & 조 편성 모달 -->
+    <div id="attendance-modal" class="crew-modal-backdrop" aria-hidden="true">
+        <div class="crew-modal-card">
+            <div class="modal-header">
+                <h2>출석 체크 & 자동 페이스 조 편성</h2>
+                <button type="button" class="modal-close-btn" data-close-modal="attendance-modal"><span class="material-symbols-rounded ms-ico">close</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="att-modal-subtitle" class="att-subtitle"></div>
+                <div class="att-section-label">페이스별 자동 조 편성 현황</div>
+                <div id="att-pace-groups-box" class="att-groups-box"></div>
+                <div class="att-section-label">크루원 참석 · 현장 출석 체크</div>
+                <div id="att-member-checklist" class="att-checklist"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-modal-cancel" data-close-modal="attendance-modal">닫기</button>
+                    <button type="button" id="att-complete-btn" class="btn-modal-submit" onclick="window.YJAllInOneUI.completeScheduleRun()"><span class="material-symbols-rounded ms-ico">flag</span> 이번 러닝 완료</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 크루원 등록/수정 모달 -->
+    <div id="member-modal" class="crew-modal-backdrop" aria-hidden="true">
+        <div class="crew-modal-card">
+            <div class="modal-header">
+                <h2 id="member-modal-title">신규 크루원 등록</h2>
+                <button type="button" class="modal-close-btn" data-close-modal="member-modal"><span class="material-symbols-rounded ms-ico">close</span></button>
+            </div>
+            <form id="member-form" class="modal-body">
+                <div class="form-row-2">
+                    <div class="form-field"><label for="mem-name">이름</label><input id="mem-name" type="text" required></div>
+                    <div class="form-field">
+                        <label for="mem-role">역할</label>
+                        <select id="mem-role"><option value="크루장">크루장</option><option value="운영진">운영진</option><option value="정회원">정회원</option><option value="신입" selected>신입</option></select>
+                    </div>
+                </div>
+                <div class="form-row-2">
+                    <div class="form-field"><label for="mem-pace">주력 페이스</label><input id="mem-pace" type="text" value="5'30&quot;"></div>
+                    <div class="form-field">
+                        <label for="mem-fee">회비 상태</label>
+                        <select id="mem-fee"><option value="완납">완납</option><option value="미납">미납</option><option value="면제">면제</option></select>
+                    </div>
+                </div>
+                <div class="form-field"><label for="mem-memo">특이사항 메모</label><textarea id="mem-memo" rows="2"></textarea></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-modal-cancel" data-close-modal="member-modal">취소</button>
+                    <button type="submit" class="btn-modal-submit">크루원 저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 공지 작성 모달 -->
+    <div id="notice-modal" class="crew-modal-backdrop" aria-hidden="true">
+        <div class="crew-modal-card">
+            <div class="modal-header">
+                <h2 id="notice-modal-title">새 공지사항 작성</h2>
+                <button type="button" class="modal-close-btn" data-close-modal="notice-modal"><span class="material-symbols-rounded ms-ico">close</span></button>
+            </div>
+            <form id="notice-form" class="modal-body">
+                <div class="form-field">
+                    <label for="not-category">공지 분류</label>
+                    <select id="not-category"><option value="필독">필독</option><option value="일정">일정</option><option value="회비">회비</option><option value="일반">일반</option></select>
+                </div>
+                <div class="form-field"><label for="not-title">공지 제목</label><input id="not-title" type="text" required></div>
+                <div class="form-field"><label for="not-content">공지 내용</label><textarea id="not-content" rows="4" required></textarea></div>
+                <label class="checkbox-row"><input id="not-pinned" type="checkbox" checked><span>상단 필독 고정</span></label>
+                <div class="modal-footer">
+                    <button type="button" class="btn-modal-cancel" data-close-modal="notice-modal">취소</button>
+                    <button type="submit" class="btn-modal-submit">공지 발행</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 오운완 작성 모달 -->
+    <div id="feed-modal" class="crew-modal-backdrop" aria-hidden="true">
+        <div class="crew-modal-card">
+            <div class="modal-header">
+                <h2>오운완 인증 남기기</h2>
+                <button type="button" class="modal-close-btn" data-close-modal="feed-modal"><span class="material-symbols-rounded ms-ico">close</span></button>
+            </div>
+            <form id="feed-form" class="modal-body">
+                <div class="form-field">
+                    <label for="feed-dist">달린 거리 (km) — 원터치 · 0.1km 조절</label>
+                    <input id="feed-dist" type="number" step="0.1" min="0.1" value="5.0" inputmode="decimal" required>
+                    <div class="quick-pick-row">
+                        <button type="button" class="quick-pick-btn" onclick="window.YJAllInOneUI.setFeedDist(1)">1km</button>
+                        <button type="button" class="quick-pick-btn" onclick="window.YJAllInOneUI.setFeedDist(3)">3km</button>
+                        <button type="button" class="quick-pick-btn" onclick="window.YJAllInOneUI.setFeedDist(5)">5km</button>
+                        <button type="button" class="quick-nudge-btn" onclick="window.YJAllInOneUI.nudgeFeedDist(1)">+1</button>
+                        <button type="button" class="quick-nudge-btn" onclick="window.YJAllInOneUI.nudgeFeedDist(-1)">-1</button>
+                        <button type="button" class="quick-nudge-btn" onclick="window.YJAllInOneUI.nudgeFeedDist(-0.1)">-0.1</button>
+                        <button type="button" class="quick-nudge-btn" onclick="window.YJAllInOneUI.nudgeFeedDist(0.1)">+0.1</button>
+                    </div>
+                </div>
+                <div class="form-field">
+                    <label for="feed-pace">평균 페이스 (예: 530 입력 시 자동 변환)</label>
+                    <input id="feed-pace" type="text" placeholder="숫자만 입력 (예: 530)" value="5'30&quot;">
+                </div>
+                <div class="form-field">
+                    <label for="feed-mood">오늘의 기분</label>
+                    <select id="feed-mood"><option value="🔥 페이스 최고">🔥 페이스 최고</option><option value="💦 땀범벅 오운완">💦 땀범벅 오운완</option><option value="🌱 가벼운 회복런">🌱 가벼운 회복런</option><option value="🍗 뒷풀이 각">🍗 뒷풀이 각</option></select>
+                </div>
+                <div class="form-field"><label for="feed-text">한 줄 소감 (선택)</label><textarea id="feed-text" rows="2" placeholder="비워두고 바로 인증 올리기를 누르셔도 됩니다!"></textarea></div>
+                <div class="form-field">
+                    <label>인증샷 첨부 (선택)</label>
+                    <input id="feed-photo-camera" type="file" accept="image/*" capture="environment" style="display:none;">
+                    <input id="feed-photo-gallery" type="file" accept="image/*" style="display:none;">
+                    <div class="feed-photo-picker-row">
+                        <button type="button" class="feed-photo-btn" onclick="document.getElementById('feed-photo-camera').click()"><span class="material-symbols-rounded ms-ico">photo_camera</span> 카메라 촬영</button>
+                        <button type="button" class="feed-photo-btn" onclick="document.getElementById('feed-photo-gallery').click()"><span class="material-symbols-rounded ms-ico">image</span> 사진·스샷 올리기</button>
+                    </div>
+                    <div id="feed-photo-preview-wrap" class="feed-photo-preview-wrap">
+                        <img id="feed-photo-preview" class="feed-photo-preview" src="" alt="인증샷 미리보기">
+                        <button type="button" class="feed-photo-remove-btn" onclick="window.YJAllInOneUI.clearFeedPhoto()"><span class="material-symbols-rounded ms-ico">close</span> 지우기</button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-modal-cancel" data-close-modal="feed-modal">취소</button>
+                    <button type="submit" class="btn-modal-submit">인증 올리기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 프로필(역할) 전환 모달 -->
+    <div id="switch-member-modal" class="crew-modal-backdrop" aria-hidden="true">
+        <div class="crew-modal-card">
+            <div class="modal-header">
+                <h2>프로필 전환 (크루장 ↔ 크루원 체험)</h2>
+                <button type="button" class="modal-close-btn" data-close-modal="switch-member-modal"><span class="material-symbols-rounded ms-ico">close</span></button>
+            </div>
+            <div id="switch-member-list" class="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- 공통 확인 모달 -->
+    <div id="confirm-modal" class="crew-modal-backdrop" aria-hidden="true">
+        <div class="crew-modal-card">
+            <div class="modal-header">
+                <h2 id="confirm-modal-title">확인</h2>
+                <button type="button" class="modal-close-btn" data-close-modal="confirm-modal"><span class="material-symbols-rounded ms-ico">close</span></button>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-modal-desc" style="font-size:14px; color:#334155;"></p>
+                <div class="modal-footer">
+                    <button type="button" class="btn-modal-cancel" data-close-modal="confirm-modal">취소</button>
+                    <button type="button" id="confirm-modal-ok" class="btn-modal-submit">확인</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="modules/allinone-engine.js"></script>
+    <script src="modules/allinone-ui.js"></script>
+</body>
+</html>

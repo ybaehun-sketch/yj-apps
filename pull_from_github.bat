@@ -3,29 +3,50 @@ chcp 65001 >nul
 cd /d "%~dp0"
 title YJ Apps GitHub Pull
 echo ====================================================
-echo  온라인 금고(GitHub) -> YJ Studio 통합 앱 보관함 내려받기
+echo  온라인 금고(GitHub) → YJ Studio 통합 앱 보관함 내려받기
 echo ====================================================
 echo.
 
-git remote get-url origin >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    echo [안내] 아직 깃허브 통합 금고 주소가 연결되지 않았습니다.
-    echo        먼저 push_to_github.bat을 실행해 주소를 연결해 주세요.
-    pause
-    exit /b
-)
+call :pull_repo "." "YJ Studio 통합 앱 보관함"
+if errorlevel 1 goto :fail
 
-echo 최신 작업본을 내려받는 중...
-git pull origin main
+if exist "회사홈페이지\.git" (
+    echo.
+    call :pull_repo "회사홈페이지" "회사홈페이지(yjstudio-digital-craft)"
+    if errorlevel 1 goto :fail
+)
 
 echo.
-if %ERRORLEVEL% EQU 0 (
-    echo ====================================================
-    echo  SUCCESS! 최신 앱 목록으로 동기화되었습니다!
-    echo ====================================================
-) else (
-    echo [ERROR] 내려받기에 실패했습니다. 네트워크 상태나 충돌 여부를 확인해 주세요.
-)
-
+echo ====================================================
+echo  SUCCESS! 모든 앱과 회사 홈페이지가 최신 상태로 동기화되었습니다!
+echo ====================================================
 echo.
 pause
+exit /b 0
+
+:pull_repo
+set "REPO_DIR=%~1"
+set "REPO_LABEL=%~2"
+pushd "%REPO_DIR%"
+git remote get-url origin >nul 2>&1
+if errorlevel 1 (
+    echo [안내] %REPO_LABEL% 온라인 주소가 연결되지 않았습니다.
+    popd
+    exit /b 1
+)
+echo %REPO_LABEL% 최신 작업본을 내려받는 중...
+git pull origin main
+if errorlevel 1 (
+    echo [ERROR] %REPO_LABEL% 내려받기에 실패했습니다.
+    popd
+    exit /b 1
+)
+popd
+exit /b 0
+
+:fail
+echo.
+echo [ERROR] 내려받기에 실패했습니다. 네트워크 상태나 충돌 여부를 확인해 주세요.
+echo.
+pause
+exit /b 1

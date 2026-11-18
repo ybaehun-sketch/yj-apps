@@ -4,7 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>오답노트 — 3초 등록 · 쓱-지우개 · 가림막 복습</title>
-  <link rel="stylesheet" href="styles.css?v=20261116k" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0" />
+  <link rel="stylesheet" href="styles.css?v=20261118a" />
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -15,7 +18,10 @@
           <h1>오답노트</h1>
         </div>
         <div class="header-actions">
-          <button id="btn-open-settings" class="btn-outline-sm">설정</button>
+          <button id="btn-open-settings" class="btn-outline-sm" type="button">
+            <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">settings</span>
+            <span>설정</span>
+          </button>
         </div>
       </header>
 
@@ -37,15 +43,23 @@
 
       <!-- 하단 2버튼 (문제 풀기 / 오답 올리기) -->
       <div class="home-bottom-bar">
-        <button id="btn-start-review" class="btn-bottom-solve" type="button">문제 풀기</button>
-        <button id="btn-fab-add" class="btn-bottom-add" type="button">＋ 오답 올리기</button>
+        <button id="btn-start-review" class="btn-bottom-solve" type="button">
+          <span class="material-symbols-rounded ms-icon" aria-hidden="true">quiz</span>
+          <span>문제 풀기</span>
+        </button>
+        <button id="btn-fab-add" class="btn-bottom-add" type="button">
+          <span class="material-symbols-rounded ms-icon" aria-hidden="true">add</span>
+          <span>오답 올리기</span>
+        </button>
       </div>
     </section>
 
     <!-- ================= 2. 오답 올리기 화면 ================= -->
     <section id="screen-add" class="screen">
       <header class="sub-header">
-        <button id="btn-add-back" class="btn-icon">←</button>
+        <button id="btn-add-back" class="btn-icon" type="button" aria-label="뒤로 가기">
+          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">arrow_back</span>
+        </button>
         <h2 id="add-screen-title">3초 오답 올리기</h2>
         <div class="spacer"></div>
       </header>
@@ -57,10 +71,14 @@
 
           <div class="upload-actions">
             <label class="btn-upload">
-              사진 찍기 / 고르기 (최대 2장)
+              <span class="material-symbols-rounded ms-icon" aria-hidden="true">add_a_photo</span>
+              <span>사진 찍기 / 고르기 (최대 2장)</span>
               <input type="file" id="input-problem-img" accept="image/*" multiple hidden />
             </label>
-            <button type="button" id="btn-clear-problem-img" class="btn-text-danger hidden">선택 사진 지우기</button>
+            <button type="button" id="btn-clear-problem-img" class="btn-text-danger hidden">
+              <span class="material-symbols-rounded ms-icon" aria-hidden="true">delete_outline</span>
+              <span>선택 사진 지우기</span>
+            </button>
           </div>
 
           <!-- 쓱-지우개 & 자르기 편집기 -->
@@ -68,10 +86,19 @@
             <div id="problem-photo-tabs" class="photo-slot-bar"></div>
             <div class="editor-toolbar">
               <div class="tool-tabs">
-                <button type="button" id="tool-eraser" class="tool-btn active">쓱-지우개</button>
-                <button type="button" id="tool-crop" class="tool-btn">자르기</button>
+                <button type="button" id="tool-eraser" class="tool-btn active">
+                  <span class="material-symbols-rounded ms-icon" aria-hidden="true">ink_eraser</span>
+                  <span>쓱-지우개</span>
+                </button>
+                <button type="button" id="tool-crop" class="tool-btn">
+                  <span class="material-symbols-rounded ms-icon" aria-hidden="true">crop</span>
+                  <span>자르기</span>
+                </button>
               </div>
-              <button type="button" id="btn-editor-undo" class="btn-undo">되돌리기</button>
+              <button type="button" id="btn-editor-undo" class="btn-undo">
+                <span class="material-symbols-rounded ms-icon" aria-hidden="true">undo</span>
+                <span>되돌리기</span>
+              </button>
             </div>
             <p id="editor-hint" class="editor-hint">내가 푼 볼펜·형광펜 자국 위를 손가락으로 쓱 문질러 지우세요.</p>
             <div class="canvas-container">
@@ -83,7 +110,10 @@
             </div>
             <div id="crop-action-row" class="crop-row hidden">
               <span>드래그해서 남길 부분만 고른 뒤</span>
-              <button type="button" id="btn-apply-crop" class="btn-primary-xs">잘라내기 적용</button>
+              <button type="button" id="btn-apply-crop" class="btn-primary-xs">
+                <span class="material-symbols-rounded ms-icon" aria-hidden="true">check</span>
+                <span>잘라내기 적용</span>
+              </button>
             </div>
           </div>
 
@@ -96,10 +126,14 @@
 
           <div class="upload-actions">
             <label class="btn-upload">
-              사진 찍기 / 고르기 (최대 2장)
+              <span class="material-symbols-rounded ms-icon" aria-hidden="true">add_a_photo</span>
+              <span>사진 찍기 / 고르기 (최대 2장)</span>
               <input type="file" id="input-answer-img" accept="image/*" multiple hidden />
             </label>
-            <button type="button" id="btn-clear-answer-img" class="btn-text-danger hidden">선택 사진 지우기</button>
+            <button type="button" id="btn-clear-answer-img" class="btn-text-danger hidden">
+              <span class="material-symbols-rounded ms-icon" aria-hidden="true">delete_outline</span>
+              <span>선택 사진 지우기</span>
+            </button>
           </div>
 
           <!-- 정답/해설 쓱-지우개 & 자르기 편집기 -->
@@ -107,10 +141,19 @@
             <div id="answer-photo-tabs" class="photo-slot-bar"></div>
             <div class="editor-toolbar">
               <div class="tool-tabs">
-                <button type="button" id="answer-tool-eraser" class="tool-btn active">쓱-지우개</button>
-                <button type="button" id="answer-tool-crop" class="tool-btn">자르기</button>
+                <button type="button" id="answer-tool-eraser" class="tool-btn active">
+                  <span class="material-symbols-rounded ms-icon" aria-hidden="true">ink_eraser</span>
+                  <span>쓱-지우개</span>
+                </button>
+                <button type="button" id="answer-tool-crop" class="tool-btn">
+                  <span class="material-symbols-rounded ms-icon" aria-hidden="true">crop</span>
+                  <span>자르기</span>
+                </button>
               </div>
-              <button type="button" id="btn-answer-undo" class="btn-undo">되돌리기</button>
+              <button type="button" id="btn-answer-undo" class="btn-undo">
+                <span class="material-symbols-rounded ms-icon" aria-hidden="true">undo</span>
+                <span>되돌리기</span>
+              </button>
             </div>
             <p id="answer-editor-hint" class="editor-hint">불필요한 낙서나 주변 여백을 지우거나 잘라내세요.</p>
             <div class="canvas-container">
@@ -122,7 +165,10 @@
             </div>
             <div id="answer-crop-action-row" class="crop-row hidden">
               <span>드래그해서 남길 부분만 고른 뒤</span>
-              <button type="button" id="btn-answer-apply-crop" class="btn-primary-xs">잘라내기 적용</button>
+              <button type="button" id="btn-answer-apply-crop" class="btn-primary-xs">
+                <span class="material-symbols-rounded ms-icon" aria-hidden="true">check</span>
+                <span>잘라내기 적용</span>
+              </button>
             </div>
           </div>
 
@@ -137,14 +183,19 @@
       </div>
 
       <div class="bottom-cta-bar">
-        <button id="btn-save-problem" class="btn-primary-lg">저장하기</button>
+        <button id="btn-save-problem" class="btn-primary-lg" type="button">
+          <span class="material-symbols-rounded ms-icon" aria-hidden="true">check_circle</span>
+          <span>저장하기</span>
+        </button>
       </div>
     </section>
 
     <!-- ================= 3. 다시 풀기 (가림막 복습) ================= -->
     <section id="screen-review" class="screen review-mode">
       <header class="review-header">
-        <button id="btn-review-exit" class="btn-icon">✕</button>
+        <button id="btn-review-exit" class="btn-icon" type="button" aria-label="복습 나가기">
+          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">close</span>
+        </button>
         <div id="review-progress" class="review-progress">1 / 1</div>
         <span id="review-subject-tag" class="badge-subject">전체</span>
       </header>
@@ -159,7 +210,8 @@
         <!-- 정답 가림막 영역 -->
         <div id="answer-curtain-box" class="answer-curtain-box is-covered">
           <div id="review-answer-content" class="review-answer-content"></div>
-          <button id="btn-reveal-answer" class="curtain-overlay">
+          <button id="btn-reveal-answer" class="curtain-overlay" type="button">
+            <span class="material-symbols-rounded ms-icon" aria-hidden="true">visibility</span>
             <span class="curtain-title">터치해서 정답 확인</span>
           </button>
         </div>
@@ -167,6 +219,9 @@
 
       <!-- 복습 완료 화면 -->
       <div id="review-done-area" class="review-done hidden">
+        <div class="done-emoji">
+          <span class="material-symbols-rounded ms-icon-hero" aria-hidden="true">task_alt</span>
+        </div>
         <h2>복습 완료!</h2>
         <p id="review-done-summary" class="done-summary"></p>
         <div class="ad-preview-box">
@@ -174,15 +229,27 @@
           <p>광고 없는 7일 무료 체험 기간입니다.<br /><strong>매달 구독 없이 약 3달러 1회 결제</strong>로 평생 소장하실 수 있어요.</p>
         </div>
         <div class="done-actions">
-          <button id="btn-review-again" class="btn-outline-lg">한 번 더 풀기</button>
-          <button id="btn-review-home" class="btn-primary-lg">홈으로 돌아가기</button>
+          <button id="btn-review-again" class="btn-outline-lg" type="button">
+            <span class="material-symbols-rounded ms-icon" aria-hidden="true">replay</span>
+            <span>한 번 더 풀기</span>
+          </button>
+          <button id="btn-review-home" class="btn-primary-lg" type="button">
+            <span class="material-symbols-rounded ms-icon" aria-hidden="true">home</span>
+            <span>홈으로 돌아가기</span>
+          </button>
         </div>
       </div>
 
       <!-- 하단 엄지손가락 2버튼 -->
       <footer id="review-action-bar" class="review-footer">
-        <button id="btn-mark-wrong" class="btn-wrong">틀렸어요</button>
-        <button id="btn-mark-correct" class="btn-correct">맞혔어요</button>
+        <button id="btn-mark-wrong" class="btn-wrong" type="button">
+          <span class="material-symbols-rounded ms-icon" aria-hidden="true">close</span>
+          <span>틀렸어요</span>
+        </button>
+        <button id="btn-mark-correct" class="btn-correct" type="button">
+          <span class="material-symbols-rounded ms-icon" aria-hidden="true">check</span>
+          <span>맞혔어요</span>
+        </button>
       </footer>
     </section>
 
@@ -190,8 +257,13 @@
     <div id="print-modal" class="modal-backdrop hidden">
       <div class="modal-sheet">
         <header class="modal-header">
-          <h3>🖨️ 나만의 A4 오답 시험지</h3>
-          <button id="btn-close-print" class="btn-icon">✕</button>
+          <h3 class="modal-title-row">
+            <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">print</span>
+            <span>나만의 A4 오답 시험지</span>
+          </h3>
+          <button id="btn-close-print" class="btn-icon" type="button" aria-label="닫기">
+            <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">close</span>
+          </button>
         </header>
         <div class="modal-options">
           <label class="toggle-wrap">
@@ -203,7 +275,10 @@
         </div>
         <div id="print-preview-area" class="print-preview-area"></div>
         <footer class="modal-footer">
-          <button id="btn-do-print" class="btn-primary-lg">인쇄 / PDF로 저장하기</button>
+          <button id="btn-do-print" class="btn-primary-lg" type="button">
+            <span class="material-symbols-rounded ms-icon" aria-hidden="true">print</span>
+            <span>인쇄 / PDF로 저장하기</span>
+          </button>
         </footer>
       </div>
     </div>
@@ -216,19 +291,27 @@
   <div id="subject-modal" class="modal-backdrop hidden">
     <div class="modal-sheet">
       <header class="modal-header">
-        <h3>⚙ 과목설정</h3>
-        <button id="btn-close-subject-modal" class="btn-icon">✕</button>
+        <h3 class="modal-title-row">
+          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">tune</span>
+          <span>과목설정</span>
+        </h3>
+        <button id="btn-close-subject-modal" class="btn-icon" type="button" aria-label="닫기">
+          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">close</span>
+        </button>
       </header>
       <div class="subject-modal-body">
         <div class="subject-add-row">
           <input type="text" id="input-new-subject" class="subject-manage-input" placeholder="새 과목 이름 (예: 한국사, 자격증)" />
-          <button type="button" id="btn-add-subject" class="btn-primary-xs">＋ 추가하기</button>
+          <button type="button" id="btn-add-subject" class="btn-primary-xs">
+            <span class="material-symbols-rounded ms-icon" aria-hidden="true">add</span>
+            <span>추가하기</span>
+          </button>
         </div>
         <p class="subject-modal-hint">과목 이름을 바꾸거나 필요 없는 과목을 지울 수 있어요. (과목을 지워도 문제는 ‘미분류’로 안전하게 남습니다.)</p>
         <div id="subject-manage-list" class="subject-manage-list"></div>
       </div>
       <footer class="modal-footer">
-        <button id="btn-done-subject-modal" class="btn-primary-lg">완료</button>
+        <button id="btn-done-subject-modal" class="btn-primary-lg" type="button">완료</button>
       </footer>
     </div>
   </div>
@@ -237,8 +320,13 @@
   <div id="criteria-modal" class="modal-backdrop hidden">
     <div class="modal-sheet">
       <header class="modal-header">
-        <h3>내 학습 기준 설정</h3>
-        <button id="btn-close-criteria" class="btn-icon">✕</button>
+        <h3 class="modal-title-row">
+          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">checklist</span>
+          <span>내 학습 기준 설정</span>
+        </h3>
+        <button id="btn-close-criteria" class="btn-icon" type="button" aria-label="닫기">
+          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">close</span>
+        </button>
       </header>
       <div class="subject-modal-body">
         <div class="criteria-group">
@@ -261,7 +349,7 @@
         </div>
       </div>
       <footer class="modal-footer">
-        <button id="btn-save-criteria" class="btn-primary-lg">적용하기</button>
+        <button id="btn-save-criteria" class="btn-primary-lg" type="button">적용하기</button>
       </footer>
     </div>
   </div>
@@ -282,8 +370,13 @@
   <div id="license-modal" class="modal-backdrop hidden">
     <div class="modal-sheet">
       <header class="modal-header">
-        <h3 id="license-modal-title">🎁 7일 무료 체험 안내</h3>
-        <button id="btn-close-license" class="btn-icon">✕</button>
+        <h3 id="license-modal-title" class="modal-title-row">
+          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">workspace_premium</span>
+          <span>7일 무료 체험 안내</span>
+        </h3>
+        <button id="btn-close-license" class="btn-icon" type="button" aria-label="닫기">
+          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">close</span>
+        </button>
       </header>
       <div class="subject-modal-body">
         <div class="license-hero-card">
@@ -291,9 +384,9 @@
           <h4 class="license-headline">매달 돈 나가는 구독 없이,<br />딱 한 번 결제로 평생 소장하세요</h4>
           <p class="license-sub">처음 7일 동안 모든 기능을 광고 없이 무료로 써보신 뒤, 마음에 드실 때만 구글 플레이스토어에서 <strong>단 한 번(약 3달러)</strong> 결제하시면 평생 제한 없이 쓰실 수 있습니다.</p>
           <ul class="license-perks">
-            <li>✅ 매달 자동 결제되는 정기 구독 없음</li>
-            <li>✅ 광고 없는 쾌적한 오답 복습</li>
-            <li>✅ 쓱-지우개 · 가림막 복습 · 시험지 뽑기 무제한</li>
+            <li><span class="material-symbols-rounded ms-icon ms-perk" aria-hidden="true">check_circle</span><span>매달 자동 결제되는 정기 구독 없음</span></li>
+            <li><span class="material-symbols-rounded ms-icon ms-perk" aria-hidden="true">check_circle</span><span>광고 없는 쾌적한 오답 복습</span></li>
+            <li><span class="material-symbols-rounded ms-icon ms-perk" aria-hidden="true">check_circle</span><span>쓱-지우개 · 가림막 복습 · 시험지 뽑기 무제한</span></li>
           </ul>
         </div>
 
@@ -307,8 +400,14 @@
         </div>
       </div>
       <footer class="modal-footer license-footer">
-        <button id="btn-buy-lifetime" class="btn-primary-lg">구글 스토어에서 평생 소장하기 (약 3달러)</button>
-        <button id="btn-restore-purchase" class="btn-outline-lg">이미 구매했어요 (내역 복원)</button>
+        <button id="btn-buy-lifetime" class="btn-primary-lg" type="button">
+          <span class="material-symbols-rounded ms-icon" aria-hidden="true">shopping_bag</span>
+          <span>구글 스토어에서 평생 소장하기 (약 3달러)</span>
+        </button>
+        <button id="btn-restore-purchase" class="btn-outline-lg" type="button">
+          <span class="material-symbols-rounded ms-icon" aria-hidden="true">history</span>
+          <span>이미 구매했어요 (내역 복원)</span>
+        </button>
       </footer>
     </div>
   </div>
@@ -317,36 +416,53 @@
   <div id="settings-modal" class="modal-backdrop hidden">
     <div class="modal-sheet">
       <header class="modal-header">
-        <h3>설정</h3>
-        <button id="btn-close-settings" class="btn-icon">✕</button>
+        <h3 class="modal-title-row">
+          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">settings</span>
+          <span>설정</span>
+        </h3>
+        <button id="btn-close-settings" class="btn-icon" type="button" aria-label="닫기">
+          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">close</span>
+        </button>
       </header>
       <div class="subject-modal-body">
         <div class="settings-menu-list">
           <button type="button" id="menu-open-subjects" class="settings-menu-item">
-            <div>
-              <strong>과목 설정</strong>
-              <span>과목 추가, 이름 변경, 삭제</span>
+            <div class="settings-menu-lead">
+              <span class="material-symbols-rounded ms-icon" aria-hidden="true">tune</span>
+              <div>
+                <strong>과목 설정</strong>
+                <span>과목 추가, 이름 변경, 삭제</span>
+              </div>
             </div>
-            <span class="settings-arrow">›</span>
+            <span class="material-symbols-rounded ms-icon settings-arrow" aria-hidden="true">chevron_right</span>
           </button>
           <button type="button" id="menu-open-criteria" class="settings-menu-item">
-            <div>
-              <strong>학습 기준 설정</strong>
-              <span>완전 정복 및 또 틀린 문제 기준 정하기</span>
+            <div class="settings-menu-lead">
+              <span class="material-symbols-rounded ms-icon" aria-hidden="true">checklist</span>
+              <div>
+                <strong>학습 기준 설정</strong>
+                <span>완전 정복 및 또 틀린 문제 기준 정하기</span>
+              </div>
             </div>
-            <span class="settings-arrow">›</span>
+            <span class="material-symbols-rounded ms-icon settings-arrow" aria-hidden="true">chevron_right</span>
           </button>
           <button type="button" id="menu-open-print" class="settings-menu-item">
-            <div>
-              <strong>시험지 뽑기</strong>
-              <span>모은 오답을 A4 문제지·정답지로 인쇄</span>
+            <div class="settings-menu-lead">
+              <span class="material-symbols-rounded ms-icon" aria-hidden="true">print</span>
+              <div>
+                <strong>시험지 뽑기</strong>
+                <span>모은 오답을 A4 문제지·정답지로 인쇄</span>
+              </div>
             </div>
-            <span class="settings-arrow">›</span>
+            <span class="material-symbols-rounded ms-icon settings-arrow" aria-hidden="true">chevron_right</span>
           </button>
           <button type="button" id="menu-open-license" class="settings-menu-item">
-            <div>
-              <strong>이용권 및 무료 체험</strong>
-              <span id="settings-license-sub">무료 체험 7일 남음</span>
+            <div class="settings-menu-lead">
+              <span class="material-symbols-rounded ms-icon" aria-hidden="true">workspace_premium</span>
+              <div>
+                <strong>이용권 및 무료 체험</strong>
+                <span id="settings-license-sub">무료 체험 7일 남음</span>
+              </div>
             </div>
             <span id="settings-license-badge" class="badge-subject">체험 중</span>
           </button>
@@ -384,6 +500,6 @@
     </div>
   </div>
 
-  <script type="module" src="app.js?v=20261116k"></script>
+  <script type="module" src="app.js?v=20261118a"></script>
 </body>
 </html>

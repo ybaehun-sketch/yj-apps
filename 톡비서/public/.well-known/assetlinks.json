@@ -1,0 +1,14 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.yjstudio.tokbiseo",
+      "sha256_cert_fingerprints": [
+        "1B:FF:80:13:A1:E1:0C:5A:E9:42:C6:42:A4:09:3A:A5:1A:73:75:70:48:37:44:E2:C8:4D:8C:BB:4B:7C:A4:D3",
+        "4E:F6:97:6E:2F:2E:E0:AC:BF:76:E0:31:CA:09:BE:56:4E:BA:48:B0:1D:53:42:0E:7E:39:AB:8C:34:60:E2:77",
+        "91:4F:4E:D5:F2:2F:F4:9F:71:A8:00:14:F7:52:01:DD:01:34:A2:44:97:76:31:3F:04:52:CB:9B:61:5F:93:CD"
+      ]
+    }
+  }
+]

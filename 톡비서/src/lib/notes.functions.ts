@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { LANGS, aiLangRule, trL, type Lang } from "./i18n";
+import { buildCompactSearchDocs, tryAnswerStatsLocally } from "./notes-stats";
 import { NOTE_CATEGORIES, firstUrl, normalizeAnalysis, parseOg, sanitizeEdit } from "./notes";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -129,6 +130,7 @@ export const analyzeAndSaveNote = createServerFn({ method: "POST" })
         input: parts,
         maxOutputTokens: 1200,
       });
+      if (text === null) throw new Error("잠시 AI 연결이 지연되고 있어요. 다시 던져 주세요");
       raw = parseGeminiJson(text) ?? {};
     }
 
@@ -226,18 +228,17 @@ export const askNotes = createServerFn({ method: "POST" })
     await assertDailyLimit(context.supabase, context.userId, data.tzOffsetMin);
     const { data: rows, error } = await context.supabase
       .from("notes")
-      .select("id, created_at, kind, content, summary, category, detected_date, tags, link_title")
-      .eq("confirmed", true)
+      .select("id, created_at, kind, content, summary, category, detected_date, tags, link_title, file_name")
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw new Error("서류함을 열지 못했어요");
     if (!rows.length) return { answer: trL(L, "아직 서류함이 비어 있어요. 먼저 뭐든 던져 주세요"), noteIds: [] as string[] };
 
+    const localStats = tryAnswerStatsLocally(data.question, rows, data.tzOffsetMin, L);
+    if (localStats) return localStats;
+
     const localNow = new Date(Date.now() - data.tzOffsetMin * 60000).toISOString().slice(0, 16);
-    const docs = rows.map((r) => ({
-      id: r.id, saved: r.created_at.slice(0, 10), kind: r.kind, category: r.category, summary: r.summary,
-      date: r.detected_date, tags: r.tags, title: r.link_title, text: r.content.slice(0, 300),
-    }));
+    const docs = buildCompactSearchDocs(data.question, rows);
     if (!getGeminiApiKey()) throw new Error("AI 설정이 없어요");
     const instructions = `너는 '톡비서'다. 사용자의 저장된 메모(JSON)만 근거로 질문에 답한다. 현재 현지 시각: ${localNow}. 날짜는 현지 기준으로 말하라.
 JSON 하나만 출력: {"answer": 한국어 1~2문장, 간결하고 다정하게(이모지·이모티콘 사용 금지), 메모에 없으면 솔직히 못 찾았다고, "note_ids": 근거가 된 메모 id 배열(관련도 순)}.
