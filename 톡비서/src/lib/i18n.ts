@@ -359,7 +359,7 @@ const D: [string, string, string, string, string, string, string][] = [
   ["무제한 스마트 혜택", "Unlimited Smart Perks", "無制限スマート特典", "無限智慧專屬優惠", "Avantages illimités", "Unbegrenzte Vorteile", "Beneficios ilimitados"],
   ["월 4,900원 정기구독", "₩4,900/mo Subscription", "月額4,900ウォン定期購読", "每月 ₩4,900 定期訂閱", "Abonnement ₩4,900/mois", "Abo ₩4,900/Monat", "Suscripción ₩4,900/mes"],
   ["혜택 보기", "View perks", "特典を見る", "查看優惠", "Voir les avantages", "Vorteile ansehen", "Ver beneficios"],
-  ["업그레이드 안내", "Upgrade info", "プラン詳細", "升級方案說明", "Infos mise à niveau", "Upgrade-Infos", "Ver planes"],
+  ["업그레이드 안내", "Upgrade info", "プラン詳細", "升級方案說明", "Voir les offres", "Upgrade-Infos", "Ver planes"],
   ["기능 및 환경 설정", "Features & Preferences", "機能および環境設定", "功能與偏好設定", "Fonctions & Préférences", "Funktionen & Einstellungen", "Funciones y Preferencias"],
   ["카테고리 만들기 · 관리", "Create & Manage Categories", "カテゴリの作成・管理", "建立與管理分類", "Créer et gérer les catégories", "Kategorien verwalten", "Crear y gestionar categorías"],
   ["언어 선택", "Language", "言語設定", "選擇語言", "Langue", "Sprache", "Idioma"],
