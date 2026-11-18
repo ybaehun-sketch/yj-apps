@@ -1,15 +1,13 @@
-import { loadState, saveState, compressImageFile } from './modules/storage.js?v=20261116e';
-import { renderSubjectBar } from './modules/subjectBar.js?v=20261116i';
+import { loadState, saveState, compressImageFile } from './modules/storage.js?v=20261118a';
+import { renderSubjectBar } from './modules/subjectBar.js?v=20261118a';
 import { createMagicEraser } from './modules/magicEraser.js?v=20261116g';
-import { buildReviewQueue, renderReviewCard } from './modules/reviewDeck.js?v=20261116h';
-import { renderPrintPreview } from './modules/examPrint.js?v=20261116f';
+import { buildReviewQueue, renderReviewCard } from './modules/reviewDeck.js?v=20261118a';
 import { showAlert, showConfirm } from './modules/dialog.js';
 import { loadLicense, saveLicense, getLicenseStatus } from './modules/trialLicense.js?v=20261116d';
 
 let state = loadState();
 let license = loadLicense();
 let activeSubject = '전체';
-let wrongOnly = false;
 
 // 등록/수정 화면 임시 상태
 let addSubject = state.lastSubject && state.lastSubject !== '전체' ? state.lastSubject : '미분류';
@@ -21,6 +19,23 @@ let reviewIdx = 0;
 let sessionCorrect = 0;
 let sessionWrong = 0;
 let sessionCleared = 0;
+let sessionWrongIds = new Set();
+let reviewLoopMode = false;
+let loopStartCount = 0;
+let isAnimatingReview = false;
+let toastTimer = null;
+
+function showToast(text, { cleared = false, icon = 'check_circle', duration = 1600 } = {}) {
+  const el = document.getElementById('app-toast');
+  if (!el) return;
+  if (toastTimer) clearTimeout(toastTimer);
+  el.className = `app-toast${cleared ? ' is-cleared' : ''}`;
+  el.innerHTML = `<span class="material-symbols-rounded ms-icon" aria-hidden="true">${icon}</span><span>${text}</span>`;
+  el.classList.remove('hidden');
+  toastTimer = setTimeout(() => {
+    el.classList.add('hidden');
+  }, duration);
+}
 
 // 화면 요소
 const screens = {
@@ -31,7 +46,6 @@ const screens = {
 
 const homeEls = {
   subjectBar: document.getElementById('home-subject-bar'),
-  toggleWrongOnly: document.getElementById('toggle-wrong-only'),
   subjectTotalSummary: document.getElementById('subject-total-summary'),
   btnStartReview: document.getElementById('btn-start-review'),
   problemList: document.getElementById('problem-list'),
@@ -64,17 +78,9 @@ const reviewEls = {
   btnMarkWrong: document.getElementById('btn-mark-wrong'),
   btnMarkCorrect: document.getElementById('btn-mark-correct'),
   btnReviewAgain: document.getElementById('btn-review-again'),
-  btnReviewHome: document.getElementById('btn-review-home')
-};
-
-const printEls = {
-  modal: document.getElementById('print-modal'),
-  btnClose: document.getElementById('btn-close-print'),
-  wrongOnly: document.getElementById('print-wrong-only'),
-  countInfo: document.getElementById('print-count-info'),
-  previewArea: document.getElementById('print-preview-area'),
-  btnDoPrint: document.getElementById('btn-do-print'),
-  printRoot: document.getElementById('a4-print-root')
+  btnReviewHome: document.getElementById('btn-review-home'),
+  swipeBadgeCorrect: document.getElementById('swipe-badge-correct'),
+  swipeBadgeWrong: document.getElementById('swipe-badge-wrong')
 };
 
 const subjectModalEls = {
@@ -90,8 +96,7 @@ const criteriaEls = {
   modal: document.getElementById('criteria-modal'),
   btnClose: document.getElementById('btn-close-criteria'),
   btnSave: document.getElementById('btn-save-criteria'),
-  inputMasteryTarget: document.getElementById('input-mastery-target'),
-  inputWrongMinCount: document.getElementById('input-wrong-min-count')
+  inputMasteryTarget: document.getElementById('input-mastery-target')
 };
 
 const licenseEls = {
@@ -111,23 +116,12 @@ const settingsEls = {
   btnClose: document.getElementById('btn-close-settings'),
   menuSubjects: document.getElementById('menu-open-subjects'),
   menuCriteria: document.getElementById('menu-open-criteria'),
-  menuPrint: document.getElementById('menu-open-print'),
   menuLicense: document.getElementById('menu-open-license'),
   licenseSub: document.getElementById('settings-license-sub'),
   licenseBadge: document.getElementById('settings-license-badge'),
   linkGuide: document.getElementById('link-guide'),
   linkTerms: document.getElementById('link-terms'),
   linkPrivacy: document.getElementById('link-privacy')
-};
-
-const solveChoiceEls = {
-  modal: document.getElementById('solve-choice-modal'),
-  desc: document.getElementById('solve-choice-desc'),
-  btnAll: document.getElementById('btn-solve-all'),
-  allCount: document.getElementById('solve-all-count'),
-  btnWrong: document.getElementById('btn-solve-wrong'),
-  wrongCount: document.getElementById('solve-wrong-count'),
-  btnClose: document.getElementById('btn-close-solve-choice')
 };
 
 function createPhotoEditorField(ids) {
@@ -315,16 +309,10 @@ function showScreen(name) {
   window.scrollTo(0, 0);
 }
 
-function getFilteredProblems(onlyWrongFlag = wrongOnly) {
+function getFilteredProblems() {
   return state.problems.filter((p) => {
     const subj = p.subject || '미분류';
-    const matchSubject = activeSubject === '전체' || subj === activeSubject;
-    let matchWrong = true;
-    if (onlyWrongFlag) {
-      const minWrong = state.settings.wrongMinCount || 2;
-      matchWrong = p.wrongCount >= minWrong;
-    }
-    return matchSubject && matchWrong;
+    return activeSubject === '전체' || subj === activeSubject;
   });
 }
 
@@ -360,11 +348,8 @@ function renderHome() {
     }
   });
 
-  const allInSubject = getFilteredProblems(false);
   const list = getFilteredProblems();
-  homeEls.subjectTotalSummary.textContent = wrongOnly
-    ? `${list.length} / 전체 ${allInSubject.length}문제`
-    : `전체 ${allInSubject.length}문제`;
+  homeEls.subjectTotalSummary.textContent = `전체 ${list.length}문제`;
 
   homeEls.problemList.innerHTML = '';
   if (list.length === 0) {
@@ -416,14 +401,14 @@ function renderHome() {
       status.textContent = `${p.wrongCount}번 틀림`;
     } else {
       status.className = 'badge-new';
-      status.textContent = '복습 전';
+      status.textContent = '정복 전';
     }
     badges.appendChild(status);
     info.appendChild(badges);
 
     const title = document.createElement('div');
     title.className = 'problem-title';
-    title.textContent = p.problemText || '사진 문제 (눌러서 바로 복습)';
+    title.textContent = p.problemText || '사진 문제 (눌러서 바로 정복)';
     info.appendChild(title);
 
     const subText = document.createElement('div');
@@ -489,10 +474,14 @@ function renderAddSubjectBar() {
   });
 }
 
+function setSaveBtnLabel(label) {
+  addEls.btnSave.innerHTML = `<span class="material-symbols-rounded ms-icon" aria-hidden="true">check_circle</span><span>${label}</span>`;
+}
+
 function resetAddForm() {
   editingProblemId = null;
   addEls.title.textContent = '3초 오답 올리기';
-  addEls.btnSave.textContent = '저장하기';
+  setSaveBtnLabel('저장하기');
   problemEditor.reset();
   answerEditor.reset();
   addEls.inputProblemText.value = '';
@@ -504,7 +493,7 @@ function resetAddForm() {
 async function openEditProblem(p) {
   editingProblemId = p.id;
   addEls.title.textContent = '오답 수정하기';
-  addEls.btnSave.textContent = '수정 완료';
+  setSaveBtnLabel('수정 완료');
   addEls.inputProblemText.value = p.problemText || '';
   addEls.inputAnswerText.value = p.answerText || '';
   addSubject = p.subject || '미분류';
@@ -542,6 +531,7 @@ addEls.btnSave.addEventListener('click', () => {
   const finalProblemImgs = problemEditor.exportImages();
   const finalAnswerImgs = answerEditor.exportImages();
 
+  const isEditing = Boolean(editingProblemId);
   if (editingProblemId) {
     const target = state.problems.find((item) => item.id === editingProblemId);
     if (target) {
@@ -576,18 +566,22 @@ addEls.btnSave.addEventListener('click', () => {
   if (saveState(state)) {
     renderHome();
     showScreen('home');
+    showToast(isEditing ? '오답을 수정했어요!' : '오답을 쏙 저장했어요!');
   }
 });
 
 /* ================= 3. 다시 풀기 (가림막 복습) ================= */
-function startReview(customList = null) {
+function startReview(customList = null, { loop = false } = {}) {
   const source = customList || getFilteredProblems();
   if (!source.length) return;
   reviewQueue = buildReviewQueue(source);
   reviewIdx = 0;
+  reviewLoopMode = loop;
+  loopStartCount = loop ? source.length : 0;
   sessionCorrect = 0;
   sessionWrong = 0;
   sessionCleared = 0;
+  sessionWrongIds = new Set();
 
   reviewEls.cardArea.classList.remove('hidden');
   reviewEls.actionBar.classList.remove('hidden');
@@ -596,15 +590,42 @@ function startReview(customList = null) {
   showCurrentReviewCard();
 }
 
+function resetReviewCardVisual() {
+  const area = reviewEls.cardArea;
+  area.classList.remove('is-dragging', 'is-fly-left', 'is-fly-right', 'is-cleared-fly', 'is-enter-card');
+  area.style.transform = '';
+  if (reviewEls.swipeBadgeCorrect) reviewEls.swipeBadgeCorrect.style.opacity = '0';
+  if (reviewEls.swipeBadgeWrong) reviewEls.swipeBadgeWrong.style.opacity = '0';
+}
+
 function showCurrentReviewCard() {
+  resetReviewCardVisual();
+
+  // 정복 모드: 한 바퀴가 끝나면 아직 못 지운 문제로 자동 이어집니다.
+  if (reviewIdx >= reviewQueue.length && reviewLoopMode) {
+    const queueIds = new Set(reviewQueue.map((q) => q.id));
+    const remaining = state.problems.filter((p) => queueIds.has(p.id));
+    if (remaining.length > 0) {
+      reviewQueue = buildReviewQueue(remaining);
+      reviewIdx = 0;
+      showToast(`미정복 ${remaining.length}문제 남았어요!`, { icon: 'target', duration: 1500 });
+    }
+  }
+
   if (reviewIdx >= reviewQueue.length) {
     reviewEls.cardArea.classList.add('hidden');
     reviewEls.actionBar.classList.add('hidden');
     reviewEls.doneArea.classList.remove('hidden');
-    reviewEls.doneSummary.textContent =
-      sessionCleared > 0
-        ? `총 ${reviewQueue.length}문제 중 ${sessionCleared}문제를 정복해서 목록에서 비웠어요!`
-        : `총 ${reviewQueue.length}문제 중 ${sessionCorrect}문제 맞혔고, ${sessionWrong}문제 다시 틀렸어요.`;
+    const stillWrong = state.problems.filter((p) => sessionWrongIds.has(p.id));
+    reviewEls.btnReviewAgain.classList.toggle('hidden', stillWrong.length === 0);
+    if (reviewLoopMode) {
+      reviewEls.doneSummary.textContent = `미정복 ${loopStartCount}문제를 전부 정복해서 목록에서 비웠어요!`;
+    } else {
+      reviewEls.doneSummary.textContent =
+        sessionCleared > 0
+          ? `총 ${reviewQueue.length}문제 중 ${sessionCleared}문제를 정복해서 목록에서 비웠어요!`
+          : `총 ${reviewQueue.length}문제 중 ${sessionCorrect}문제 맞혔고, ${sessionWrong}문제 못 지웠어요.`;
+    }
     return;
   }
   renderReviewCard({
@@ -614,39 +635,17 @@ function showCurrentReviewCard() {
     subjectLabel: activeSubject,
     els: reviewEls
   });
+  void reviewEls.cardArea.offsetWidth;
+  reviewEls.cardArea.classList.add('is-enter-card');
 }
 
 homeEls.btnStartReview.addEventListener('click', () => {
-  const allInSubject = getFilteredProblems(false);
-  const wrongInSubject = getFilteredProblems(true);
-  if (allInSubject.length === 0) {
-    showAlert('현재 과목에 등록된 문제가 없어요.\n오른쪽 아래 [＋ 오답 올리기]로 문제를 먼저 추가해 주세요.');
+  const list = getFilteredProblems();
+  if (list.length === 0) {
+    showAlert('현재 과목에 등록된 문제가 없어요.\n오른쪽 아래 [오답 올리기]로 문제를 먼저 추가해 주세요.');
     return;
   }
-  solveChoiceEls.desc.textContent = `[${activeSubject}] 과목에서 어떤 문제를 풀어볼까요?`;
-  solveChoiceEls.allCount.textContent = `${allInSubject.length}문제`;
-  solveChoiceEls.wrongCount.textContent = `${wrongInSubject.length}문제`;
-  solveChoiceEls.btnAll.disabled = allInSubject.length === 0;
-  solveChoiceEls.btnWrong.disabled = wrongInSubject.length === 0;
-  solveChoiceEls.modal.classList.remove('hidden');
-});
-
-solveChoiceEls.btnAll.addEventListener('click', () => {
-  solveChoiceEls.modal.classList.add('hidden');
-  startReview(getFilteredProblems(false));
-});
-
-solveChoiceEls.btnWrong.addEventListener('click', () => {
-  solveChoiceEls.modal.classList.add('hidden');
-  startReview(getFilteredProblems(true));
-});
-
-solveChoiceEls.btnClose.addEventListener('click', () => {
-  solveChoiceEls.modal.classList.add('hidden');
-});
-homeEls.toggleWrongOnly.addEventListener('change', (e) => {
-  wrongOnly = e.target.checked;
-  renderHome();
+  startReview(list);
 });
 
 reviewEls.curtainBtn.addEventListener('click', () => {
@@ -654,37 +653,131 @@ reviewEls.curtainBtn.addEventListener('click', () => {
   reviewEls.curtainBox.classList.remove('is-covered');
 });
 
-reviewEls.btnMarkWrong.addEventListener('click', () => {
-  const curr = reviewQueue[reviewIdx];
-  const target = state.problems.find((p) => p.id === curr.id);
-  if (target) {
-    target.wrongCount += 1;
-    target.correctStreak = 0;
-    target.mastered = false;
-    saveState(state);
-  }
-  sessionWrong += 1;
-  reviewIdx += 1;
-  showCurrentReviewCard();
-});
+function handleReviewAnswer(isCorrect) {
+  if (isAnimatingReview || reviewIdx >= reviewQueue.length) return;
+  isAnimatingReview = true;
 
-reviewEls.btnMarkCorrect.addEventListener('click', () => {
   const curr = reviewQueue[reviewIdx];
   const target = state.problems.find((p) => p.id === curr.id);
-  if (target) {
-    target.correctStreak = (target.correctStreak || 0) + 1;
-    const targetCount = state.settings.masteryTarget || 2;
-    if (target.correctStreak >= targetCount) {
-      // 정복 표시를 남기지 않고 목록에서 미련 없이 즉시 삭제
-      state.problems = state.problems.filter((p) => p.id !== curr.id);
-      sessionCleared += 1;
+  let clearedNow = false;
+
+  if (isCorrect) {
+    if (target) {
+      target.correctStreak = (target.correctStreak || 0) + 1;
+      const targetCount = state.settings.masteryTarget || 2;
+      if (target.correctStreak >= targetCount) {
+        state.problems = state.problems.filter((p) => p.id !== curr.id);
+        sessionCleared += 1;
+        clearedNow = true;
+      }
+      saveState(state);
     }
-    saveState(state);
+    sessionCorrect += 1;
+  } else {
+    if (target) {
+      target.wrongCount += 1;
+      target.correctStreak = 0;
+      target.mastered = false;
+      saveState(state);
+    }
+    sessionWrongIds.add(curr.id);
+    sessionWrong += 1;
   }
-  sessionCorrect += 1;
-  reviewIdx += 1;
-  showCurrentReviewCard();
-});
+
+  const area = reviewEls.cardArea;
+  area.classList.remove('is-dragging', 'is-enter-card');
+  area.style.transform = '';
+  if (clearedNow) {
+    area.classList.add('is-cleared-fly');
+    showToast('완전 정복! 목록에서 비웠어요', { cleared: true, icon: 'task_alt', duration: 1700 });
+  } else if (isCorrect) {
+    area.classList.add('is-fly-right');
+  } else {
+    area.classList.add('is-fly-left');
+  }
+
+  setTimeout(() => {
+    reviewIdx += 1;
+    isAnimatingReview = false;
+    showCurrentReviewCard();
+  }, 210);
+}
+
+reviewEls.btnMarkWrong.addEventListener('click', () => handleReviewAnswer(false));
+reviewEls.btnMarkCorrect.addEventListener('click', () => handleReviewAnswer(true));
+
+// 복습 카드 좌우 스와이프 (오른쪽: 맞혔어요 / 왼쪽: 틀렸어요)
+(() => {
+  const area = reviewEls.cardArea;
+  let pointerId = null;
+  let startX = 0;
+  let startY = 0;
+  let dx = 0;
+  let swiping = false;
+
+  area.addEventListener('pointerdown', (e) => {
+    if (isAnimatingReview || e.button > 0) return;
+    pointerId = e.pointerId;
+    startX = e.clientX;
+    startY = e.clientY;
+    dx = 0;
+    swiping = false;
+  });
+
+  area.addEventListener('pointermove', (e) => {
+    if (pointerId !== e.pointerId || isAnimatingReview) return;
+    const curDx = e.clientX - startX;
+    const curDy = e.clientY - startY;
+
+    if (!swiping) {
+      if (Math.abs(curDx) > 12 && Math.abs(curDx) > Math.abs(curDy) * 1.2) {
+        swiping = true;
+        area.classList.remove('is-enter-card');
+        area.classList.add('is-dragging');
+        area.setPointerCapture?.(e.pointerId);
+      } else if (Math.abs(curDy) > 14) {
+        pointerId = null;
+        return;
+      } else {
+        return;
+      }
+    }
+
+    dx = curDx;
+    const rotate = Math.max(-10, Math.min(10, dx * 0.04));
+    area.style.transform = `translateX(${dx}px) rotate(${rotate}deg)`;
+
+    const ratio = Math.min(1, Math.abs(dx) / 75);
+    if (dx > 0) {
+      if (reviewEls.swipeBadgeCorrect) reviewEls.swipeBadgeCorrect.style.opacity = String(ratio);
+      if (reviewEls.swipeBadgeWrong) reviewEls.swipeBadgeWrong.style.opacity = '0';
+    } else {
+      if (reviewEls.swipeBadgeWrong) reviewEls.swipeBadgeWrong.style.opacity = String(ratio);
+      if (reviewEls.swipeBadgeCorrect) reviewEls.swipeBadgeCorrect.style.opacity = '0';
+    }
+  });
+
+  function finishSwipe(e) {
+    if (pointerId !== e.pointerId) return;
+    pointerId = null;
+    if (!swiping) return;
+    swiping = false;
+    area.classList.remove('is-dragging');
+
+    if (dx >= 75) {
+      handleReviewAnswer(true);
+    } else if (dx <= -75) {
+      handleReviewAnswer(false);
+    } else {
+      area.style.transform = '';
+      if (reviewEls.swipeBadgeCorrect) reviewEls.swipeBadgeCorrect.style.opacity = '0';
+      if (reviewEls.swipeBadgeWrong) reviewEls.swipeBadgeWrong.style.opacity = '0';
+    }
+  }
+
+  area.addEventListener('pointerup', finishSwipe);
+  area.addEventListener('pointercancel', finishSwipe);
+})();
 
 reviewEls.btnExit.addEventListener('click', () => {
   renderHome();
@@ -694,34 +787,14 @@ reviewEls.btnReviewHome.addEventListener('click', () => {
   renderHome();
   showScreen('home');
 });
-reviewEls.btnReviewAgain.addEventListener('click', () => startReview(reviewQueue));
-
-/* ================= 4. A4 시험지 뽑기 ================= */
-function updatePrintModal() {
-  const list = getFilteredProblems(printEls.wrongOnly.checked);
-  printEls.countInfo.textContent = `${list.length}문제`;
-  renderPrintPreview({
-    problems: list,
-    subjectLabel: activeSubject,
-    previewEl: printEls.previewArea,
-    printRootEl: printEls.printRoot
-  });
-}
-
-function openPrintModalFlow() {
-  if (getLicenseStatus(license).state === 'expired') {
-    openLicenseModal(true);
+reviewEls.btnReviewAgain.addEventListener('click', () => {
+  const retryList = state.problems.filter((p) => sessionWrongIds.has(p.id));
+  if (retryList.length === 0) {
+    renderHome();
+    showScreen('home');
     return;
   }
-  updatePrintModal();
-  printEls.modal.classList.remove('hidden');
-}
-printEls.btnClose.addEventListener('click', () => {
-  printEls.modal.classList.add('hidden');
-});
-printEls.wrongOnly.addEventListener('change', updatePrintModal);
-printEls.btnDoPrint.addEventListener('click', () => {
-  window.print();
+  startReview(retryList, { loop: true });
 });
 
 /* ================= 5. 과목 정리하기 (수정/삭제) ================= */
@@ -843,7 +916,6 @@ subjectModalEls.btnDone.addEventListener('click', closeSubjectModal);
 /* ================= 6. 내 학습 기준 설정 ================= */
 function renderCriteriaModal() {
   criteriaEls.inputMasteryTarget.value = String(state.settings.masteryTarget || 2);
-  criteriaEls.inputWrongMinCount.value = String(state.settings.wrongMinCount || 2);
 }
 
 function openCriteriaModalFlow() {
@@ -857,18 +929,12 @@ criteriaEls.btnClose.addEventListener('click', () => {
 
 criteriaEls.btnSave.addEventListener('click', async () => {
   const masteryVal = Number(criteriaEls.inputMasteryTarget.value);
-  const wrongMinVal = Number(criteriaEls.inputWrongMinCount.value);
   if (!Number.isInteger(masteryVal) || masteryVal < 1 || masteryVal >= 20) {
     await showAlert('자동 삭제 기준 횟수는 1에서 19(20회 미만) 사이의 숫자로 입력해 주세요.');
     return;
   }
-  if (!Number.isInteger(wrongMinVal) || wrongMinVal < 1 || wrongMinVal >= 20) {
-    await showAlert('틀린 횟수 기준은 1에서 19(20회 미만) 사이의 숫자로 입력해 주세요.');
-    return;
-  }
 
   state.settings.masteryTarget = masteryVal;
-  state.settings.wrongMinCount = wrongMinVal;
   // 새 기준을 이미 채운 문제들은 미련 없이 즉시 정리
   state.problems = state.problems.filter((p) => (p.correctStreak || 0) < masteryVal);
   saveState(state);
@@ -920,11 +986,6 @@ settingsEls.menuCriteria.addEventListener('click', () => {
   openCriteriaModalFlow();
 });
 
-settingsEls.menuPrint.addEventListener('click', () => {
-  settingsEls.modal.classList.add('hidden');
-  openPrintModalFlow();
-});
-
 settingsEls.menuLicense.addEventListener('click', () => {
   settingsEls.modal.classList.add('hidden');
   openLicenseModal(false);
@@ -932,14 +993,14 @@ settingsEls.menuLicense.addEventListener('click', () => {
 
 settingsEls.linkGuide.addEventListener('click', () => {
   showAlert(
-    '1. 틀린 문제를 사진(최대 2장)이나 메모로 3초 만에 올립니다.\n2. 복습하며 가림막을 열어 풀고 맞혔어요/틀렸어요를 누릅니다.\n3. 내가 정한 횟수만큼 연속으로 맞히면 정복 완료로 보고 목록에서 미련 없이 자동 삭제됩니다.',
+    '1. 틀린 문제를 사진(최대 2장)이나 메모로 3초 만에 올립니다.\n2. 정복하기를 눌러 가림막을 열어 풀고 맞혔어요/틀렸어요를 누르거나 카드를 슥 밀어 넘깁니다. 틀린 문제는 다 지울 때까지 계속 돌아옵니다.\n3. 내가 정한 횟수만큼 연속으로 맞히면 정복 완료로 보고 목록에서 미련 없이 자동 삭제됩니다.',
     { title: '이용방법' }
   );
 });
 
 settingsEls.linkTerms.addEventListener('click', () => {
   showAlert(
-    '이 앱은 틀린 문제만 가볍게 보고 정복한 문제는 자동 삭제되는 초간편 오답노트입니다.\n회원가입 없이 내 휴대폰에만 저장되므로, 앱을 지우면 저장된 문제도 함께 삭제됩니다.',
+    '이 앱은 틀린 문제만 가볍게 보고 정복한 문제는 자동 삭제되는 초간편 오답정복 앱입니다.\n회원가입 없이 내 휴대폰에만 저장되므로, 앱을 지우면 저장된 문제도 함께 삭제됩니다.',
     { title: '이용약관' }
   );
 });

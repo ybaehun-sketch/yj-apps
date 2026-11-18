@@ -176,11 +176,11 @@ export function NavigationDrawer({
               />
             </div>
 
-            <div className="mt-3 flex items-center justify-between rounded-xl bg-muted/60 px-3 py-2 text-xs">
-              <span className="text-muted-foreground">
+            <div className="mt-3 flex items-center justify-between gap-2 whitespace-nowrap rounded-xl bg-muted/60 px-3 py-2 text-[11px]">
+              <span className="truncate text-muted-foreground">
                 {isPremium ? tr("무제한 스마트 혜택") : tr("톡비서 프리미엄")}
               </span>
-              <span className="font-semibold text-primary">
+              <span className="shrink-0 font-semibold text-primary">
                 {isPremium ? tr("혜택 보기") : tr("업그레이드 안내")}
               </span>
             </div>
@@ -283,7 +283,7 @@ export function NavigationDrawer({
               )}
             </div>
             <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
-              <span>{tr("보관된 서류")} {notesCount}{tr("건")}</span>
+              <span>{tr("보관된 서류 {0}건", notesCount)}</span>
               <button
                 type="button"
                 onClick={() => setStorageDetailsOpen((prev) => !prev)}

@@ -34,7 +34,7 @@ export function renderReviewCard({
     statusBadge.textContent = `${problem.wrongCount}번 틀림`;
   } else {
     statusBadge.className = 'badge-new';
-    statusBadge.textContent = '복습 전';
+    statusBadge.textContent = '정복 전';
   }
   els.metaRow.appendChild(statusBadge);
 

@@ -46,6 +46,17 @@ export function loadState() {
       return structuredClone(DEFAULT_DATA);
     }
     const parsed = JSON.parse(raw);
+    // 미리보기용 예시 문제 1회 복원 (목록이 비어 있을 때만, 한 번만 실행)
+    const RESEED_KEY = 'yj_demo_reseed_20261118';
+    if (
+      !localStorage.getItem(RESEED_KEY) &&
+      Array.isArray(parsed.problems) &&
+      parsed.problems.length === 0
+    ) {
+      parsed.problems = structuredClone(DEFAULT_DATA.problems);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+    }
+    localStorage.setItem(RESEED_KEY, '1');
     return {
       subjects: Array.isArray(parsed.subjects) ? parsed.subjects : ['국어', '영어', '수학'],
       lastSubject: parsed.lastSubject || '전체',

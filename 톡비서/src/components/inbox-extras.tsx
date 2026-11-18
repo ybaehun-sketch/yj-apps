@@ -324,7 +324,7 @@ export function NotesCalendar({
           </div>
         </div>
       )}
-      <SummaryCard title={tr("{0}에 던진 것", month.toLocaleDateString(locale(), { month: "long" }))} notes={notes.filter((n) => { const d = new Date(n.created_at); return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth(); })} />
+      <SummaryCard title={tr("{0}에 저장한 것", month.toLocaleDateString(locale(), { month: "long" }))} notes={notes.filter((n) => { const d = new Date(n.created_at); return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth(); })} />
       <SummaryCard title={tr("지금까지 던진 것")} notes={notes} />
     </div>
   );
@@ -359,10 +359,10 @@ function SummaryCard({ title, notes }: { title: string; notes: Note[] }) {
             {FORMS.map((f) => {
               const c = notes.filter((n) => formOf(n) === f.key).length;
               return (
-                <div key={f.key} className={`flex flex-col items-center rounded-2xl bg-muted/60 py-2 ${c ? "" : "opacity-40"}`}>
+                <div key={f.key} className={`flex flex-col items-center rounded-2xl bg-muted/60 px-1 py-2 ${c ? "" : "opacity-40"}`}>
                   <f.Icon className="mb-1 size-4 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">{tr(f.label)}</span>
-                  <span className="text-sm font-bold text-foreground">{c}</span>
+                  <span className="max-w-full truncate text-[11px] leading-tight text-muted-foreground">{tr(f.label)}</span>
+                  <span className="mt-0.5 text-sm font-bold text-foreground">{c}</span>
                 </div>
               );
             })}

@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>오답노트 — 3초 등록 · 쓱-지우개 · 가림막 복습</title>
+  <title>오답정복 — 3초 등록 · 쓱-지우개 · 정복하기</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0" />
-  <link rel="stylesheet" href="styles.css?v=20261118a" />
+  <link rel="stylesheet" href="styles.css?v=20261118c" />
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -15,7 +15,7 @@
     <section id="screen-home" class="screen active">
       <header class="top-header">
         <div class="brand">
-          <h1>오답노트</h1>
+          <h1>오답정복</h1>
         </div>
         <div class="header-actions">
           <button id="btn-open-settings" class="btn-outline-sm" type="button">
@@ -30,22 +30,17 @@
 
       <!-- 빠른 필터바 -->
       <div class="control-strip">
-        <label class="toggle-wrap">
-          <input type="checkbox" id="toggle-wrong-only" />
-          <span class="toggle-slider"></span>
-          <span class="toggle-label">또 틀린 문제만 보기</span>
-        </label>
         <span id="subject-total-summary" class="subject-total-summary">총 0문제</span>
       </div>
 
       <!-- 오답 카드 목록 -->
       <main id="problem-list" class="problem-list"></main>
 
-      <!-- 하단 2버튼 (문제 풀기 / 오답 올리기) -->
+      <!-- 하단 2버튼 (정복하기 / 오답 올리기) -->
       <div class="home-bottom-bar">
         <button id="btn-start-review" class="btn-bottom-solve" type="button">
-          <span class="material-symbols-rounded ms-icon" aria-hidden="true">quiz</span>
-          <span>문제 풀기</span>
+          <span class="material-symbols-rounded ms-icon" aria-hidden="true">target</span>
+          <span>정복하기</span>
         </button>
         <button id="btn-fab-add" class="btn-bottom-add" type="button">
           <span class="material-symbols-rounded ms-icon" aria-hidden="true">add</span>
@@ -190,10 +185,10 @@
       </div>
     </section>
 
-    <!-- ================= 3. 다시 풀기 (가림막 복습) ================= -->
+    <!-- ================= 3. 정복하기 (가림막) ================= -->
     <section id="screen-review" class="screen review-mode">
       <header class="review-header">
-        <button id="btn-review-exit" class="btn-icon" type="button" aria-label="복습 나가기">
+        <button id="btn-review-exit" class="btn-icon" type="button" aria-label="정복 나가기">
           <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">close</span>
         </button>
         <div id="review-progress" class="review-progress">1 / 1</div>
@@ -202,6 +197,14 @@
 
       <!-- 진행 중인 문제 카드 -->
       <div id="review-card-area" class="review-body">
+        <div id="swipe-badge-correct" class="swipe-badge swipe-badge-correct">
+          <span class="material-symbols-rounded ms-icon" aria-hidden="true">check_circle</span>
+          <span>맞혔어요!</span>
+        </div>
+        <div id="swipe-badge-wrong" class="swipe-badge swipe-badge-wrong">
+          <span class="material-symbols-rounded ms-icon" aria-hidden="true">replay</span>
+          <span>한 번 더!</span>
+        </div>
         <div class="review-problem-card">
           <div id="review-meta-row" class="review-meta-row"></div>
           <div id="review-problem-content" class="review-problem-content"></div>
@@ -217,12 +220,12 @@
         </div>
       </div>
 
-      <!-- 복습 완료 화면 -->
+      <!-- 정복 완료 화면 -->
       <div id="review-done-area" class="review-done hidden">
         <div class="done-emoji">
           <span class="material-symbols-rounded ms-icon-hero" aria-hidden="true">task_alt</span>
         </div>
-        <h2>복습 완료!</h2>
+        <h2>이번 판 정복 완료!</h2>
         <p id="review-done-summary" class="done-summary"></p>
         <div class="ad-preview-box">
           <span class="ad-tag">안내</span>
@@ -230,8 +233,8 @@
         </div>
         <div class="done-actions">
           <button id="btn-review-again" class="btn-outline-lg" type="button">
-            <span class="material-symbols-rounded ms-icon" aria-hidden="true">replay</span>
-            <span>한 번 더 풀기</span>
+            <span class="material-symbols-rounded ms-icon" aria-hidden="true">repeat</span>
+            <span>미정복 문제 다시 정복</span>
           </button>
           <button id="btn-review-home" class="btn-primary-lg" type="button">
             <span class="material-symbols-rounded ms-icon" aria-hidden="true">home</span>
@@ -253,39 +256,7 @@
       </footer>
     </section>
 
-    <!-- ================= 4. A4 시험지 뽑기 모달 ================= -->
-    <div id="print-modal" class="modal-backdrop hidden">
-      <div class="modal-sheet">
-        <header class="modal-header">
-          <h3 class="modal-title-row">
-            <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">print</span>
-            <span>나만의 A4 오답 시험지</span>
-          </h3>
-          <button id="btn-close-print" class="btn-icon" type="button" aria-label="닫기">
-            <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">close</span>
-          </button>
-        </header>
-        <div class="modal-options">
-          <label class="toggle-wrap">
-            <input type="checkbox" id="print-wrong-only" checked />
-            <span class="toggle-slider"></span>
-            <span class="toggle-label">또 틀린 문제만 모으기</span>
-          </label>
-          <span id="print-count-info" class="print-count-info">0문제</span>
-        </div>
-        <div id="print-preview-area" class="print-preview-area"></div>
-        <footer class="modal-footer">
-          <button id="btn-do-print" class="btn-primary-lg" type="button">
-            <span class="material-symbols-rounded ms-icon" aria-hidden="true">print</span>
-            <span>인쇄 / PDF로 저장하기</span>
-          </button>
-        </footer>
-      </div>
-    </div>
   </div>
-
-  <!-- 실제 A4 인쇄 시에만 보이는 영역 -->
-  <div id="a4-print-root" class="a4-print-root"></div>
 
   <!-- ================= 5. 과목설정 (추가/수정/삭제) 모달 ================= -->
   <div id="subject-modal" class="modal-backdrop hidden">
@@ -322,7 +293,7 @@
       <header class="modal-header">
         <h3 class="modal-title-row">
           <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">checklist</span>
-          <span>내 학습 기준 설정</span>
+          <span>정복 기준 설정</span>
         </h3>
         <button id="btn-close-criteria" class="btn-icon" type="button" aria-label="닫기">
           <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">close</span>
@@ -331,7 +302,7 @@
       <div class="subject-modal-body">
         <div class="criteria-group">
           <div class="criteria-title">1. 정복 후 자동 삭제 기준</div>
-          <p class="criteria-desc">복습할 때 연속으로 몇 번 맞히면 목록에서 바로 지울까요? (1~19회)</p>
+          <p class="criteria-desc">정복할 때 연속으로 몇 번 맞히면 목록에서 바로 지울까요? (1~19회)</p>
           <div class="criteria-number-row">
             <span>연속</span>
             <input type="number" id="input-mastery-target" class="criteria-number-input" min="1" max="19" value="2" />
@@ -339,14 +310,6 @@
           </div>
         </div>
 
-        <div class="criteria-group">
-          <div class="criteria-title">2. ‘또 틀린 문제만 보기’ 기준</div>
-          <p class="criteria-desc">첫 화면 스위치를 켰을 때 몇 번 이상 틀린 문제만 모아볼까요? (1~19회)</p>
-          <div class="criteria-number-row">
-            <input type="number" id="input-wrong-min-count" class="criteria-number-input small" min="1" max="19" value="2" />
-            <span>번 이상 틀린 문제만 모아보기</span>
-          </div>
-        </div>
       </div>
       <footer class="modal-footer">
         <button id="btn-save-criteria" class="btn-primary-lg" type="button">적용하기</button>
@@ -385,8 +348,8 @@
           <p class="license-sub">처음 7일 동안 모든 기능을 광고 없이 무료로 써보신 뒤, 마음에 드실 때만 구글 플레이스토어에서 <strong>단 한 번(약 3달러)</strong> 결제하시면 평생 제한 없이 쓰실 수 있습니다.</p>
           <ul class="license-perks">
             <li><span class="material-symbols-rounded ms-icon ms-perk" aria-hidden="true">check_circle</span><span>매달 자동 결제되는 정기 구독 없음</span></li>
-            <li><span class="material-symbols-rounded ms-icon ms-perk" aria-hidden="true">check_circle</span><span>광고 없는 쾌적한 오답 복습</span></li>
-            <li><span class="material-symbols-rounded ms-icon ms-perk" aria-hidden="true">check_circle</span><span>쓱-지우개 · 가림막 복습 · 시험지 뽑기 무제한</span></li>
+            <li><span class="material-symbols-rounded ms-icon ms-perk" aria-hidden="true">check_circle</span><span>광고 없는 쾌적한 오답 정복</span></li>
+            <li><span class="material-symbols-rounded ms-icon ms-perk" aria-hidden="true">check_circle</span><span>쓱-지우개 · 가림막 정복 · 미정복 문제 무한 반복</span></li>
           </ul>
         </div>
 
@@ -440,18 +403,8 @@
             <div class="settings-menu-lead">
               <span class="material-symbols-rounded ms-icon" aria-hidden="true">checklist</span>
               <div>
-                <strong>학습 기준 설정</strong>
+                <strong>정복 기준 설정</strong>
                 <span>완전 정복 및 또 틀린 문제 기준 정하기</span>
-              </div>
-            </div>
-            <span class="material-symbols-rounded ms-icon settings-arrow" aria-hidden="true">chevron_right</span>
-          </button>
-          <button type="button" id="menu-open-print" class="settings-menu-item">
-            <div class="settings-menu-lead">
-              <span class="material-symbols-rounded ms-icon" aria-hidden="true">print</span>
-              <div>
-                <strong>시험지 뽑기</strong>
-                <span>모은 오답을 A4 문제지·정답지로 인쇄</span>
               </div>
             </div>
             <span class="material-symbols-rounded ms-icon settings-arrow" aria-hidden="true">chevron_right</span>
@@ -479,27 +432,9 @@
     </div>
   </div>
 
-  <!-- ================= 10. 문제 풀기 선택 팝업 ================= -->
-  <div id="solve-choice-modal" class="modal-backdrop hidden">
-    <div class="dialog-card">
-      <div class="dialog-title">문제 풀기</div>
-      <p id="solve-choice-desc" class="dialog-message">어떤 문제를 풀어볼까요?</p>
-      <div class="solve-choice-btns">
-        <button type="button" id="btn-solve-all" class="solve-choice-btn">
-          <strong>전체 풀기</strong>
-          <span id="solve-all-count">0문제</span>
-        </button>
-        <button type="button" id="btn-solve-wrong" class="solve-choice-btn accent">
-          <strong>틀린 문제만 풀기</strong>
-          <span id="solve-wrong-count">0문제</span>
-        </button>
-      </div>
-      <div class="dialog-actions" style="margin-top: 12px;">
-        <button type="button" id="btn-close-solve-choice" class="dialog-btn-cancel">닫기</button>
-      </div>
-    </div>
-  </div>
+  <!-- 전역 토스트 알림 -->
+  <div id="app-toast" class="app-toast hidden" role="status" aria-live="polite"></div>
 
-  <script type="module" src="app.js?v=20261118a"></script>
+  <script type="module" src="app.js?v=20261118e"></script>
 </body>
 </html>
