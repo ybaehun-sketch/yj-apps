@@ -1,3 +1,5 @@
+import { t } from './i18n.js';
+
 /**
  * 「7일 무료 체험 + 1회성 평생 소장 결제(구독 아님)」 부품 (실속 보안 강화판)
  * - 처음 앱을 켠 날부터 7일 동안 무료 체험을 제공합니다.
@@ -134,14 +136,14 @@ export function getLicenseStatus(lic) {
     return {
       state: 'purchased',
       daysLeft: 0,
-      label: '평생 소장 완료'
+      label: t('license.purchasedLabel')
     };
   }
   if (lic.tampered || lic.simulatedExpired) {
     return {
       state: 'expired',
       daysLeft: 0,
-      label: '체험 종료'
+      label: t('license.expiredLabel')
     };
   }
   const now = Date.now();
@@ -151,7 +153,7 @@ export function getLicenseStatus(lic) {
     return {
       state: 'expired',
       daysLeft: 0,
-      label: '체험 종료'
+      label: t('license.expiredLabel')
     };
   }
   const elapsedMs = Math.max(0, now - lic.startedAt);
@@ -161,12 +163,12 @@ export function getLicenseStatus(lic) {
     return {
       state: 'expired',
       daysLeft: 0,
-      label: '체험 종료'
+      label: t('license.expiredLabel')
     };
   }
   return {
     state: 'trial',
     daysLeft,
-    label: `무료 체험 ${daysLeft}일 남음`
+    label: t('license.trialLabel', { days: daysLeft })
   };
 }

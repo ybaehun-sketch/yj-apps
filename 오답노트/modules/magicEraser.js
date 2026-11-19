@@ -1,4 +1,5 @@
 import { showAlert } from './dialog.js';
+import { t } from './i18n.js';
 
 /**
  * 「쓱-지우개」 & 「영역 자르기(모서리·선 조절 + 전체 이동)」 부품
@@ -44,15 +45,18 @@ export function createMagicEraser({
   }
 
   function setMode(nextMode) {
+    const prevMode = mode;
     mode = nextMode;
     if (mode === 'eraser') {
-      if (baseBeforeCropOverlay) {
+      if (prevMode === 'crop' && cropRect && cropRect.w >= 20 && cropRect.h >= 20) {
+        applyCropSilently();
+      } else if (baseBeforeCropOverlay) {
         ctx.putImageData(baseBeforeCropOverlay, 0, 0);
         baseBeforeCropOverlay = null;
       }
       cropRect = null;
       canvas.style.cursor = 'crosshair';
-      onHintChange?.('내가 푼 볼펜·형광펜 자국 위를 손가락으로 쓱 문질러 지우세요.');
+      onHintChange?.(t('editor.hintEraser'));
     } else {
       if (!baseBeforeCropOverlay && canvas.width > 0 && canvas.height > 0) {
         baseBeforeCropOverlay = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -68,7 +72,7 @@ export function createMagicEraser({
         };
         drawCropOverlay(cropRect);
       }
-      onHintChange?.('모서리나 선을 끌어 크기를 맞추고, 안쪽을 잡아 이동한 뒤 [잘라내기 적용]을 누르세요.');
+      onHintChange?.(t('editor.hintCrop'));
     }
   }
 
@@ -304,11 +308,8 @@ export function createMagicEraser({
     };
   }
 
-  function applyCrop() {
-    if (!cropRect || cropRect.w < 20 || cropRect.h < 20) {
-      showAlert('자르고 싶은 영역을 마우스나 손가락으로 먼저 지정해 주세요.');
-      return false;
-    }
+  function applyCropSilently() {
+    if (!cropRect || cropRect.w < 20 || cropRect.h < 20) return false;
     const source = baseBeforeCropOverlay || ctx.getImageData(0, 0, canvas.width, canvas.height);
     const temp = document.createElement('canvas');
     temp.width = source.width;
@@ -321,6 +322,14 @@ export function createMagicEraser({
     baseBeforeCropOverlay = null;
     cropRect = null;
     pushHistory();
+    return true;
+  }
+
+  function applyCrop() {
+    if (!applyCropSilently()) {
+      showAlert(t('editor.cropNeedArea'));
+      return false;
+    }
     return true;
   }
 
@@ -396,7 +405,9 @@ export function createMagicEraser({
   }
 
   function exportDataUrl() {
-    if (baseBeforeCropOverlay) {
+    if (mode === 'crop' && cropRect && cropRect.w >= 20 && cropRect.h >= 20) {
+      applyCropSilently();
+    } else if (baseBeforeCropOverlay) {
       ctx.putImageData(baseBeforeCropOverlay, 0, 0);
       baseBeforeCropOverlay = null;
     }
@@ -409,7 +420,6 @@ export function createMagicEraser({
     setBrushSize,
     undo,
     rotate90,
-    applyCrop,
     exportDataUrl
   };
 }

@@ -1,3 +1,6 @@
+import { t, formatSubjectLabel } from './i18n.js';
+import { isSafeImageDataUrl } from './storage.js';
+
 /**
  * 「10초 가림막 복습」 부품
  * - 많이 틀린 문제 / 미정복 문제 우선 정렬
@@ -19,37 +22,39 @@ export function renderReviewCard({
   els
 }) {
   els.progress.textContent = `${index + 1} / ${total}`;
-  els.subjectTag.textContent = subjectLabel;
+  els.subjectTag.textContent = formatSubjectLabel(subjectLabel);
 
   // 메타 배지
   els.metaRow.innerHTML = '';
   const subBadge = document.createElement('span');
   subBadge.className = 'badge-subject';
-  subBadge.textContent = problem.subject || '미분류';
+  subBadge.textContent = formatSubjectLabel(problem.subject);
   els.metaRow.appendChild(subBadge);
 
   const statusBadge = document.createElement('span');
   if (problem.mastered) {
     statusBadge.className = 'badge-mastered';
-    statusBadge.textContent = '정복 완료';
+    statusBadge.textContent = t('card.mastered');
   } else if (problem.wrongCount > 0) {
     statusBadge.className = 'badge-wrong';
-    statusBadge.textContent = `${problem.wrongCount}번 틀림`;
+    statusBadge.textContent = t('card.wrongCount', { count: problem.wrongCount });
   } else {
     statusBadge.className = 'badge-new';
-    statusBadge.textContent = '정복 전';
+    statusBadge.textContent = t('card.beforeMastery');
   }
   els.metaRow.appendChild(statusBadge);
 
   // 문제 내용 (최대 2장 지원)
   els.problemContent.innerHTML = '';
-  const problemImgs = Array.isArray(problem.problemImgs) && problem.problemImgs.length
+  const problemImgs = (Array.isArray(problem.problemImgs) && problem.problemImgs.length
     ? problem.problemImgs
-    : problem.problemImg ? [problem.problemImg] : [];
+    : problem.problemImg ? [problem.problemImg] : []
+  ).filter(isSafeImageDataUrl);
   problemImgs.forEach((src, i) => {
     const img = document.createElement('img');
     img.src = src;
-    img.alt = `오답 문제 사진 ${i + 1}`;
+    img.alt = t('review.problemImgAlt', { num: i + 1 });
+    img.draggable = false;
     if (i > 0) img.style.marginTop = '8px';
     els.problemContent.appendChild(img);
   });
@@ -67,19 +72,21 @@ export function renderReviewCard({
     ans.textContent = problem.answerText;
     els.answerContent.appendChild(ans);
   }
-  const answerImgs = Array.isArray(problem.answerImgs) && problem.answerImgs.length
+  const answerImgs = (Array.isArray(problem.answerImgs) && problem.answerImgs.length
     ? problem.answerImgs
-    : problem.answerImg ? [problem.answerImg] : [];
+    : problem.answerImg ? [problem.answerImg] : []
+  ).filter(isSafeImageDataUrl);
   answerImgs.forEach((src, i) => {
     const img = document.createElement('img');
     img.src = src;
-    img.alt = `정답 해설 사진 ${i + 1}`;
+    img.alt = t('review.answerImgAlt', { num: i + 1 });
+    img.draggable = false;
     els.answerContent.appendChild(img);
   });
   if (!problem.answerText && answerImgs.length === 0) {
     const empty = document.createElement('div');
     empty.style.color = '#6b7280';
-    empty.textContent = '등록된 정답 메모가 없습니다.';
+    empty.textContent = t('review.noAnswerMemo');
     els.answerContent.appendChild(empty);
   }
 

@@ -1,3 +1,5 @@
+import { t, formatSubjectLabel } from './i18n.js';
+
 /**
  * 가로 1줄 과목 버튼 + 오른쪽 고정 [과목설정] 단일 버튼 부품
  * - 과목이 많아져도 오른쪽 [과목설정] 버튼은 항상 화면에 고정됩니다.
@@ -67,16 +69,17 @@ export function renderSubjectBar({
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = `subject-pill${selected === name ? ' active' : ''}`;
+    const displayName = formatSubjectLabel(name);
     if (counts && typeof counts[name] === 'number') {
       const labelSpan = document.createElement('span');
-      labelSpan.textContent = name;
+      labelSpan.textContent = displayName;
       const countSpan = document.createElement('span');
       countSpan.className = 'subject-pill-count';
       countSpan.textContent = String(counts[name]);
       btn.appendChild(labelSpan);
       btn.appendChild(countSpan);
     } else {
-      btn.textContent = name;
+      btn.textContent = displayName;
     }
     btn.addEventListener('click', (e) => {
       if (moved) {
@@ -98,7 +101,7 @@ export function renderSubjectBar({
     const manageBtn = document.createElement('button');
     manageBtn.type = 'button';
     manageBtn.className = 'subject-pill manage-pill';
-    manageBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">tune</span><span>과목설정</span>';
+    manageBtn.innerHTML = `<span class="material-symbols-rounded ms-icon" aria-hidden="true">tune</span><span>${t('subject.manage')}</span>`;
     manageBtn.addEventListener('click', onOpenManage);
     fixedActions.appendChild(manageBtn);
 

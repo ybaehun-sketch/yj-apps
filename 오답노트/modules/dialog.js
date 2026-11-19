@@ -1,3 +1,5 @@
+import { t } from './i18n.js';
+
 /**
  * 앱 내부 깔끔한 알림·확인 팝업 부품 (브라우저 시스템 팝업 대체)
  */
@@ -34,7 +36,7 @@ function closeDialog(result) {
   }
 }
 
-export function showAlert(message, { title = '안내', okText = '확인' } = {}) {
+export function showAlert(message, { title = t('dialog.alertTitle'), okText = t('dialog.ok') } = {}) {
   const els = ensureElements();
   els.title.textContent = title;
   els.message.textContent = message;
@@ -50,7 +52,7 @@ export function showAlert(message, { title = '안내', okText = '확인' } = {})
 
 export function showConfirm(
   message,
-  { title = '확인', okText = '확인', cancelText = '취소', danger = false } = {}
+  { title = t('dialog.confirmTitle'), okText = t('dialog.ok'), cancelText = t('dialog.cancel'), danger = false } = {}
 ) {
   const els = ensureElements();
   els.title.textContent = title;

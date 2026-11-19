@@ -1,12 +1,20 @@
-import { loadState, saveState, compressImageFile } from './modules/storage.js?v=20261119a';
-import { renderSubjectBar } from './modules/subjectBar.js?v=20261118a';
-import { createMagicEraser } from './modules/magicEraser.js?v=20261118a';
-import { buildReviewQueue, renderReviewCard } from './modules/reviewDeck.js?v=20261118b';
-import { showAlert, showConfirm } from './modules/dialog.js';
-import { loadLicense, saveLicense, getLicenseStatus } from './modules/trialLicense.js?v=20261116d';
+import { loadState, saveState, compressImageFile, isSafeImageDataUrl } from './modules/storage.js?v=20261119x';
+import { renderSubjectBar } from './modules/subjectBar.js?v=20261119c';
+import { createMagicEraser } from './modules/magicEraser.js?v=20261119g';
+import { buildReviewQueue, renderReviewCard } from './modules/reviewDeck.js?v=20261119h';
+import { showAlert, showConfirm } from './modules/dialog.js?v=20261119c';
+import { loadLicense, saveLicense, getLicenseStatus } from './modules/trialLicense.js?v=20261119c';
 import { initRippleFeedback } from './modules/ripple.js?v=20261118a';
+import {
+  t,
+  formatSubjectLabel,
+  getLang,
+  getLangPref,
+  setLangPref,
+  applyStaticTranslations
+} from './modules/i18n.js?v=20261119x';
 
-const MAX_SUBJECTS = 10;
+const MAX_SUBJECTS = 13;
 const MAX_PROBLEMS_PER_SUBJECT = 50;
 const MAX_MASTERED_PROBLEMS = 200;
 
@@ -38,7 +46,15 @@ function showToast(text, { cleared = false, icon = 'check_circle', duration = 16
   if (!el) return;
   if (toastTimer) clearTimeout(toastTimer);
   el.className = `app-toast${cleared ? ' is-cleared' : ''}`;
-  el.innerHTML = `<span class="material-symbols-rounded ms-icon" aria-hidden="true">${icon}</span><span>${text}</span>`;
+  el.textContent = '';
+  const iconEl = document.createElement('span');
+  iconEl.className = 'material-symbols-rounded ms-icon';
+  iconEl.setAttribute('aria-hidden', 'true');
+  iconEl.textContent = icon;
+  const textEl = document.createElement('span');
+  textEl.textContent = text;
+  el.appendChild(iconEl);
+  el.appendChild(textEl);
   el.classList.remove('hidden');
   toastTimer = setTimeout(() => {
     el.classList.add('hidden');
@@ -104,8 +120,6 @@ const reviewEls = {
 
 const subjectModalEls = {
   modal: document.getElementById('subject-modal'),
-  btnClose: document.getElementById('btn-close-subject-modal'),
-  btnDone: document.getElementById('btn-done-subject-modal'),
   inputNew: document.getElementById('input-new-subject'),
   btnAdd: document.getElementById('btn-add-subject'),
   list: document.getElementById('subject-manage-list')
@@ -113,8 +127,6 @@ const subjectModalEls = {
 
 const criteriaEls = {
   modal: document.getElementById('criteria-modal'),
-  btnClose: document.getElementById('btn-close-criteria'),
-  btnSave: document.getElementById('btn-save-criteria'),
   inputMasteryTarget: document.getElementById('input-mastery-target')
 };
 
@@ -122,30 +134,32 @@ const licenseEls = {
   modal: document.getElementById('license-modal'),
   title: document.getElementById('license-modal-title'),
   badge: document.getElementById('license-badge-text'),
-  btnClose: document.getElementById('btn-close-license'),
-  btnBuy: document.getElementById('btn-buy-lifetime'),
-  btnRestore: document.getElementById('btn-restore-purchase')
+  btnBuy: document.getElementById('btn-buy-lifetime')
 };
 
 const settingsEls = {
   modal: document.getElementById('settings-modal'),
-  btnClose: document.getElementById('btn-close-settings'),
+  panel: document.querySelector('#settings-modal .drawer-panel'),
   menuSubjects: document.getElementById('menu-open-subjects'),
   menuCriteria: document.getElementById('menu-open-criteria'),
   menuTheme: document.getElementById('menu-open-theme'),
   themeBadge: document.getElementById('settings-theme-badge'),
+  menuLanguage: document.getElementById('menu-open-language'),
+  languageBadge: document.getElementById('settings-language-badge'),
   menuLicense: document.getElementById('menu-open-license'),
-  licenseSub: document.getElementById('settings-license-sub'),
   licenseBadge: document.getElementById('settings-license-badge'),
   linkGuide: document.getElementById('link-guide'),
   linkTerms: document.getElementById('link-terms'),
   linkPrivacy: document.getElementById('link-privacy')
 };
 
+const languageEls = {
+  modal: document.getElementById('language-modal'),
+  optionList: document.getElementById('language-option-list')
+};
+
 const themeEls = {
   modal: document.getElementById('theme-modal'),
-  btnClose: document.getElementById('btn-close-theme'),
-  btnDone: document.getElementById('btn-done-theme'),
   btnLight: document.getElementById('btn-theme-light'),
   btnDark: document.getElementById('btn-theme-dark'),
   colorGrid: document.getElementById('theme-color-grid')
@@ -165,9 +179,7 @@ function createPhotoEditorField(ids) {
     hint: document.getElementById(ids.hint),
     canvas: document.getElementById(ids.canvas),
     sizeRow: document.getElementById(ids.sizeRow),
-    sizeInput: document.getElementById(ids.sizeInput),
-    cropRow: document.getElementById(ids.cropRow),
-    applyCropBtn: document.getElementById(ids.applyCropBtn)
+    sizeInput: document.getElementById(ids.sizeInput)
   };
 
   let images = [];
@@ -184,7 +196,6 @@ function createPhotoEditorField(ids) {
     els.toolEraser.classList.toggle('active', tool === 'eraser');
     els.toolCrop.classList.toggle('active', tool === 'crop');
     els.sizeRow.classList.toggle('hidden', tool !== 'eraser');
-    els.cropRow.classList.toggle('hidden', tool !== 'crop');
     eraser.setMode(tool);
   }
 
@@ -200,7 +211,7 @@ function createPhotoEditorField(ids) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = `photo-slot-btn${idx === activeIdx ? ' active' : ''}`;
-      btn.textContent = `사진 ${idx + 1}`;
+      btn.textContent = t('add.photoTab', { num: idx + 1 });
       btn.addEventListener('click', async () => {
         if (idx === activeIdx) return;
         commitCurrentCanvas();
@@ -246,18 +257,28 @@ function createPhotoEditorField(ids) {
     commitCurrentCanvas();
     const remain = MAX_PHOTOS - images.length;
     if (remain <= 0) {
-      await showAlert('사진은 최대 2장까지만 올릴 수 있습니다.\n기존 사진을 지운 뒤 다시 올려 주세요.');
+      await showAlert(t('add.maxPhotos'));
       return;
     }
     if (files.length > remain) {
-      await showAlert(`사진은 최대 2장까지만 올릴 수 있어 ${remain}장만 추가합니다.`);
+      await showAlert(t('add.maxPhotosPartial', { remain }));
     }
 
     for (const file of files.slice(0, remain)) {
-      const dataUrl = await compressImageFile(file, 840, 0.78);
-      images.push(dataUrl);
+      try {
+        const dataUrl = await compressImageFile(file, 840, 0.78);
+        images.push(dataUrl);
+      } catch (err) {
+        if (err?.message === 'FILE_TOO_LARGE') {
+          await showAlert(t('add.imageTooLarge'));
+        } else {
+          await showAlert(t('add.invalidImage'));
+        }
+      }
     }
-    activeIdx = images.length - 1;
+    if (images.length > 0) {
+      activeIdx = images.length - 1;
+    }
     await showActiveSlot();
   });
 
@@ -273,9 +294,6 @@ function createPhotoEditorField(ids) {
   els.rotateBtn?.addEventListener('click', () => eraser.rotate90());
   els.undoBtn.addEventListener('click', () => eraser.undo());
   els.sizeInput.addEventListener('input', (e) => eraser.setBrushSize(e.target.value));
-  els.applyCropBtn.addEventListener('click', () => {
-    if (eraser.applyCrop()) setTool('eraser');
-  });
 
   async function loadExisting(existingList) {
     const list = Array.isArray(existingList) ? existingList.filter(Boolean).slice(0, MAX_PHOTOS) : [];
@@ -311,9 +329,7 @@ const problemEditor = createPhotoEditorField({
   hint: 'editor-hint',
   canvas: 'problem-canvas',
   sizeRow: 'eraser-size-row',
-  sizeInput: 'eraser-size',
-  cropRow: 'crop-action-row',
-  applyCropBtn: 'btn-apply-crop'
+  sizeInput: 'eraser-size'
 });
 
 const answerEditor = createPhotoEditorField({
@@ -328,9 +344,7 @@ const answerEditor = createPhotoEditorField({
   hint: 'answer-editor-hint',
   canvas: 'answer-canvas',
   sizeRow: 'answer-eraser-size-row',
-  sizeInput: 'answer-eraser-size',
-  cropRow: 'answer-crop-action-row',
-  applyCropBtn: 'btn-answer-apply-crop'
+  sizeInput: 'answer-eraser-size'
 });
 
 function showScreen(name) {
@@ -338,6 +352,11 @@ function showScreen(name) {
     el.classList.toggle('active', key === name);
   });
   window.scrollTo(0, 0);
+}
+
+function resolveValidSubject(subj) {
+  if (!subj || subj === '미분류') return '미분류';
+  return state.subjects.includes(subj) ? subj : '미분류';
 }
 
 function getFilteredProblems() {
@@ -403,11 +422,11 @@ function createProblemCardElement(p, { statusText, statusClass, streakBadgeText 
   const thumbSrc = Array.isArray(p.problemImgs) && p.problemImgs.length
     ? p.problemImgs[0]
     : p.problemImg;
-  if (thumbSrc) {
+  if (isSafeImageDataUrl(thumbSrc)) {
     const thumb = document.createElement('img');
     thumb.className = 'problem-thumb';
     thumb.src = thumbSrc;
-    thumb.alt = '문제 썸네일';
+    thumb.alt = t('card.thumbAlt');
     card.appendChild(thumb);
   } else {
     const thumbBox = document.createElement('div');
@@ -424,7 +443,7 @@ function createProblemCardElement(p, { statusText, statusClass, streakBadgeText 
 
   const sub = document.createElement('span');
   sub.className = 'badge-subject';
-  sub.textContent = p.subject || '미분류';
+  sub.textContent = formatSubjectLabel(p.subject);
   badges.appendChild(sub);
 
   const status = document.createElement('span');
@@ -443,7 +462,7 @@ function createProblemCardElement(p, { statusText, statusClass, streakBadgeText 
 
   const title = document.createElement('div');
   title.className = 'problem-title';
-  title.textContent = p.problemText || '사진 문제';
+  title.textContent = p.problemText || t('card.photoProblem');
   info.appendChild(title);
 
   if (subText) {
@@ -465,6 +484,50 @@ function createProblemCardElement(p, { statusText, statusClass, streakBadgeText 
   return card;
 }
 
+function attachCardMoreMenu(cardActions, cardEl, items) {
+  const moreBtn = document.createElement('button');
+  moreBtn.type = 'button';
+  moreBtn.className = 'btn-card-more';
+  moreBtn.setAttribute('aria-label', t('aria.cardMenu'));
+  moreBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">more_vert</span>';
+
+  const dropdown = document.createElement('div');
+  dropdown.className = 'card-menu-dropdown hidden';
+
+  items.forEach(({ icon, label, danger = false, onClick }) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `card-menu-item${danger ? ' danger' : ''}`;
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'material-symbols-rounded ms-icon';
+    iconSpan.setAttribute('aria-hidden', 'true');
+    iconSpan.textContent = icon;
+    const textSpan = document.createElement('span');
+    textSpan.textContent = label;
+    btn.appendChild(iconSpan);
+    btn.appendChild(textSpan);
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeAllCardMenus();
+      onClick();
+    });
+    dropdown.appendChild(btn);
+  });
+
+  moreBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const wasHidden = dropdown.classList.contains('hidden');
+    closeAllCardMenus();
+    if (wasHidden) {
+      dropdown.classList.remove('hidden');
+      cardEl.classList.add('menu-open');
+    }
+  });
+
+  cardActions.appendChild(moreBtn);
+  cardActions.appendChild(dropdown);
+}
+
 function renderHome() {
   if (homeEls.masteredCountBadge) {
     homeEls.masteredCountBadge.textContent = String(state.masteredProblems.length);
@@ -482,7 +545,7 @@ function renderHome() {
   });
 
   const list = getFilteredProblems();
-  homeEls.subjectTotalSummary.textContent = `전체 ${list.length}문제`;
+  homeEls.subjectTotalSummary.textContent = t('home.totalSummary', { count: list.length });
 
   homeEls.problemList.innerHTML = '';
   if (list.length === 0) {
@@ -490,8 +553,8 @@ function renderHome() {
     empty.className = 'empty-state';
     empty.innerHTML = `
       <div class="empty-icon"><span class="material-symbols-rounded ms-icon ms-empty" aria-hidden="true">menu_book</span></div>
-      <p><strong>아직 등록된 오답이 없어요</strong></p>
-      <p>오른쪽 아래 <b>오답 올리기</b>를 눌러<br/>3초 만에 첫 오답을 등록해 보세요.</p>
+      <p><strong>${t('home.emptyTitle')}</strong></p>
+      <p>${t('home.emptyDesc')}</p>
     `;
     homeEls.problemList.appendChild(empty);
     return;
@@ -501,63 +564,34 @@ function renderHome() {
   list.forEach((p) => {
     const streak = p.correctStreak || 0;
     const card = createProblemCardElement(p, {
-      statusText: p.wrongCount > 0 ? `${p.wrongCount}번 틀림` : '정복 전',
+      statusText: p.wrongCount > 0 ? t('card.wrongCount', { count: p.wrongCount }) : t('card.beforeMastery'),
       statusClass: p.wrongCount > 0 ? 'badge-wrong' : 'badge-new',
-      streakBadgeText: `연속 ${streak}/${targetCount}`,
+      streakBadgeText: t('card.streak', { streak, target: targetCount }),
       streakActive: streak > 0,
       buildActions: (cardActions, cardEl) => {
-        const moreBtn = document.createElement('button');
-        moreBtn.type = 'button';
-        moreBtn.className = 'btn-card-more';
-        moreBtn.setAttribute('aria-label', '문제 메뉴');
-        moreBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">more_vert</span>';
-
-        const dropdown = document.createElement('div');
-        dropdown.className = 'card-menu-dropdown hidden';
-
-        const editBtn = document.createElement('button');
-        editBtn.type = 'button';
-        editBtn.className = 'card-menu-item';
-        editBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">edit</span><span>수정하기</span>';
-        editBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          closeAllCardMenus();
-          openEditProblem(p);
-        });
-
-        const delBtn = document.createElement('button');
-        delBtn.type = 'button';
-        delBtn.className = 'card-menu-item danger';
-        delBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">delete</span><span>삭제하기</span>';
-        delBtn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          closeAllCardMenus();
-          const ok = await showConfirm('이 오답 카드를 삭제할까요?', {
-            title: '오답 삭제',
-            okText: '삭제하기',
-            danger: true
-          });
-          if (!ok) return;
-          state.problems = state.problems.filter((item) => item.id !== p.id);
-          saveState(state);
-          renderHome();
-        });
-
-        dropdown.appendChild(editBtn);
-        dropdown.appendChild(delBtn);
-
-        moreBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const wasHidden = dropdown.classList.contains('hidden');
-          closeAllCardMenus();
-          if (wasHidden) {
-            dropdown.classList.remove('hidden');
-            cardEl.classList.add('menu-open');
+        attachCardMoreMenu(cardActions, cardEl, [
+          {
+            icon: 'edit',
+            label: t('card.edit'),
+            onClick: () => openEditProblem(p)
+          },
+          {
+            icon: 'delete',
+            label: t('card.delete'),
+            danger: true,
+            onClick: async () => {
+              const ok = await showConfirm(t('card.deleteConfirmMsg'), {
+                title: t('card.deleteConfirmTitle'),
+                okText: t('card.delete'),
+                danger: true
+              });
+              if (!ok) return;
+              state.problems = state.problems.filter((item) => item.id !== p.id);
+              saveState(state);
+              renderHome();
+            }
           }
-        });
-
-        cardActions.appendChild(moreBtn);
-        cardActions.appendChild(dropdown);
+        ]);
       }
     });
 
@@ -587,7 +621,7 @@ function renderMastered() {
   });
 
   const list = getFilteredMasteredProblems();
-  masteredEls.totalSummary.textContent = `정복 완료 ${list.length}문제`;
+  masteredEls.totalSummary.textContent = t('mastered.summary', { count: list.length });
   masteredEls.list.innerHTML = '';
 
   if (list.length === 0) {
@@ -595,8 +629,8 @@ function renderMastered() {
     empty.className = 'empty-state';
     empty.innerHTML = `
       <div class="empty-icon"><span class="material-symbols-rounded ms-icon ms-empty" aria-hidden="true">task_alt</span></div>
-      <p><strong>아직 정복 보관함이 비어 있어요</strong></p>
-      <p>오답을 정한 횟수만큼 연속으로 맞히면<br/>이곳에 안전하게 따로 모입니다.</p>
+      <p><strong>${t('mastered.emptyTitle')}</strong></p>
+      <p>${t('mastered.emptyDesc')}</p>
     `;
     masteredEls.list.appendChild(empty);
     return;
@@ -604,40 +638,34 @@ function renderMastered() {
 
   list.forEach((p) => {
     const card = createProblemCardElement(p, {
-      statusText: '정복 완료',
+      statusText: t('card.mastered'),
       statusClass: 'badge-mastered',
-      subText: '눌러서 다시 풀거나 복구할 수 있어요',
-      buildActions: (cardActions) => {
-        const restoreBtn = document.createElement('button');
-        restoreBtn.type = 'button';
-        restoreBtn.className = 'btn-card-restore';
-        restoreBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">restore</span><span>복구</span>';
-        restoreBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          restoreMasteredProblem(p.id);
-        });
-
-        const delBtn = document.createElement('button');
-        delBtn.type = 'button';
-        delBtn.className = 'btn-card-more';
-        delBtn.setAttribute('aria-label', '완전 삭제');
-        delBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">delete_outline</span>';
-        delBtn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const ok = await showConfirm('정복 보관함에서도 이 문제를 완전히 지울까요?', {
-            title: '완전 삭제',
-            okText: '삭제하기',
-            danger: true
-          });
-          if (!ok) return;
-          state.masteredProblems = state.masteredProblems.filter((item) => item.id !== p.id);
-          saveState(state);
-          renderMastered();
-          renderHome();
-        });
-
-        cardActions.appendChild(restoreBtn);
-        cardActions.appendChild(delBtn);
+      subText: t('card.masteredSub'),
+      buildActions: (cardActions, cardEl) => {
+        attachCardMoreMenu(cardActions, cardEl, [
+          {
+            icon: 'restore',
+            label: t('card.restore'),
+            onClick: () => restoreMasteredProblem(p.id)
+          },
+          {
+            icon: 'delete_forever',
+            label: t('card.deleteForever'),
+            danger: true,
+            onClick: async () => {
+              const ok = await showConfirm(t('card.deleteForeverConfirmMsg'), {
+                title: t('card.deleteForeverConfirmTitle'),
+                okText: t('card.deleteForever'),
+                danger: true
+              });
+              if (!ok) return;
+              state.masteredProblems = state.masteredProblems.filter((item) => item.id !== p.id);
+              saveState(state);
+              renderMastered();
+              renderHome();
+            }
+          }
+        ]);
       }
     });
 
@@ -649,14 +677,15 @@ function renderMastered() {
 function restoreMasteredProblem(problemId, { silent = false } = {}) {
   const target = state.masteredProblems.find((item) => item.id === problemId);
   if (!target) return false;
-  const targetSubj = target.subject || '미분류';
+  const targetSubj = resolveValidSubject(target.subject);
   if (countProblemsInSubject(targetSubj) >= MAX_PROBLEMS_PER_SUBJECT) {
-    showAlert(`'${targetSubj}' 과목은 최대 ${MAX_PROBLEMS_PER_SUBJECT}문제까지만 저장할 수 있어요.\n먼저 해당 과목의 문제를 조금 비운 뒤 복구해 주세요.`);
+    showAlert(t('mastered.restoreFull', { subject: formatSubjectLabel(targetSubj), max: MAX_PROBLEMS_PER_SUBJECT }));
     return false;
   }
   state.masteredProblems = state.masteredProblems.filter((item) => item.id !== problemId);
   const restored = {
     ...target,
+    subject: targetSubj,
     mastered: false,
     correctStreak: 0
   };
@@ -666,7 +695,7 @@ function restoreMasteredProblem(problemId, { silent = false } = {}) {
   renderMastered();
   renderHome();
   if (!silent) {
-    showToast('오답 목록으로 복구했어요!');
+    showToast(t('mastered.restoredToast'));
   }
   return true;
 }
@@ -684,7 +713,7 @@ masteredEls.btnBack?.addEventListener('click', () => {
 masteredEls.btnReviewAll?.addEventListener('click', () => {
   const list = getFilteredMasteredProblems();
   if (list.length === 0) {
-    showAlert('정복 보관함에 다시 풀 문제가 아직 없어요.');
+    showAlert(t('mastered.noneToReview'));
     return;
   }
   startReview(list, { fromMastered: true, returnTo: 'mastered' });
@@ -710,8 +739,8 @@ function setSaveBtnLabel(label) {
 
 function resetAddForm() {
   editingProblemId = null;
-  addEls.title.textContent = '3초 오답 올리기';
-  setSaveBtnLabel('저장하기');
+  addEls.title.textContent = t('add.titleNew');
+  setSaveBtnLabel(t('add.save'));
   problemEditor.reset();
   answerEditor.reset();
   addEls.inputProblemText.value = '';
@@ -722,8 +751,8 @@ function resetAddForm() {
 
 async function openEditProblem(p) {
   editingProblemId = p.id;
-  addEls.title.textContent = '오답 수정하기';
-  setSaveBtnLabel('수정 완료');
+  addEls.title.textContent = t('add.titleEdit');
+  setSaveBtnLabel(t('add.saveEdit'));
   addEls.inputProblemText.value = p.problemText || '';
   addEls.inputAnswerText.value = p.answerText || '';
   addSubject = p.subject || '미분류';
@@ -754,12 +783,12 @@ addEls.btnSave.addEventListener('click', () => {
   const problemText = addEls.inputProblemText.value.trim();
   const answerText = addEls.inputAnswerText.value.trim();
   if (!problemEditor.hasImage() && !problemText) {
-    showAlert('문제 사진을 올리거나 문제 내용을 간단히 적어 주세요!');
+    showAlert(t('add.needProblem'));
     return;
   }
 
   if (countProblemsInSubject(addSubject, editingProblemId) >= MAX_PROBLEMS_PER_SUBJECT) {
-    showAlert(`'${addSubject}' 과목에는 최대 ${MAX_PROBLEMS_PER_SUBJECT}문제까지만 저장할 수 있어요.\n정복하거나 기존 문제를 정리한 뒤 다시 올려 주세요.`);
+    showAlert(t('add.subjectFull', { subject: formatSubjectLabel(addSubject), max: MAX_PROBLEMS_PER_SUBJECT }));
     return;
   }
 
@@ -801,7 +830,7 @@ addEls.btnSave.addEventListener('click', () => {
   if (saveState(state)) {
     renderHome();
     showScreen('home');
-    showToast(isEditing ? '오답을 수정했어요!' : '오답을 쏙 저장했어요!');
+    showToast(isEditing ? t('add.toastUpdated') : t('add.toastSaved'));
   }
 });
 
@@ -845,7 +874,7 @@ function showCurrentReviewCard() {
     if (remaining.length > 0) {
       reviewQueue = buildReviewQueue(remaining);
       reviewIdx = 0;
-      showToast(`미정복 ${remaining.length}문제 남았어요!`, { icon: 'target', duration: 1500 });
+      showToast(t('review.remainingToast', { count: remaining.length }), { icon: 'target', duration: 1500 });
     }
   }
 
@@ -858,15 +887,15 @@ function showCurrentReviewCard() {
     if (reviewFromMastered) {
       reviewEls.doneSummary.textContent =
         sessionWrong > 0
-          ? `정복 보관함 ${reviewQueue.length}문제 중 ${sessionCorrect}문제 맞혔고, 틀린 ${sessionWrong}문제는 오답 목록으로 복구했어요.`
-          : `정복 보관함 ${reviewQueue.length}문제를 모두 다시 맞혔어요!`;
+          ? t('review.doneMasteredWithWrong', { total: reviewQueue.length, correct: sessionCorrect, wrong: sessionWrong })
+          : t('review.doneMasteredAll', { total: reviewQueue.length });
     } else if (reviewLoopMode) {
-      reviewEls.doneSummary.textContent = `미정복 ${loopStartCount}문제를 전부 정복해서 보관함으로 옮겼어요!`;
+      reviewEls.doneSummary.textContent = t('review.doneLoop', { total: loopStartCount });
     } else {
       reviewEls.doneSummary.textContent =
         sessionCleared > 0
-          ? `총 ${reviewQueue.length}문제 중 ${sessionCleared}문제를 정복해서 보관함으로 옮겼어요!`
-          : `총 ${reviewQueue.length}문제 중 ${sessionCorrect}문제 맞혔고, ${sessionWrong}문제 못 지웠어요.`;
+          ? t('review.doneNormalCleared', { total: reviewQueue.length, cleared: sessionCleared })
+          : t('review.doneNormal', { total: reviewQueue.length, correct: sessionCorrect, wrong: sessionWrong });
     }
     return;
   }
@@ -884,7 +913,7 @@ function showCurrentReviewCard() {
 homeEls.btnStartReview.addEventListener('click', () => {
   const list = getFilteredProblems();
   if (list.length === 0) {
-    showAlert('현재 과목에 등록된 문제가 없어요.\n오른쪽 아래 [오답 올리기]로 문제를 먼저 추가해 주세요.');
+    showAlert(t('review.noProblems'));
     return;
   }
   startReview(list);
@@ -908,13 +937,14 @@ function handleReviewAnswer(isCorrect) {
     } else {
       const mTarget = state.masteredProblems.find((p) => p.id === curr.id);
       if (mTarget) {
-        const mSubj = mTarget.subject || '미분류';
+        const mSubj = resolveValidSubject(mTarget.subject);
         if (countProblemsInSubject(mSubj) >= MAX_PROBLEMS_PER_SUBJECT) {
-          showToast(`'${mSubj}' 과목이 ${MAX_PROBLEMS_PER_SUBJECT}문제 꽉 차서 정복함에 유지했어요`, { icon: 'info', duration: 1800 });
+          showToast(t('review.subjectFullKeepMastered', { subject: formatSubjectLabel(mSubj), max: MAX_PROBLEMS_PER_SUBJECT }), { icon: 'info', duration: 1800 });
         } else {
           state.masteredProblems = state.masteredProblems.filter((p) => p.id !== curr.id);
           const restored = {
             ...mTarget,
+            subject: mSubj,
             wrongCount: (mTarget.wrongCount || 0) + 1,
             correctStreak: 0,
             mastered: false
@@ -922,7 +952,7 @@ function handleReviewAnswer(isCorrect) {
           delete restored.masteredAt;
           state.problems.unshift(restored);
           saveState(state);
-          showToast('틀린 문제는 오답 목록으로 복구했어요', { icon: 'restore', duration: 1600 });
+          showToast(t('review.restoredToWrongToast'), { icon: 'restore', duration: 1600 });
         }
       }
       sessionWrongIds.add(curr.id);
@@ -960,7 +990,7 @@ function handleReviewAnswer(isCorrect) {
   area.style.transform = '';
   if (clearedNow) {
     area.classList.add('is-cleared-fly');
-    showToast('완전 정복! 정복 보관함으로 옮겼어요', { cleared: true, icon: 'task_alt', duration: 1700 });
+    showToast(t('review.clearedToast'), { cleared: true, icon: 'task_alt', duration: 1700 });
   } else if (isCorrect) {
     area.classList.add('is-fly-right');
   } else {
@@ -985,6 +1015,8 @@ reviewEls.btnMarkCorrect.addEventListener('click', () => handleReviewAnswer(true
   let startY = 0;
   let dx = 0;
   let swiping = false;
+
+  area.addEventListener('dragstart', (e) => e.preventDefault());
 
   area.addEventListener('pointerdown', (e) => {
     if (isAnimatingReview || e.button > 0) return;
@@ -1077,7 +1109,7 @@ function renderSubjectManageList() {
   if (state.subjects.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'subject-modal-hint';
-    empty.textContent = '등록된 과목이 없습니다. 상단의 ＋ 버튼으로 새 과목을 추가해 보세요.';
+    empty.textContent = t('subjectModal.empty');
     subjectModalEls.list.appendChild(empty);
     return;
   }
@@ -1094,16 +1126,28 @@ function renderSubjectManageList() {
     const saveBtn = document.createElement('button');
     saveBtn.type = 'button';
     saveBtn.className = 'btn-subject-save';
-    saveBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">check</span><span>이름 변경</span>';
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = `<span class="material-symbols-rounded ms-icon" aria-hidden="true">check</span><span>${t('subjectModal.rename')}</span>`;
+
+    input.addEventListener('input', () => {
+      const val = input.value.trim();
+      saveBtn.disabled = !val || val === subj;
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !saveBtn.disabled) {
+        saveBtn.click();
+      }
+    });
+
     saveBtn.addEventListener('click', () => {
       const nextName = input.value.trim();
       if (!nextName) {
-        showAlert('과목 이름을 입력해 주세요.');
+        showAlert(t('subjectModal.needName'));
         return;
       }
       if (nextName === subj) return;
       if (state.subjects.includes(nextName)) {
-        showAlert('이미 같은 이름의 과목이 있습니다.');
+        showAlert(t('subjectModal.duplicate'));
         return;
       }
       state.subjects[idx] = nextName;
@@ -1125,11 +1169,11 @@ function renderSubjectManageList() {
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
     delBtn.className = 'btn-subject-del';
-    delBtn.innerHTML = '<span class="material-symbols-rounded ms-icon" aria-hidden="true">delete</span><span>삭제</span>';
+    delBtn.innerHTML = `<span class="material-symbols-rounded ms-icon" aria-hidden="true">delete</span><span>${t('subjectModal.delete')}</span>`;
     delBtn.addEventListener('click', async () => {
       const ok = await showConfirm(
-        `'${subj}' 과목을 삭제할까요?\n(이 과목에 있던 문제는 '미분류'로 안전하게 남습니다.)`,
-        { title: '과목 삭제', okText: '삭제하기', danger: true }
+        t('subjectModal.deleteConfirmMsg', { subject: subj }),
+        { title: t('subjectModal.deleteConfirmTitle'), okText: t('card.delete'), danger: true }
       );
       if (!ok) return;
       state.subjects = state.subjects.filter((s) => s !== subj);
@@ -1155,27 +1199,33 @@ function renderSubjectManageList() {
   });
 }
 
+function syncAddSubjectBtnState() {
+  subjectModalEls.btnAdd.disabled = !subjectModalEls.inputNew.value.trim();
+}
+
 function handleAddSubjectFromModal() {
   const name = subjectModalEls.inputNew.value.trim();
   if (!name) {
-    showAlert('추가할 과목 이름을 입력해 주세요.');
+    showAlert(t('subjectModal.needAddName'));
     return;
   }
   if (state.subjects.includes(name)) {
-    showAlert('이미 같은 이름의 과목이 있습니다.');
+    showAlert(t('subjectModal.duplicate'));
     return;
   }
   if (state.subjects.length >= MAX_SUBJECTS) {
-    showAlert(`과목은 최대 ${MAX_SUBJECTS}개까지만 만들 수 있어요.`);
+    showAlert(t('subjectModal.maxSubjects', { max: MAX_SUBJECTS }));
     return;
   }
   addNewSubject(name);
   subjectModalEls.inputNew.value = '';
+  syncAddSubjectBtnState();
   renderSubjectManageList();
   renderHome();
   renderAddSubjectBar();
 }
 
+subjectModalEls.inputNew.addEventListener('input', syncAddSubjectBtnState);
 subjectModalEls.btnAdd.addEventListener('click', handleAddSubjectFromModal);
 subjectModalEls.inputNew.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
@@ -1186,18 +1236,16 @@ subjectModalEls.inputNew.addEventListener('keydown', (e) => {
 
 function openSubjectModal() {
   subjectModalEls.inputNew.value = '';
+  syncAddSubjectBtnState();
   renderSubjectManageList();
-  subjectModalEls.modal.classList.remove('hidden');
+  navigateDrawerPage('subjects');
 }
 
 function closeSubjectModal() {
-  subjectModalEls.modal.classList.add('hidden');
   renderHome();
   renderAddSubjectBar();
+  navigateDrawerPage('main');
 }
-
-subjectModalEls.btnClose.addEventListener('click', closeSubjectModal);
-subjectModalEls.btnDone.addEventListener('click', closeSubjectModal);
 
 /* ================= 6. 내 학습 기준 설정 ================= */
 function renderCriteriaModal() {
@@ -1206,19 +1254,19 @@ function renderCriteriaModal() {
 
 function openCriteriaModalFlow() {
   renderCriteriaModal();
-  criteriaEls.modal.classList.remove('hidden');
+  navigateDrawerPage('criteria');
 }
 
-criteriaEls.btnClose.addEventListener('click', () => {
-  criteriaEls.modal.classList.add('hidden');
-});
-
-criteriaEls.btnSave.addEventListener('click', async () => {
-  const masteryVal = Number(criteriaEls.inputMasteryTarget.value);
+function applyCriteriaTarget({ showInvalidAlert = false } = {}) {
+  const raw = criteriaEls.inputMasteryTarget.value.trim();
+  const masteryVal = Number(raw);
   if (!Number.isInteger(masteryVal) || masteryVal < 1 || masteryVal >= 20) {
-    await showAlert('자동 삭제 기준 횟수는 1에서 19(20회 미만) 사이의 숫자로 입력해 주세요.');
-    return;
+    if (showInvalidAlert) {
+      showAlert(t('criteriaModal.invalidNumber'));
+    }
+    return false;
   }
+  if (state.settings.masteryTarget === masteryVal) return true;
 
   state.settings.masteryTarget = masteryVal;
   // 새 기준을 이미 채운 문제들은 정복 보관함으로 이동
@@ -1228,16 +1276,29 @@ criteriaEls.btnSave.addEventListener('click', async () => {
     state.problems = state.problems.filter((p) => (p.correctStreak || 0) < masteryVal);
   }
   saveState(state);
-  criteriaEls.modal.classList.add('hidden');
   renderHome();
+  return true;
+}
+
+criteriaEls.inputMasteryTarget.addEventListener('input', () => {
+  applyCriteriaTarget({ showInvalidAlert: false });
+});
+
+criteriaEls.inputMasteryTarget.addEventListener('change', () => {
+  if (!applyCriteriaTarget({ showInvalidAlert: true })) {
+    renderCriteriaModal();
+  }
 });
 
 /* ================= 7. 7일 무료 체험 & 평생 소장 ================= */
 function updateLicenseUI() {
   const info = getLicenseStatus(license);
-  settingsEls.licenseSub.textContent = info.label;
   settingsEls.licenseBadge.textContent =
-    info.state === 'purchased' ? '소장 완료' : info.state === 'expired' ? '체험 종료' : '체험 중';
+    info.state === 'purchased'
+      ? t('license.badgePurchased')
+      : info.state === 'expired'
+        ? t('license.badgeExpired')
+        : t('license.badgeTrial');
 }
 
 function openLicenseModal(expiredNotice = false) {
@@ -1245,25 +1306,20 @@ function openLicenseModal(expiredNotice = false) {
   licenseEls.badge.textContent = info.label;
   licenseEls.title.textContent =
     info.state === 'expired' || expiredNotice
-      ? '⏰ 7일 무료 체험이 끝났어요'
+      ? t('license.titleExpired')
       : info.state === 'purchased'
-        ? '✅ 평생 소장 중입니다'
-        : '🎁 7일 무료 체험 안내';
+        ? t('license.titlePurchased')
+        : t('license.titleTrial');
   licenseEls.btnBuy.classList.toggle('hidden', info.state === 'purchased');
-  licenseEls.btnRestore.classList.toggle('hidden', info.state === 'purchased');
-  licenseEls.modal.classList.remove('hidden');
+  if (!settingsEls.modal.classList.contains('is-open')) {
+    openSettingsDrawer('license');
+  } else {
+    navigateDrawerPage('license');
+  }
 }
 
-licenseEls.btnClose.addEventListener('click', () => licenseEls.modal.classList.add('hidden'));
-
 /* ================= 8. 왼쪽 슬라이드 설정 서랍 & 테마 ================= */
-const THEME_COLOR_LABELS = {
-  indigo: '인디고',
-  blue: '블루',
-  emerald: '에메랄드',
-  amber: '오렌지',
-  rose: '로즈'
-};
+const THEME_COLORS = ['indigo', 'blue', 'emerald', 'amber', 'gold'];
 
 const THEME_STORAGE_KEY = 'yj_wrong_note_theme_v1';
 
@@ -1275,7 +1331,7 @@ function loadSavedThemeIntoState() {
     if (parsed.themeMode === 'dark' || parsed.themeMode === 'light') {
       state.settings.themeMode = parsed.themeMode;
     }
-    if (THEME_COLOR_LABELS[parsed.themeColor]) {
+    if (THEME_COLORS.includes(parsed.themeColor)) {
       state.settings.themeColor = parsed.themeColor;
     }
   } catch {
@@ -1293,13 +1349,15 @@ function saveThemePref(mode, color) {
 
 function applyTheme() {
   const mode = state.settings.themeMode === 'dark' ? 'dark' : 'light';
-  const color = THEME_COLOR_LABELS[state.settings.themeColor] ? state.settings.themeColor : 'indigo';
+  const color = THEME_COLORS.includes(state.settings.themeColor) ? state.settings.themeColor : 'indigo';
   document.documentElement.dataset.theme = mode;
   document.documentElement.dataset.accent = color;
   saveThemePref(mode, color);
 
   if (settingsEls.themeBadge) {
-    settingsEls.themeBadge.textContent = `${THEME_COLOR_LABELS[color]} · ${mode === 'dark' ? '다크' : '화이트'}`;
+    const colorLabel = t(`theme.color.${color}`);
+    const modeLabel = mode === 'dark' ? t('themeModal.darkShort') : t('themeModal.lightShort');
+    settingsEls.themeBadge.textContent = `${colorLabel} · ${modeLabel}`;
   }
   themeEls.btnLight?.classList.toggle('active', mode === 'light');
   themeEls.btnDark?.classList.toggle('active', mode === 'dark');
@@ -1310,15 +1368,8 @@ function applyTheme() {
 
 function openThemeModal() {
   applyTheme();
-  themeEls.modal?.classList.remove('hidden');
+  navigateDrawerPage('theme');
 }
-
-function closeThemeModal() {
-  themeEls.modal?.classList.add('hidden');
-}
-
-themeEls.btnClose?.addEventListener('click', closeThemeModal);
-themeEls.btnDone?.addEventListener('click', closeThemeModal);
 
 themeEls.btnLight?.addEventListener('click', () => {
   state.settings.themeMode = 'light';
@@ -1341,13 +1392,34 @@ themeEls.colorGrid?.addEventListener('click', (e) => {
 });
 
 let drawerCloseTimer = null;
+let activeDrawerPage = 'main';
 
-function openSettingsDrawer() {
+function navigateDrawerPage(page = 'main') {
+  if (activeDrawerPage === 'criteria' && page !== 'criteria') {
+    applyCriteriaTarget({ showInvalidAlert: false });
+  }
+  activeDrawerPage = page;
+  const mainPage = settingsEls.modal.querySelector('.drawer-page-main');
+  const subPages = settingsEls.modal.querySelectorAll('.drawer-subpage');
+  if (mainPage) {
+    mainPage.classList.toggle('is-pushed', page !== 'main');
+  }
+  subPages.forEach((el) => {
+    el.classList.toggle('is-active', el.dataset.drawerPage === page);
+  });
+}
+
+function openSettingsDrawer(initialPage = 'main') {
   if (drawerCloseTimer) {
     clearTimeout(drawerCloseTimer);
     drawerCloseTimer = null;
   }
+  if (settingsEls.panel) {
+    settingsEls.panel.classList.remove('is-swiping');
+    settingsEls.panel.style.transform = '';
+  }
   updateLicenseUI();
+  navigateDrawerPage(initialPage);
   settingsEls.modal.classList.remove('hidden');
   settingsEls.modal.setAttribute('aria-hidden', 'false');
   void settingsEls.modal.offsetWidth;
@@ -1355,26 +1427,104 @@ function openSettingsDrawer() {
 }
 
 function closeSettingsDrawer({ immediate = false } = {}) {
+  if (activeDrawerPage === 'criteria') {
+    applyCriteriaTarget({ showInvalidAlert: false });
+  }
+  if (settingsEls.panel) {
+    settingsEls.panel.classList.remove('is-swiping');
+    settingsEls.panel.style.transform = '';
+  }
   settingsEls.modal.classList.remove('is-open');
   settingsEls.modal.setAttribute('aria-hidden', 'true');
   if (immediate) {
     settingsEls.modal.classList.add('hidden');
+    navigateDrawerPage('main');
     return;
   }
   if (drawerCloseTimer) clearTimeout(drawerCloseTimer);
   drawerCloseTimer = setTimeout(() => {
     if (!settingsEls.modal.classList.contains('is-open')) {
       settingsEls.modal.classList.add('hidden');
+      navigateDrawerPage('main');
     }
     drawerCloseTimer = null;
   }, 240);
 }
 
-homeEls.btnOpenDrawer?.addEventListener('click', openSettingsDrawer);
+homeEls.btnOpenDrawer?.addEventListener('click', () => openSettingsDrawer('main'));
 
-settingsEls.btnClose.addEventListener('click', () => closeSettingsDrawer());
+settingsEls.modal.querySelectorAll('.btn-drawer-back').forEach((btn) => {
+  btn.addEventListener('click', () => navigateDrawerPage('main'));
+});
+
+// 설정 슬라이드 왼쪽으로 밀어 닫기
+(() => {
+  const panel = settingsEls.panel;
+  if (!panel) return;
+  let pointerId = null;
+  let startX = 0;
+  let startY = 0;
+  let dx = 0;
+  let swiping = false;
+
+  panel.addEventListener('pointerdown', (e) => {
+    if (e.button > 0 || !settingsEls.modal.classList.contains('is-open')) return;
+    if (e.target.closest('input, textarea, select')) return;
+    pointerId = e.pointerId;
+    startX = e.clientX;
+    startY = e.clientY;
+    dx = 0;
+    swiping = false;
+  });
+
+  panel.addEventListener('pointermove', (e) => {
+    if (pointerId !== e.pointerId) return;
+    const curDx = e.clientX - startX;
+    const curDy = e.clientY - startY;
+
+    if (!swiping) {
+      if (curDx < -12 && Math.abs(curDx) > Math.abs(curDy) * 1.2) {
+        swiping = true;
+        panel.classList.add('is-swiping');
+        panel.setPointerCapture?.(e.pointerId);
+      } else if (Math.abs(curDy) > 14 || curDx > 14) {
+        pointerId = null;
+        return;
+      } else {
+        return;
+      }
+    }
+
+    dx = Math.min(0, curDx);
+    panel.style.transform = `translateX(${dx}px)`;
+  });
+
+  function finishDrawerSwipe(e) {
+    if (pointerId !== e.pointerId) return;
+    pointerId = null;
+    if (!swiping) return;
+    swiping = false;
+    panel.classList.remove('is-swiping');
+    panel.style.transform = '';
+    if (dx <= -65) {
+      closeSettingsDrawer();
+    }
+  }
+
+  panel.addEventListener('pointerup', finishDrawerSwipe);
+  panel.addEventListener('pointercancel', finishDrawerSwipe);
+})();
 
 settingsEls.modal.addEventListener('click', (e) => {
+  const helpBtn = e.target.closest('.btn-help-q');
+  if (helpBtn) {
+    const msgKey = helpBtn.dataset.helpKey;
+    const titleKey = helpBtn.dataset.helpTitle;
+    if (msgKey) {
+      showAlert(t(msgKey), { title: titleKey ? t(titleKey) : t('dialog.alertTitle') });
+    }
+    return;
+  }
   if (e.target === settingsEls.modal) {
     closeSettingsDrawer();
   }
@@ -1382,49 +1532,82 @@ settingsEls.modal.addEventListener('click', (e) => {
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && settingsEls.modal.classList.contains('is-open')) {
-    closeSettingsDrawer();
+    if (activeDrawerPage !== 'main') {
+      navigateDrawerPage('main');
+    } else {
+      closeSettingsDrawer();
+    }
   }
 });
 
 settingsEls.menuSubjects.addEventListener('click', () => {
-  closeSettingsDrawer({ immediate: true });
   openSubjectModal();
 });
 
 settingsEls.menuCriteria.addEventListener('click', () => {
-  closeSettingsDrawer({ immediate: true });
   openCriteriaModalFlow();
 });
 
 settingsEls.menuTheme?.addEventListener('click', () => {
-  closeSettingsDrawer({ immediate: true });
   openThemeModal();
 });
 
+function updateLanguageUI() {
+  const activeLang = getLang();
+  if (settingsEls.languageBadge) {
+    settingsEls.languageBadge.textContent = t(`lang.name.${activeLang}`);
+  }
+  languageEls.optionList?.querySelectorAll('.language-option-btn').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.lang === activeLang);
+  });
+}
+
+function applyLanguageChange() {
+  applyStaticTranslations();
+  applyTheme();
+  updateLicenseUI();
+  updateLanguageUI();
+  renderHome();
+  renderMastered();
+  renderAddSubjectBar();
+}
+
+function openLanguageModal() {
+  updateLanguageUI();
+  navigateDrawerPage('language');
+}
+
+settingsEls.menuLanguage?.addEventListener('click', () => {
+  openLanguageModal();
+});
+
+languageEls.optionList?.addEventListener('click', (e) => {
+  const btn = e.target.closest('.language-option-btn');
+  if (!btn || !btn.dataset.lang) return;
+  setLangPref(btn.dataset.lang);
+  applyLanguageChange();
+});
+
+window.addEventListener('languagechange', () => {
+  if (getLangPref() === 'auto') {
+    applyLanguageChange();
+  }
+});
+
 settingsEls.menuLicense.addEventListener('click', () => {
-  closeSettingsDrawer({ immediate: true });
   openLicenseModal(false);
 });
 
 settingsEls.linkGuide.addEventListener('click', () => {
-  showAlert(
-    '1. 틀린 문제를 사진(최대 2장)이나 메모로 3초 만에 올립니다.\n2. 정복하기를 눌러 가림막을 열어 풀고 맞혔어요/틀렸어요를 누르거나 카드를 슥 밀어 넘깁니다. 틀린 문제는 다 지울 때까지 계속 돌아옵니다.\n3. 내가 정한 횟수만큼 연속으로 맞히면 정복 완료로 보고 목록에서 미련 없이 자동 삭제됩니다.',
-    { title: '이용방법' }
-  );
+  showAlert(t('settings.guideBody'), { title: t('settings.guide') });
 });
 
 settingsEls.linkTerms.addEventListener('click', () => {
-  showAlert(
-    '이 앱은 틀린 문제만 가볍게 보고 정복한 문제는 자동 삭제되는 초간편 오답정복 앱입니다.\n회원가입 없이 내 휴대폰에만 저장되므로, 앱을 지우면 저장된 문제도 함께 삭제됩니다.',
-    { title: '이용약관' }
-  );
+  showAlert(t('settings.termsBody'), { title: t('settings.terms') });
 });
 
 settingsEls.linkPrivacy.addEventListener('click', () => {
-  showAlert(
-    '이 앱은 회원가입을 받지 않으며, 올리신 문제 사진과 메모를 외부 서버로 보내거나 수집하지 않고 내 휴대폰 안에만 안전하게 보관합니다.',
-    { title: '개인정보처리방침' }
-  );
+  showAlert(t('settings.privacyBody'), { title: t('settings.privacy') });
 });
 
 licenseEls.btnBuy.addEventListener('click', async () => {
@@ -1434,21 +1617,17 @@ licenseEls.btnBuy.addEventListener('click', async () => {
   license.lastSeenAt = Date.now();
   saveLicense(license);
   updateLicenseUI();
-  licenseEls.modal.classList.add('hidden');
-  await showAlert('평생 소장 결제가 완료되었습니다!\n이제 매달 결제 없이 평생 모든 기능을 제한 없이 쓰실 수 있습니다.', {
-    title: '구매 완료'
+  navigateDrawerPage('main');
+  await showAlert(t('license.buySuccessMsg'), {
+    title: t('license.buySuccessTitle')
   });
 });
 
-licenseEls.btnRestore.addEventListener('click', async () => {
-  await showAlert('구글 스토어 출시 후 기존 구매 내역을 자동으로 불러오는 버튼입니다.', {
-    title: '구매 내역 복원'
-  });
-});
-
-// 초기 화면 그리기 및 테마·물결 터치 반응 연결
+// 초기 화면 그리기 및 다국어·테마·물결 터치 반응 연결
+applyStaticTranslations();
 loadSavedThemeIntoState();
 applyTheme();
 initRippleFeedback();
 updateLicenseUI();
+updateLanguageUI();
 renderHome();

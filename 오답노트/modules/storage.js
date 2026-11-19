@@ -1,6 +1,15 @@
 import { showAlert } from './dialog.js';
+import { t, detectDeviceLang } from './i18n.js';
 
 const STORAGE_KEY = 'yj_wrong_note_v1';
+const MAX_UPLOAD_BYTES = 15 * 1024 * 1024; // 15MB
+
+export function isSafeImageDataUrl(src) {
+  return (
+    typeof src === 'string' &&
+    /^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/i.test(src)
+  );
+}
 
 const DEFAULT_DATA = {
   subjects: ['국어', '영어', '수학'],
@@ -10,7 +19,7 @@ const DEFAULT_DATA = {
     wrongFilterMode: 'unmastered', // 'unmastered' (정복 전 모두) | 'repeated' (일정 횟수 이상 틀린 문제만)
     wrongMinCount: 2, // 몇 번 이상 틀린 문제를 약점으로 볼지 (1~19)
     themeMode: 'light', // 'light' | 'dark'
-    themeColor: 'indigo' // 'indigo' | 'blue' | 'emerald' | 'amber' | 'rose'
+    themeColor: 'indigo' // 'indigo' | 'blue' | 'emerald' | 'amber' | 'gold'
   },
   masteredProblems: [],
   problems: [
@@ -41,12 +50,98 @@ const DEFAULT_DATA = {
   ]
 };
 
+function createLocalizedDefaultData() {
+  const lang = detectDeviceLang();
+  if (lang === 'en') {
+    return {
+      subjects: ['Reading', 'English', 'Math'],
+      lastSubject: 'Math',
+      settings: {
+        masteryTarget: 2,
+        wrongFilterMode: 'unmastered',
+        wrongMinCount: 2,
+        themeMode: 'light',
+        themeColor: 'indigo'
+      },
+      masteredProblems: [],
+      problems: [
+        {
+          id: 'sample-1',
+          subject: 'Math',
+          problemText: 'Find the sum and product of the two roots of x² - 5x + 6 = 0.',
+          problemImg: '',
+          answerText: 'Roots: 2, 3 → Sum = 5, Product = 6 (Vieta’s formulas: -b/a, c/a)',
+          answerImg: '',
+          wrongCount: 2,
+          correctStreak: 0,
+          mastered: false,
+          createdAt: Date.now() - 3600000
+        },
+        {
+          id: 'sample-2',
+          subject: 'English',
+          problemText: 'Choose the best word for the blank:\n"She has been living in New York ___ 2020."\n① for  ② since  ③ during  ④ while',
+          problemImg: '',
+          answerText: 'Answer: ② since (used with a specific starting point in time)',
+          answerImg: '',
+          wrongCount: 1,
+          correctStreak: 0,
+          mastered: false,
+          createdAt: Date.now() - 1800000
+        }
+      ]
+    };
+  }
+  if (lang === 'ja') {
+    return {
+      subjects: ['国語', '英語', '数学'],
+      lastSubject: '数学',
+      settings: {
+        masteryTarget: 2,
+        wrongFilterMode: 'unmastered',
+        wrongMinCount: 2,
+        themeMode: 'light',
+        themeColor: 'indigo'
+      },
+      masteredProblems: [],
+      problems: [
+        {
+          id: 'sample-1',
+          subject: '数学',
+          problemText: '二次方程式 x² - 5x + 6 = 0 の2つの解の和と積を求めなさい。',
+          problemImg: '',
+          answerText: '解: 2, 3 → 和 = 5, 積 = 6（解と係数の関係: -b/a, c/a）',
+          answerImg: '',
+          wrongCount: 2,
+          correctStreak: 0,
+          mastered: false,
+          createdAt: Date.now() - 3600000
+        },
+        {
+          id: 'sample-2',
+          subject: '英語',
+          problemText: '空欄に入る最も適切なものを選びなさい。\n"She has been living in Tokyo ___ 2020."\n① for  ② since  ③ during  ④ while',
+          problemImg: '',
+          answerText: '正解: ② since（特定の起点「2020年からずっと」を表す）',
+          answerImg: '',
+          wrongCount: 1,
+          correctStreak: 0,
+          mastered: false,
+          createdAt: Date.now() - 1800000
+        }
+      ]
+    };
+  }
+  return structuredClone(DEFAULT_DATA);
+}
+
 export function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      saveState(DEFAULT_DATA);
-      return structuredClone(DEFAULT_DATA);
+      const initial = createLocalizedDefaultData();
+      saveState(initial);
+      return initial;
     }
     const parsed = JSON.parse(raw);
     // 미리보기용 예시 문제 1회 복원 (목록이 비어 있을 때만, 한 번만 실행)
@@ -68,7 +163,7 @@ export function loadState() {
         wrongFilterMode: parsed.settings?.wrongFilterMode === 'repeated' ? 'repeated' : 'unmastered',
         wrongMinCount: Math.min(19, Math.max(1, Number(parsed.settings?.wrongMinCount) || 2)),
         themeMode: parsed.settings?.themeMode === 'dark' ? 'dark' : 'light',
-        themeColor: ['indigo', 'blue', 'emerald', 'amber', 'rose'].includes(parsed.settings?.themeColor)
+        themeColor: ['indigo', 'blue', 'emerald', 'amber', 'gold'].includes(parsed.settings?.themeColor)
           ? parsed.settings.themeColor
           : 'indigo'
       },
@@ -85,7 +180,7 @@ export function saveState(state) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     return true;
   } catch {
-    showAlert('저장 공간이 부족합니다. 오래된 오답 카드를 몇 개 정리해 주세요.', { title: '저장 안내' });
+    showAlert(t('storage.fullMsg'), { title: t('storage.fullTitle') });
     return false;
   }
 }
@@ -95,6 +190,14 @@ export function saveState(state) {
  */
 export function compressImageFile(file, maxWidth = 960, quality = 0.82) {
   return new Promise((resolve, reject) => {
+    if (!file || !String(file.type || '').startsWith('image/')) {
+      reject(new Error('INVALID_TYPE'));
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      reject(new Error('FILE_TOO_LARGE'));
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (ev) => {
       const img = new Image();
@@ -109,10 +212,10 @@ export function compressImageFile(file, maxWidth = 960, quality = 0.82) {
         ctx.drawImage(img, 0, 0, w, h);
         resolve(canvas.toDataURL('image/jpeg', quality));
       };
-      img.onerror = reject;
+      img.onerror = () => reject(new Error('INVALID_TYPE'));
       img.src = ev.target.result;
     };
-    reader.onerror = reject;
+    reader.onerror = () => reject(new Error('INVALID_TYPE'));
     reader.readAsDataURL(file);
   });
 }

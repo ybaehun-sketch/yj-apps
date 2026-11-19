@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self';" />
   <title>오답정복 — 3초 등록 · 쓱-지우개 · 정복하기</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0" />
-  <link rel="stylesheet" href="styles.css?v=20261119a" />
+  <link rel="stylesheet" href="styles.css?v=20261119x" />
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -15,7 +16,7 @@
     <section id="screen-home" class="screen active">
       <header class="top-header top-header-home">
         <div class="header-left">
-          <button id="btn-open-drawer" class="btn-two-bars" type="button" aria-label="설정 메뉴 열기">
+          <button id="btn-open-drawer" class="btn-two-bars" type="button" aria-label="설정 메뉴 열기" data-i18n-aria="aria.openSettings">
             <span class="two-bars-icon" aria-hidden="true">
               <span></span>
               <span></span>
@@ -23,19 +24,19 @@
           </button>
         </div>
         <div class="brand brand-center">
-          <h1>오답정복</h1>
+          <h1 data-i18n="app.name">오답정복</h1>
         </div>
         <div class="header-actions">
           <button id="btn-open-mastered" class="btn-outline-sm btn-mastered-compact" type="button">
             <span class="material-symbols-rounded ms-icon" aria-hidden="true">task_alt</span>
-            <span>정복함</span>
+            <span data-i18n="home.masteredBtn">정복함</span>
             <span id="home-mastered-count" class="header-count-badge">0</span>
           </button>
         </div>
       </header>
 
       <!-- 가로 1줄 과목 버튼 -->
-      <div id="home-subject-bar" class="subject-bar" aria-label="과목 선택"></div>
+      <div id="home-subject-bar" class="subject-bar" aria-label="과목 선택" data-i18n-aria="aria.selectSubject"></div>
 
       <!-- 빠른 필터바 -->
       <div class="control-strip">
@@ -49,11 +50,11 @@
       <div class="home-bottom-bar">
         <button id="btn-start-review" class="btn-bottom-solve" type="button">
           <span class="material-symbols-rounded ms-icon" aria-hidden="true">target</span>
-          <span>정복하기</span>
+          <span data-i18n="home.startReview">정복하기</span>
         </button>
         <button id="btn-fab-add" class="btn-bottom-add" type="button">
           <span class="material-symbols-rounded ms-icon" aria-hidden="true">add</span>
-          <span>오답 올리기</span>
+          <span data-i18n="home.addWrong">오답 올리기</span>
         </button>
       </div>
     </section>
@@ -61,27 +62,27 @@
     <!-- ================= 2. 오답 올리기 화면 ================= -->
     <section id="screen-add" class="screen">
       <header class="sub-header">
-        <button id="btn-add-back" class="btn-icon" type="button" aria-label="뒤로 가기">
+        <button id="btn-add-back" class="btn-icon" type="button" aria-label="뒤로 가기" data-i18n-aria="aria.back">
           <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">arrow_back</span>
         </button>
-        <h2 id="add-screen-title">3초 오답 올리기</h2>
+        <h2 id="add-screen-title" data-i18n="add.titleNew">3초 오답 올리기</h2>
         <div class="spacer"></div>
       </header>
 
       <div class="form-body">
         <!-- 1) 문제 사진 또는 글 -->
         <div class="card-box">
-          <div class="section-label">1. 틀린 문제</div>
+          <div class="section-label" data-i18n="add.section1">1. 틀린 문제</div>
 
           <div class="upload-actions">
             <label class="btn-upload">
               <span class="material-symbols-rounded ms-icon" aria-hidden="true">add_a_photo</span>
-              <span>사진 찍기 / 고르기 (최대 2장)</span>
+              <span data-i18n="add.pickPhoto">사진 찍기 / 고르기 (최대 2장)</span>
               <input type="file" id="input-problem-img" accept="image/*" multiple hidden />
             </label>
             <button type="button" id="btn-clear-problem-img" class="btn-text-danger hidden">
               <span class="material-symbols-rounded ms-icon" aria-hidden="true">delete_outline</span>
-              <span>선택 사진 지우기</span>
+              <span data-i18n="add.clearPhoto">선택 사진 지우기</span>
             </button>
           </div>
 
@@ -92,57 +93,50 @@
               <div class="tool-tabs">
                 <button type="button" id="tool-eraser" class="tool-btn active">
                   <span class="material-symbols-rounded ms-icon" aria-hidden="true">ink_eraser</span>
-                  <span>쓱-지우개</span>
+                  <span data-i18n="editor.eraser">쓱-지우개</span>
                 </button>
                 <button type="button" id="tool-crop" class="tool-btn">
                   <span class="material-symbols-rounded ms-icon" aria-hidden="true">crop</span>
-                  <span>자르기</span>
+                  <span data-i18n="editor.crop">자르기</span>
                 </button>
               </div>
               <div class="editor-right-tools">
                 <button type="button" id="btn-editor-rotate" class="btn-undo">
                   <span class="material-symbols-rounded ms-icon" aria-hidden="true">rotate_right</span>
-                  <span>회전</span>
+                  <span data-i18n="editor.rotate">회전</span>
                 </button>
                 <button type="button" id="btn-editor-undo" class="btn-undo">
                   <span class="material-symbols-rounded ms-icon" aria-hidden="true">undo</span>
-                  <span>되돌리기</span>
+                  <span data-i18n="editor.undo">되돌리기</span>
                 </button>
               </div>
             </div>
-            <p id="editor-hint" class="editor-hint">내가 푼 볼펜·형광펜 자국 위를 손가락으로 쓱 문질러 지우세요.</p>
+            <p id="editor-hint" class="editor-hint" data-i18n="editor.hintEraser">내가 푼 볼펜·형광펜 자국 위를 손가락으로 쓱 문질러 지우세요.</p>
             <div class="canvas-container">
               <canvas id="problem-canvas"></canvas>
             </div>
             <div id="eraser-size-row" class="size-row">
-              <span>지우개 크기</span>
+              <span data-i18n="editor.eraserSize">지우개 크기</span>
               <input type="range" id="eraser-size" min="10" max="44" value="22" />
-            </div>
-            <div id="crop-action-row" class="crop-row hidden">
-              <span>드래그해서 남길 부분만 고른 뒤</span>
-              <button type="button" id="btn-apply-crop" class="btn-primary-xs">
-                <span class="material-symbols-rounded ms-icon" aria-hidden="true">check</span>
-                <span>잘라내기 적용</span>
-              </button>
             </div>
           </div>
 
-          <textarea id="input-problem-text" class="text-input" rows="2" placeholder="사진 대신 문제 내용을 간단히 적거나, 한 줄 메모를 남기세요 (선택)"></textarea>
+          <textarea id="input-problem-text" class="text-input" rows="2" placeholder="사진 대신 문제 내용을 간단히 적거나, 한 줄 메모를 남기세요 (선택)" data-i18n-placeholder="add.problemPlaceholder"></textarea>
         </div>
 
         <!-- 2) 정답 및 해설 -->
         <div class="card-box">
-          <div class="section-label">2. 정답 · 해설</div>
+          <div class="section-label" data-i18n="add.section2">2. 정답 · 해설</div>
 
           <div class="upload-actions">
             <label class="btn-upload">
               <span class="material-symbols-rounded ms-icon" aria-hidden="true">add_a_photo</span>
-              <span>사진 찍기 / 고르기 (최대 2장)</span>
+              <span data-i18n="add.pickPhoto">사진 찍기 / 고르기 (최대 2장)</span>
               <input type="file" id="input-answer-img" accept="image/*" multiple hidden />
             </label>
             <button type="button" id="btn-clear-answer-img" class="btn-text-danger hidden">
               <span class="material-symbols-rounded ms-icon" aria-hidden="true">delete_outline</span>
-              <span>선택 사진 지우기</span>
+              <span data-i18n="add.clearPhoto">선택 사진 지우기</span>
             </button>
           </div>
 
@@ -153,47 +147,40 @@
               <div class="tool-tabs">
                 <button type="button" id="answer-tool-eraser" class="tool-btn active">
                   <span class="material-symbols-rounded ms-icon" aria-hidden="true">ink_eraser</span>
-                  <span>쓱-지우개</span>
+                  <span data-i18n="editor.eraser">쓱-지우개</span>
                 </button>
                 <button type="button" id="answer-tool-crop" class="tool-btn">
                   <span class="material-symbols-rounded ms-icon" aria-hidden="true">crop</span>
-                  <span>자르기</span>
+                  <span data-i18n="editor.crop">자르기</span>
                 </button>
               </div>
               <div class="editor-right-tools">
                 <button type="button" id="btn-answer-rotate" class="btn-undo">
                   <span class="material-symbols-rounded ms-icon" aria-hidden="true">rotate_right</span>
-                  <span>회전</span>
+                  <span data-i18n="editor.rotate">회전</span>
                 </button>
                 <button type="button" id="btn-answer-undo" class="btn-undo">
                   <span class="material-symbols-rounded ms-icon" aria-hidden="true">undo</span>
-                  <span>되돌리기</span>
+                  <span data-i18n="editor.undo">되돌리기</span>
                 </button>
               </div>
             </div>
-            <p id="answer-editor-hint" class="editor-hint">불필요한 낙서나 주변 여백을 지우거나 잘라내세요.</p>
+            <p id="answer-editor-hint" class="editor-hint" data-i18n="editor.hintEraserAnswer">불필요한 낙서나 주변 여백을 지우거나 잘라내세요.</p>
             <div class="canvas-container">
               <canvas id="answer-canvas"></canvas>
             </div>
             <div id="answer-eraser-size-row" class="size-row">
-              <span>지우개 크기</span>
+              <span data-i18n="editor.eraserSize">지우개 크기</span>
               <input type="range" id="answer-eraser-size" min="10" max="44" value="22" />
-            </div>
-            <div id="answer-crop-action-row" class="crop-row hidden">
-              <span>드래그해서 남길 부분만 고른 뒤</span>
-              <button type="button" id="btn-answer-apply-crop" class="btn-primary-xs">
-                <span class="material-symbols-rounded ms-icon" aria-hidden="true">check</span>
-                <span>잘라내기 적용</span>
-              </button>
             </div>
           </div>
 
-          <textarea id="input-answer-text" class="text-input" rows="2" placeholder="사진 대신 정답·해설을 간단히 적거나, 한 줄 메모를 남기세요 (선택)"></textarea>
+          <textarea id="input-answer-text" class="text-input" rows="2" placeholder="사진 대신 정답·해설을 간단히 적거나, 한 줄 메모를 남기세요 (선택)" data-i18n-placeholder="add.answerPlaceholder"></textarea>
         </div>
 
         <!-- 3) 과목 선택 (직전 과목 자동 기억) -->
         <div class="card-box">
-          <div class="section-label">3. 과목 <span class="hint-inline">(방금 고른 과목 자동 선택)</span></div>
+          <div class="section-label"><span data-i18n="add.section3">3. 과목</span> <span class="hint-inline" data-i18n="add.section3Hint">(방금 고른 과목 자동 선택)</span></div>
           <div id="add-subject-bar" class="subject-bar compact"></div>
         </div>
       </div>
@@ -201,7 +188,7 @@
       <div class="bottom-cta-bar">
         <button id="btn-save-problem" class="btn-primary-lg" type="button">
           <span class="material-symbols-rounded ms-icon" aria-hidden="true">check_circle</span>
-          <span>저장하기</span>
+          <span data-i18n="add.save">저장하기</span>
         </button>
       </div>
     </section>
@@ -209,7 +196,7 @@
     <!-- ================= 3. 정복하기 (가림막) ================= -->
     <section id="screen-review" class="screen review-mode">
       <header class="review-header">
-        <button id="btn-review-exit" class="btn-icon" type="button" aria-label="정복 나가기">
+        <button id="btn-review-exit" class="btn-icon" type="button" aria-label="정복 나가기" data-i18n-aria="aria.exitReview">
           <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">close</span>
         </button>
         <div id="review-progress" class="review-progress">1 / 1</div>
@@ -220,11 +207,11 @@
       <div id="review-card-area" class="review-body">
         <div id="swipe-badge-correct" class="swipe-badge swipe-badge-correct">
           <span class="material-symbols-rounded ms-icon" aria-hidden="true">check_circle</span>
-          <span>맞혔어요!</span>
+          <span data-i18n="review.swipeCorrect">맞혔어요!</span>
         </div>
         <div id="swipe-badge-wrong" class="swipe-badge swipe-badge-wrong">
           <span class="material-symbols-rounded ms-icon" aria-hidden="true">replay</span>
-          <span>한 번 더!</span>
+          <span data-i18n="review.swipeWrong">한 번 더!</span>
         </div>
         <div class="review-problem-card">
           <div id="review-meta-row" class="review-meta-row"></div>
@@ -236,7 +223,7 @@
           <div id="review-answer-content" class="review-answer-content"></div>
           <button id="btn-reveal-answer" class="curtain-overlay" type="button">
             <span class="material-symbols-rounded ms-icon" aria-hidden="true">visibility</span>
-            <span class="curtain-title">터치해서 정답 확인</span>
+            <span class="curtain-title" data-i18n="review.revealAnswer">터치해서 정답 확인</span>
           </button>
         </div>
       </div>
@@ -246,16 +233,16 @@
         <div class="done-emoji">
           <span class="material-symbols-rounded ms-icon-hero" aria-hidden="true">task_alt</span>
         </div>
-        <h2>이번 판 정복 완료!</h2>
+        <h2 data-i18n="review.doneTitle">이번 판 정복 완료!</h2>
         <p id="review-done-summary" class="done-summary"></p>
         <div class="done-actions">
           <button id="btn-review-again" class="btn-outline-lg" type="button">
             <span class="material-symbols-rounded ms-icon" aria-hidden="true">repeat</span>
-            <span>미정복 문제 다시 정복</span>
+            <span data-i18n="review.reviewAgain">미정복 문제 다시 정복</span>
           </button>
           <button id="btn-review-home" class="btn-primary-lg" type="button">
             <span class="material-symbols-rounded ms-icon" aria-hidden="true">home</span>
-            <span>홈으로 돌아가기</span>
+            <span data-i18n="review.backHome">홈으로 돌아가기</span>
           </button>
         </div>
       </div>
@@ -263,12 +250,18 @@
       <!-- 하단 엄지손가락 2버튼 -->
       <footer id="review-action-bar" class="review-footer">
         <button id="btn-mark-wrong" class="btn-wrong" type="button">
-          <span class="material-symbols-rounded ms-icon" aria-hidden="true">close</span>
-          <span>틀렸어요</span>
+          <span class="review-btn-main">
+            <span class="material-symbols-rounded ms-icon" aria-hidden="true">close</span>
+            <span data-i18n="review.btnWrong">틀렸어요</span>
+          </span>
+          <span class="review-btn-hint" data-i18n="review.swipeHintLeft">← 왼쪽으로 미세요</span>
         </button>
         <button id="btn-mark-correct" class="btn-correct" type="button">
-          <span class="material-symbols-rounded ms-icon" aria-hidden="true">check</span>
-          <span>맞혔어요</span>
+          <span class="review-btn-main">
+            <span class="material-symbols-rounded ms-icon" aria-hidden="true">check</span>
+            <span data-i18n="review.btnCorrect">맞혔어요</span>
+          </span>
+          <span class="review-btn-hint" data-i18n="review.swipeHintRight">오른쪽으로 미세요 →</span>
         </button>
       </footer>
     </section>
@@ -276,14 +269,14 @@
     <!-- ================= 4. 정복 보관함 화면 ================= -->
     <section id="screen-mastered" class="screen">
       <header class="sub-header">
-        <button id="btn-mastered-back" class="btn-icon" type="button" aria-label="뒤로 가기">
+        <button id="btn-mastered-back" class="btn-icon" type="button" aria-label="뒤로 가기" data-i18n-aria="aria.back">
           <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">arrow_back</span>
         </button>
-        <h2>정복 보관함</h2>
+        <h2 data-i18n="mastered.title">정복 보관함</h2>
         <div class="spacer"></div>
       </header>
 
-      <div id="mastered-subject-bar" class="subject-bar" aria-label="정복 문제 과목 선택"></div>
+      <div id="mastered-subject-bar" class="subject-bar" aria-label="정복 문제 과목 선택" data-i18n-aria="aria.masteredSubjectSelect"></div>
 
       <div class="control-strip">
         <span id="mastered-total-summary" class="subject-total-summary">정복 완료 0문제</span>
@@ -294,73 +287,14 @@
       <div class="bottom-cta-bar">
         <button id="btn-review-mastered-all" class="btn-primary-lg" type="button">
           <span class="material-symbols-rounded ms-icon" aria-hidden="true">replay</span>
-          <span>정복한 문제 다시 풀기</span>
+          <span data-i18n="mastered.reviewAll">정복한 문제 다시 풀기</span>
         </button>
       </div>
     </section>
 
   </div>
 
-  <!-- ================= 5. 과목설정 (추가/수정/삭제) 모달 ================= -->
-  <div id="subject-modal" class="modal-backdrop hidden">
-    <div class="modal-sheet">
-      <header class="modal-header">
-        <h3 class="modal-title-row">
-          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">tune</span>
-          <span>과목설정</span>
-        </h3>
-        <button id="btn-close-subject-modal" class="btn-icon" type="button" aria-label="닫기">
-          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">close</span>
-        </button>
-      </header>
-      <div class="subject-modal-body">
-        <div class="subject-add-row">
-          <input type="text" id="input-new-subject" class="subject-manage-input" placeholder="새 과목 이름 (예: 한국사, 자격증)" />
-          <button type="button" id="btn-add-subject" class="btn-primary-xs">
-            <span class="material-symbols-rounded ms-icon" aria-hidden="true">add</span>
-            <span>추가하기</span>
-          </button>
-        </div>
-        <p class="subject-modal-hint">과목 이름을 바꾸거나 필요 없는 과목을 지울 수 있어요. (과목을 지워도 문제는 ‘미분류’로 안전하게 남습니다.)</p>
-        <div id="subject-manage-list" class="subject-manage-list"></div>
-      </div>
-      <footer class="modal-footer">
-        <button id="btn-done-subject-modal" class="btn-primary-lg" type="button">완료</button>
-      </footer>
-    </div>
-  </div>
-
-  <!-- ================= 6. 내 학습 기준 설정 모달 ================= -->
-  <div id="criteria-modal" class="modal-backdrop hidden">
-    <div class="modal-sheet">
-      <header class="modal-header">
-        <h3 class="modal-title-row">
-          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">checklist</span>
-          <span>정복 기준 설정</span>
-        </h3>
-        <button id="btn-close-criteria" class="btn-icon" type="button" aria-label="닫기">
-          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">close</span>
-        </button>
-      </header>
-      <div class="subject-modal-body">
-        <div class="criteria-group">
-          <div class="criteria-title">1. 정복 후 자동 삭제 기준</div>
-          <p class="criteria-desc">정복할 때 연속으로 몇 번 맞히면 목록에서 바로 지울까요? (1~19회)</p>
-          <div class="criteria-number-row">
-            <span>연속</span>
-            <input type="number" id="input-mastery-target" class="criteria-number-input" min="1" max="19" value="2" />
-            <span>번 맞히면 목록에서 자동 삭제</span>
-          </div>
-        </div>
-
-      </div>
-      <footer class="modal-footer">
-        <button id="btn-save-criteria" class="btn-primary-lg" type="button">적용하기</button>
-      </footer>
-    </div>
-  </div>
-
-  <!-- ================= 7. 앱 내 알림 / 확인 팝업 ================= -->
+  <!-- ================= 5. 앱 내 알림 / 확인 팝업 ================= -->
   <div id="app-dialog" class="modal-backdrop dialog-layer hidden">
     <div class="dialog-card" role="dialog" aria-modal="true">
       <div id="app-dialog-title" class="dialog-title">안내</div>
@@ -372,174 +306,287 @@
     </div>
   </div>
 
-  <!-- ================= 8. 7일 무료 체험 & 평생 소장 안내 모달 ================= -->
-  <div id="license-modal" class="modal-backdrop hidden">
-    <div class="modal-sheet">
-      <header class="modal-header">
-        <h3 id="license-modal-title" class="modal-title-row">
-          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">workspace_premium</span>
-          <span>7일 무료 체험 안내</span>
-        </h3>
-        <button id="btn-close-license" class="btn-icon" type="button" aria-label="닫기">
-          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">close</span>
-        </button>
-      </header>
-      <div class="subject-modal-body">
-        <div class="license-hero-card">
-          <div id="license-badge-text" class="license-badge">무료 체험 7일 남음</div>
-          <h4 class="license-headline">매달 돈 나가는 구독 없이,<br />딱 한 번 결제로 평생 소장하세요</h4>
-          <p class="license-sub">처음 7일 동안 모든 기능을 광고 없이 무료로 써보신 뒤, 마음에 드실 때만 구글 플레이스토어에서 <strong>단 한 번(약 3달러)</strong> 결제하시면 평생 제한 없이 쓰실 수 있습니다.</p>
-          <ul class="license-perks">
-            <li><span class="material-symbols-rounded ms-icon ms-perk" aria-hidden="true">check_circle</span><span>매달 자동 결제되는 정기 구독 없음</span></li>
-            <li><span class="material-symbols-rounded ms-icon ms-perk" aria-hidden="true">check_circle</span><span>광고 없는 쾌적한 오답 정복</span></li>
-            <li><span class="material-symbols-rounded ms-icon ms-perk" aria-hidden="true">check_circle</span><span>쓱-지우개 · 가림막 정복 · 미정복 문제 무한 반복</span></li>
-          </ul>
+  <!-- ================= 6. 왼쪽 슬라이드 설정 서랍 (메인 + 세부 슬라이드) ================= -->
+  <div id="settings-modal" class="drawer-backdrop hidden" aria-hidden="true">
+    <aside class="drawer-panel" role="dialog" aria-modal="true" aria-label="설정 메뉴" data-i18n-aria="aria.settingsMenu">
+      <!-- 6-0. 메인 설정 목록 슬라이드 -->
+      <div class="drawer-page drawer-page-main is-active" data-drawer-page="main">
+        <header class="drawer-header">
+          <h3 class="modal-title-row">
+            <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">settings</span>
+            <span data-i18n="settings.title">설정</span>
+          </h3>
+        </header>
+        <div class="drawer-body">
+          <div class="settings-menu-list">
+            <button type="button" id="menu-open-subjects" class="settings-menu-item">
+              <div class="settings-menu-lead">
+                <span class="material-symbols-rounded ms-icon" aria-hidden="true">tune</span>
+                <strong data-i18n="settings.subjects">과목 설정</strong>
+              </div>
+              <span class="material-symbols-rounded ms-icon settings-arrow" aria-hidden="true">chevron_right</span>
+            </button>
+            <button type="button" id="menu-open-criteria" class="settings-menu-item">
+              <div class="settings-menu-lead">
+                <span class="material-symbols-rounded ms-icon" aria-hidden="true">checklist</span>
+                <strong data-i18n="settings.criteria">정복 기준 설정</strong>
+              </div>
+              <span class="material-symbols-rounded ms-icon settings-arrow" aria-hidden="true">chevron_right</span>
+            </button>
+            <button type="button" id="menu-open-theme" class="settings-menu-item">
+              <div class="settings-menu-lead">
+                <span class="material-symbols-rounded ms-icon" aria-hidden="true">palette</span>
+                <strong data-i18n="settings.theme">테마 설정</strong>
+              </div>
+              <div class="settings-menu-tail">
+                <span id="settings-theme-badge" class="badge-subject settings-badge">인디고 · 화이트</span>
+                <span class="material-symbols-rounded ms-icon settings-arrow" aria-hidden="true">chevron_right</span>
+              </div>
+            </button>
+            <button type="button" id="menu-open-language" class="settings-menu-item">
+              <div class="settings-menu-lead">
+                <span class="material-symbols-rounded ms-icon" aria-hidden="true">translate</span>
+                <strong data-i18n="settings.language">언어 설정</strong>
+              </div>
+              <div class="settings-menu-tail">
+                <span id="settings-language-badge" class="badge-subject settings-badge">한국어</span>
+                <span class="material-symbols-rounded ms-icon settings-arrow" aria-hidden="true">chevron_right</span>
+              </div>
+            </button>
+            <button type="button" id="menu-open-license" class="settings-menu-item">
+              <div class="settings-menu-lead">
+                <span class="material-symbols-rounded ms-icon" aria-hidden="true">workspace_premium</span>
+                <strong data-i18n="settings.license">이용권 및 무료 체험</strong>
+              </div>
+              <div class="settings-menu-tail">
+                <span id="settings-license-badge" class="badge-subject settings-badge">체험 중</span>
+                <span class="material-symbols-rounded ms-icon settings-arrow" aria-hidden="true">chevron_right</span>
+              </div>
+            </button>
+          </div>
+
+          <div class="settings-footer-links">
+            <button type="button" id="link-guide" class="settings-text-link" data-i18n="settings.guide">이용방법</button>
+            <span class="settings-dot">·</span>
+            <button type="button" id="link-terms" class="settings-text-link" data-i18n="settings.terms">이용약관</button>
+            <span class="settings-dot">·</span>
+            <button type="button" id="link-privacy" class="settings-text-link" data-i18n="settings.privacy">개인정보처리방침</button>
+          </div>
         </div>
       </div>
-      <footer class="modal-footer license-footer">
-        <button id="btn-buy-lifetime" class="btn-primary-lg" type="button">
-          <span class="material-symbols-rounded ms-icon" aria-hidden="true">shopping_bag</span>
-          <span>구글 스토어에서 평생 소장하기 (약 3달러)</span>
-        </button>
-        <button id="btn-restore-purchase" class="btn-outline-lg" type="button">
-          <span class="material-symbols-rounded ms-icon" aria-hidden="true">history</span>
-          <span>이미 구매했어요 (내역 복원)</span>
-        </button>
-      </footer>
-    </div>
-  </div>
 
-  <!-- ================= 9. 왼쪽 슬라이드 설정 서랍 ================= -->
-  <div id="settings-modal" class="drawer-backdrop hidden" aria-hidden="true">
-    <aside class="drawer-panel" role="dialog" aria-modal="true" aria-label="설정 메뉴">
-      <header class="drawer-header">
-        <h3 class="modal-title-row">
-          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">settings</span>
-          <span>설정</span>
-        </h3>
-        <button id="btn-close-settings" class="btn-icon" type="button" aria-label="닫기">
-          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">close</span>
-        </button>
-      </header>
-      <div class="drawer-body">
-        <div class="settings-menu-list">
-          <button type="button" id="menu-open-subjects" class="settings-menu-item">
-            <div class="settings-menu-lead">
-              <span class="material-symbols-rounded ms-icon" aria-hidden="true">tune</span>
-              <div>
-                <strong>과목 설정</strong>
-                <span>과목 추가, 이름 변경, 삭제</span>
-              </div>
+      <!-- 6-1. 과목 설정 세부 슬라이드 -->
+      <div id="subject-modal" class="drawer-page drawer-subpage" data-drawer-page="subjects">
+        <header class="drawer-header">
+          <div class="drawer-header-lead">
+            <button type="button" class="btn-icon btn-drawer-back" aria-label="뒤로 가기" data-i18n-aria="aria.back">
+              <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">arrow_back</span>
+            </button>
+            <h3 class="modal-title-row">
+              <span data-i18n="subjectModal.title">과목설정</span>
+            </h3>
+          </div>
+        </header>
+        <div class="drawer-subpage-body">
+          <div class="criteria-group">
+            <div class="criteria-title" data-i18n="subjectModal.addTitle">과목 추가</div>
+            <div class="subject-add-row">
+              <input type="text" id="input-new-subject" class="subject-manage-input" placeholder="예: 한국사, 과학" data-i18n-placeholder="subjectModal.placeholder" />
+              <button type="button" id="btn-add-subject" class="btn-primary-xs">
+                <span class="material-symbols-rounded ms-icon" aria-hidden="true">add</span>
+                <span data-i18n="subjectModal.add">추가하기</span>
+              </button>
             </div>
-            <span class="material-symbols-rounded ms-icon settings-arrow" aria-hidden="true">chevron_right</span>
-          </button>
-          <button type="button" id="menu-open-criteria" class="settings-menu-item">
-            <div class="settings-menu-lead">
-              <span class="material-symbols-rounded ms-icon" aria-hidden="true">checklist</span>
-              <div>
-                <strong>정복 기준 설정</strong>
-                <span>완전 정복 및 또 틀린 문제 기준 정하기</span>
-              </div>
-            </div>
-            <span class="material-symbols-rounded ms-icon settings-arrow" aria-hidden="true">chevron_right</span>
-          </button>
-          <button type="button" id="menu-open-theme" class="settings-menu-item">
-            <div class="settings-menu-lead">
-              <span class="material-symbols-rounded ms-icon" aria-hidden="true">palette</span>
-              <div>
-                <strong>테마 설정</strong>
-                <span>밝은·어두운 화면 및 5가지 앱 색상</span>
-              </div>
-            </div>
-            <span id="settings-theme-badge" class="badge-subject">인디고 · 화이트</span>
-          </button>
-          <button type="button" id="menu-open-license" class="settings-menu-item">
-            <div class="settings-menu-lead">
-              <span class="material-symbols-rounded ms-icon" aria-hidden="true">workspace_premium</span>
-              <div>
-                <strong>이용권 및 무료 체험</strong>
-                <span id="settings-license-sub">무료 체험 7일 남음</span>
-              </div>
-            </div>
-            <span id="settings-license-badge" class="badge-subject">체험 중</span>
-          </button>
-        </div>
+          </div>
 
-        <div class="settings-footer-links">
-          <button type="button" id="link-guide" class="settings-text-link">이용방법</button>
-          <span class="settings-dot">·</span>
-          <button type="button" id="link-terms" class="settings-text-link">이용약관</button>
-          <span class="settings-dot">·</span>
-          <button type="button" id="link-privacy" class="settings-text-link">개인정보처리방침</button>
+          <div class="criteria-group subject-edit-section">
+            <div class="criteria-title title-with-help">
+              <span data-i18n="subjectModal.editTitle">과목 수정</span>
+              <button type="button" class="btn-help-q" data-help-key="subjectModal.hintPlain" data-help-title="subjectModal.editTitle" aria-label="도움말" data-i18n-aria="aria.help">
+                <span class="material-symbols-rounded ms-icon" aria-hidden="true">help_outline</span>
+              </button>
+            </div>
+            <div id="subject-manage-list" class="subject-manage-list"></div>
+          </div>
         </div>
+      </div>
+
+      <!-- 6-2. 정복 기준 설정 세부 슬라이드 -->
+      <div id="criteria-modal" class="drawer-page drawer-subpage" data-drawer-page="criteria">
+        <header class="drawer-header">
+          <div class="drawer-header-lead">
+            <button type="button" class="btn-icon btn-drawer-back" aria-label="뒤로 가기" data-i18n-aria="aria.back">
+              <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">arrow_back</span>
+            </button>
+            <h3 class="modal-title-row">
+              <span data-i18n="criteriaModal.title">정복 기준 설정</span>
+              <button type="button" class="btn-help-q" data-help-key="criteriaModal.sec1Desc" data-help-title="criteriaModal.title" aria-label="도움말" data-i18n-aria="aria.help">
+                <span class="material-symbols-rounded ms-icon" aria-hidden="true">help_outline</span>
+              </button>
+            </h3>
+          </div>
+        </header>
+        <div class="drawer-subpage-body">
+          <div class="criteria-group">
+            <div class="criteria-number-row">
+              <span data-i18n="criteriaModal.streakPrefix">연속</span>
+              <input type="number" id="input-mastery-target" class="criteria-number-input" min="1" max="19" value="2" />
+              <span data-i18n="criteriaModal.streakSuffix">번 맞히면 목록에서 자동 삭제</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6-3. 테마 설정 세부 슬라이드 -->
+      <div id="theme-modal" class="drawer-page drawer-subpage" data-drawer-page="theme">
+        <header class="drawer-header">
+          <div class="drawer-header-lead">
+            <button type="button" class="btn-icon btn-drawer-back" aria-label="뒤로 가기" data-i18n-aria="aria.back">
+              <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">arrow_back</span>
+            </button>
+            <h3 class="modal-title-row">
+              <span data-i18n="themeModal.title">테마 설정</span>
+            </h3>
+          </div>
+        </header>
+        <div class="drawer-subpage-body">
+          <div class="criteria-group">
+            <div class="criteria-title title-with-help">
+              <span data-i18n="themeModal.sec1Title">화면 모드</span>
+              <button type="button" class="btn-help-q" data-help-key="themeModal.sec1Desc" data-help-title="themeModal.sec1Title" aria-label="도움말" data-i18n-aria="aria.help">
+                <span class="material-symbols-rounded ms-icon" aria-hidden="true">help_outline</span>
+              </button>
+            </div>
+            <div class="theme-mode-grid">
+              <button type="button" id="btn-theme-light" class="theme-mode-btn" data-mode="light">
+                <span class="material-symbols-rounded ms-icon" aria-hidden="true">light_mode</span>
+                <span data-i18n="themeModal.light">화이트 모드</span>
+              </button>
+              <button type="button" id="btn-theme-dark" class="theme-mode-btn" data-mode="dark">
+                <span class="material-symbols-rounded ms-icon" aria-hidden="true">dark_mode</span>
+                <span data-i18n="themeModal.dark">다크 모드</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="criteria-group">
+            <div class="criteria-title title-with-help">
+              <span data-i18n="themeModal.sec2Title">앱 테마 색상 (5가지)</span>
+              <button type="button" class="btn-help-q" data-help-key="themeModal.sec2Desc" data-help-title="themeModal.sec2Title" aria-label="도움말" data-i18n-aria="aria.help">
+                <span class="material-symbols-rounded ms-icon" aria-hidden="true">help_outline</span>
+              </button>
+            </div>
+            <div id="theme-color-grid" class="theme-color-grid">
+              <button type="button" class="theme-swatch-btn" data-color="indigo">
+                <span class="swatch-dot" style="background:#4f46e5"></span>
+                <span data-i18n="theme.color.indigo">인디고</span>
+              </button>
+              <button type="button" class="theme-swatch-btn" data-color="blue">
+                <span class="swatch-dot" style="background:#2563eb"></span>
+                <span data-i18n="theme.color.blue">블루</span>
+              </button>
+              <button type="button" class="theme-swatch-btn" data-color="emerald">
+                <span class="swatch-dot" style="background:#059669"></span>
+                <span data-i18n="theme.color.emerald">에메랄드</span>
+              </button>
+              <button type="button" class="theme-swatch-btn" data-color="amber">
+                <span class="swatch-dot" style="background:#d97706"></span>
+                <span data-i18n="theme.color.amber">오렌지</span>
+              </button>
+              <button type="button" class="theme-swatch-btn" data-color="gold">
+                <span class="swatch-dot" style="background:#eab308"></span>
+                <span data-i18n="theme.color.gold">골드</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6-4. 언어 설정 세부 슬라이드 -->
+      <div id="language-modal" class="drawer-page drawer-subpage" data-drawer-page="language">
+        <header class="drawer-header">
+          <div class="drawer-header-lead">
+            <button type="button" class="btn-icon btn-drawer-back" aria-label="뒤로 가기" data-i18n-aria="aria.back">
+              <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">arrow_back</span>
+            </button>
+            <h3 class="modal-title-row">
+              <span data-i18n="langModal.title">언어 설정</span>
+              <button type="button" class="btn-help-q" data-help-key="langModal.desc" data-help-title="langModal.title" aria-label="도움말" data-i18n-aria="aria.help">
+                <span class="material-symbols-rounded ms-icon" aria-hidden="true">help_outline</span>
+              </button>
+            </h3>
+          </div>
+        </header>
+        <div class="drawer-subpage-body">
+          <div id="language-option-list" class="language-option-list">
+            <button type="button" class="language-option-btn" data-lang="ko">
+              <div class="language-option-lead">
+                <span class="language-flag" aria-hidden="true">🇰🇷</span>
+                <div>
+                  <strong>한국어</strong>
+                </div>
+              </div>
+              <span class="material-symbols-rounded ms-icon language-check" aria-hidden="true">check_circle</span>
+            </button>
+            <button type="button" class="language-option-btn" data-lang="en">
+              <div class="language-option-lead">
+                <span class="language-flag" aria-hidden="true">🇺🇸</span>
+                <div>
+                  <strong>English</strong>
+                </div>
+              </div>
+              <span class="material-symbols-rounded ms-icon language-check" aria-hidden="true">check_circle</span>
+            </button>
+            <button type="button" class="language-option-btn" data-lang="ja">
+              <div class="language-option-lead">
+                <span class="language-flag" aria-hidden="true">🇯🇵</span>
+                <div>
+                  <strong>日本語</strong>
+                </div>
+              </div>
+              <span class="material-symbols-rounded ms-icon language-check" aria-hidden="true">check_circle</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6-5. 이용권 및 무료 체험 세부 슬라이드 -->
+      <div id="license-modal" class="drawer-page drawer-subpage" data-drawer-page="license">
+        <header class="drawer-header">
+          <div class="drawer-header-lead">
+            <button type="button" class="btn-icon btn-drawer-back" aria-label="뒤로 가기" data-i18n-aria="aria.back">
+              <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">arrow_back</span>
+            </button>
+            <h3 id="license-modal-title" class="modal-title-row">
+              <span>프리미엄 구매 안내</span>
+            </h3>
+          </div>
+        </header>
+        <div class="drawer-subpage-body">
+          <div class="license-hero-card">
+            <div id="license-badge-text" class="license-badge">무료 체험 7일 남음</div>
+            <h4 class="license-headline" data-i18n-html="license.headline">부담 없는 월 2,900원으로<br />모든 기능을 제한 없이</h4>
+            <p class="license-sub" data-i18n-html="license.sub">7일 무료 체험 후에도 구글 플레이스토어에서 <strong>월 2,900원</strong>으로 광고 없이 쾌적하게 오답을 정복해 보세요.</p>
+            <ul class="license-perks">
+              <li><span class="material-symbols-rounded ms-icon ms-perk" aria-hidden="true">check_circle</span><span data-i18n="license.perk1">언제든 해지 가능한 월간 구독</span></li>
+              <li><span class="material-symbols-rounded ms-icon ms-perk" aria-hidden="true">check_circle</span><span data-i18n="license.perk2">광고 없는 쾌적한 오답 정복</span></li>
+              <li><span class="material-symbols-rounded ms-icon ms-perk" aria-hidden="true">check_circle</span><span data-i18n="license.perk3">쓱-지우개 · 가림막 · 무한 반복</span></li>
+            </ul>
+          </div>
+        </div>
+        <footer class="drawer-subpage-footer license-footer">
+          <button id="btn-buy-lifetime" class="btn-primary-lg" type="button">
+            <span class="material-symbols-rounded ms-icon" aria-hidden="true">shopping_bag</span>
+            <span data-i18n="license.buyBtn">월간 구독하기 (월 2,900원)</span>
+          </button>
+        </footer>
       </div>
     </aside>
-  </div>
-
-  <!-- ================= 10. 테마 설정 모달 ================= -->
-  <div id="theme-modal" class="modal-backdrop hidden">
-    <div class="modal-sheet">
-      <header class="modal-header">
-        <h3 class="modal-title-row">
-          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">palette</span>
-          <span>테마 설정</span>
-        </h3>
-        <button id="btn-close-theme" class="btn-icon" type="button" aria-label="닫기">
-          <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">close</span>
-        </button>
-      </header>
-      <div class="subject-modal-body">
-        <div class="criteria-group">
-          <div class="criteria-title">1. 화면 모드</div>
-          <p class="criteria-desc">공부하는 환경에 맞게 밝은 화면과 어두운 화면을 고르세요.</p>
-          <div class="theme-mode-grid">
-            <button type="button" id="btn-theme-light" class="theme-mode-btn" data-mode="light">
-              <span class="material-symbols-rounded ms-icon" aria-hidden="true">light_mode</span>
-              <span>화이트 모드</span>
-            </button>
-            <button type="button" id="btn-theme-dark" class="theme-mode-btn" data-mode="dark">
-              <span class="material-symbols-rounded ms-icon" aria-hidden="true">dark_mode</span>
-              <span>다크 모드</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="criteria-group">
-          <div class="criteria-title">2. 앱 테마 색상 (5가지)</div>
-          <p class="criteria-desc">버튼과 강조 색상에 적용될 대표 색을 선택하세요.</p>
-          <div id="theme-color-grid" class="theme-color-grid">
-            <button type="button" class="theme-swatch-btn" data-color="indigo">
-              <span class="swatch-dot" style="background:#4f46e5"></span>
-              <span>인디고</span>
-            </button>
-            <button type="button" class="theme-swatch-btn" data-color="blue">
-              <span class="swatch-dot" style="background:#2563eb"></span>
-              <span>블루</span>
-            </button>
-            <button type="button" class="theme-swatch-btn" data-color="emerald">
-              <span class="swatch-dot" style="background:#059669"></span>
-              <span>에메랄드</span>
-            </button>
-            <button type="button" class="theme-swatch-btn" data-color="amber">
-              <span class="swatch-dot" style="background:#d97706"></span>
-              <span>오렌지</span>
-            </button>
-            <button type="button" class="theme-swatch-btn" data-color="rose">
-              <span class="swatch-dot" style="background:#e11d48"></span>
-              <span>로즈</span>
-            </button>
-          </div>
-        </div>
-      </div>
-      <footer class="modal-footer">
-        <button id="btn-done-theme" class="btn-primary-lg" type="button">적용 완료</button>
-      </footer>
-    </div>
   </div>
 
   <!-- 전역 토스트 알림 -->
   <div id="app-toast" class="app-toast hidden" role="status" aria-live="polite"></div>
 
-  <script type="module" src="app.js?v=20261119b"></script>
+  <script type="module" src="app.js?v=20261119x"></script>
 </body>
 </html>
