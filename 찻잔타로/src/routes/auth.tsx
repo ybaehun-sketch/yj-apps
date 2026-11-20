@@ -1,11 +1,53 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+const DEFAULT_GOOGLE_CLIENT_ID =
+  "662893088768-i2v5dh9ll98pvo5netvqtvg7f1batn06.apps.googleusercontent.com";
+
+type GoogleGsiWindow = Window & {
+  google?: {
+    accounts?: {
+      id?: {
+        initialize: (config: {
+          client_id: string;
+          callback: (response: { credential?: string }) => void;
+          nonce?: string;
+          ux_mode?: "popup" | "redirect";
+          auto_select?: boolean;
+        }) => void;
+        renderButton: (
+          parent: HTMLElement,
+          options: {
+            type?: "standard" | "icon";
+            theme?: "outline" | "filled_blue" | "filled_black";
+            size?: "large" | "medium" | "small";
+            text?: "signin_with" | "signup_with" | "continue_with" | "signin";
+            shape?: "rectangular" | "pill" | "circle" | "square";
+            width?: number;
+            locale?: string;
+          },
+        ) => void;
+      };
+    };
+  };
+};
+
+async function createNoncePair(): Promise<{ rawNonce: string; hashedNonce: string }> {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  const rawNonce = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  const encoded = new TextEncoder().encode(rawNonce);
+  const digest = await crypto.subtle.digest("SHA-256", encoded);
+  const hashedNonce = Array.from(new Uint8Array(digest), (b) =>
+    b.toString(16).padStart(2, "0"),
+  ).join("");
+  return { rawNonce, hashedNonce };
+}
 
 const search = z.object({ redirect: z.string().optional() });
 
@@ -41,12 +83,99 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
   const [age, setAge] = useState(false);
   const [agree, setAgree] = useState(false);
+  const [gsiReady, setGsiReady] = useState(false);
+  const googleBtnRef = useRef<HTMLDivElement | null>(null);
   const consented = age && agree;
 
   const go = () => {
     const p = safePath(redirect);
     navigate({ to: p as "/" });
   };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const clientId =
+      (import.meta.env["VITE_GOOGLE_CLIENT_ID"] as string | undefined)?.trim() ||
+      DEFAULT_GOOGLE_CLIENT_ID;
+    if (!clientId) return;
+
+    let cancelled = false;
+
+    const initGsi = async () => {
+      const win = window as GoogleGsiWindow;
+      const gsi = win.google?.accounts?.id;
+      if (!gsi || !googleBtnRef.current || cancelled) return;
+
+      try {
+        const { rawNonce, hashedNonce } = await createNoncePair();
+        if (cancelled || !googleBtnRef.current) return;
+
+        gsi.initialize({
+          client_id: clientId,
+          nonce: hashedNonce,
+          ux_mode: "popup",
+          callback: async (response) => {
+            if (!response.credential) {
+              toast.error("구글 로그인 정보를 받지 못했어요.");
+              return;
+            }
+            setBusy(true);
+            try {
+              if (redirect) sessionStorage.setItem("after-login", safePath(redirect));
+              const { error } = await supabase.auth.signInWithIdToken({
+                provider: "google",
+                token: response.credential,
+                nonce: rawNonce,
+              });
+              if (error) throw error;
+              toast.success("반가워요! 구글 계정으로 로그인되었어요.");
+              go();
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "구글 로그인에 실패했어요.");
+            } finally {
+              setBusy(false);
+            }
+          },
+        });
+
+        googleBtnRef.current.innerHTML = "";
+        gsi.renderButton(googleBtnRef.current, {
+          type: "standard",
+          theme: "outline",
+          size: "large",
+          text: "continue_with",
+          shape: "pill",
+          width: 300,
+          locale: "ko",
+        });
+        setGsiReady(true);
+      } catch {
+        setGsiReady(false);
+      }
+    };
+
+    const existing = document.querySelector<HTMLScriptElement>(
+      'script[src="https://accounts.google.com/gsi/client"]',
+    );
+    if (existing) {
+      if ((window as GoogleGsiWindow).google?.accounts?.id) {
+        void initGsi();
+      } else {
+        existing.addEventListener("load", () => void initGsi(), { once: true });
+      }
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.onload = () => void initGsi();
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [redirect]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -77,14 +206,6 @@ function AuthPage() {
 
   async function google() {
     if (redirect) sessionStorage.setItem("after-login", safePath(redirect));
-    const isLegacyLovable = import.meta.env.VITE_SUPABASE_PROJECT_ID === "gdngxtkwkxteiumlvagf";
-    if (isLegacyLovable) {
-      const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-      if (res.error) { toast.error("구글 로그인에 실패했어요."); return; }
-      if (res.redirected) return;
-      go();
-      return;
-    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: window.location.origin },
@@ -118,9 +239,23 @@ function AuthPage() {
             </label>
           </div>
         )}
-        <Button variant="outline" className="mt-6 w-full" onClick={google} disabled={mode === "up" && !consented}>
-          Google로 계속하기
-        </Button>
+        <div
+          className={`mt-6 flex flex-col items-center gap-2 ${
+            mode === "up" && !consented ? "pointer-events-none opacity-50" : ""
+          }`}
+        >
+          <div ref={googleBtnRef} className="flex min-h-[40px] w-full justify-center" />
+          {!gsiReady && (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={google}
+              disabled={busy || (mode === "up" && !consented)}
+            >
+              Google로 계속하기
+            </Button>
+          )}
+        </div>
         <div className="my-4 text-center text-xs text-muted-foreground">또는 이메일로</div>
         <form onSubmit={submit} className="space-y-3">
           <Input type="email" required placeholder="이메일" value={email} onChange={(e) => setEmail(e.target.value)} />
