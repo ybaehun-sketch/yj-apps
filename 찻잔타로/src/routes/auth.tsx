@@ -144,8 +144,8 @@ function AuthPage() {
           theme: "outline",
           size: "large",
           text: "continue_with",
-          shape: "pill",
-          width: 300,
+          shape: "rectangular",
+          width: 340,
           locale: "ko",
         });
         setGsiReady(true);
@@ -240,21 +240,25 @@ function AuthPage() {
           </div>
         )}
         <div
-          className={`mt-6 flex flex-col items-center gap-2 ${
+          className={`relative mt-6 w-full ${
             mode === "up" && !consented ? "pointer-events-none opacity-50" : ""
           }`}
         >
-          <div ref={googleBtnRef} className="flex min-h-[40px] w-full justify-center" />
-          {!gsiReady && (
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={google}
-              disabled={busy || (mode === "up" && !consented)}
-            >
-              Google로 계속하기
-            </Button>
-          )}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={google}
+            disabled={busy || (mode === "up" && !consented)}
+          >
+            Google로 계속하기
+          </Button>
+          <div
+            ref={googleBtnRef}
+            className={`absolute inset-0 z-10 flex items-center justify-center overflow-hidden opacity-[0.01] ${
+              gsiReady && !busy ? "" : "pointer-events-none"
+            }`}
+          />
         </div>
         <div className="my-4 text-center text-xs text-muted-foreground">또는 이메일로</div>
         <form onSubmit={submit} className="space-y-3">
