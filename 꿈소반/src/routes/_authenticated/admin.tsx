@@ -4,8 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { GuideEditor } from "@/components/GuideEditor";
-import { checkAdmin } from "@/lib/guides.functions";
-import { supabase } from "@/integrations/supabase/client";
+import { checkAdmin, adminLogout } from "@/lib/admin-auth";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -27,7 +26,7 @@ function AdminPage() {
   const signOut = async () => {
     await qc.cancelQueries();
     qc.clear();
-    await supabase.auth.signOut();
+    await adminLogout();
     navigate({ to: "/auth", replace: true });
   };
 

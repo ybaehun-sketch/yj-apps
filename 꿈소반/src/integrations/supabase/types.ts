@@ -14,7 +14,7 @@ export type Database = {
   }
   public: {
     Tables: {
-      guides: {
+      dream_guides: {
         Row: {
           body: string
           created_at: string

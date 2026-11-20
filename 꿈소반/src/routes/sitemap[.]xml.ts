@@ -27,7 +27,7 @@ export const Route = createFileRoute("/sitemap.xml")({
         const pageSize = 1000;
         for (let offset = 0; ; ) {
           const { data, error } = await supabase
-            .from("guides").select("slug").eq("published", true)
+            .from("dream_guides").select("slug").eq("published", true)
             .order("slug").range(offset, offset + pageSize - 1);
           if (error) return new Response("Sitemap error", { status: 500, headers: { "Cache-Control": "no-store" } });
           if (!data || data.length === 0) break;

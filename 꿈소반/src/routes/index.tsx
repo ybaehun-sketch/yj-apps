@@ -35,7 +35,7 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-const TAROT_URL = "https://warm-moon-tarot-talk.lovable.app";
+const TAROT_URL = "https://teacuptarot.com";
 
 function Section({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <section className={`glass animate-rise rounded-3xl p-5 sm:p-7 ${className}`}>{children}</section>;

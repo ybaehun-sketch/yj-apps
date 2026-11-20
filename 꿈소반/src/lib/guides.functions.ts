@@ -2,9 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { notFound } from "@tanstack/react-router";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAdmin, checkAdmin } from "./admin-auth";
 import type { Database } from "@/integrations/supabase/types";
-import { isAdminEmail } from "./access";
+export { checkAdmin };
 
 function publicClient() {
   const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
@@ -23,7 +23,7 @@ function publicClient() {
 
 export const listGuides = createServerFn({ method: "GET" }).handler(async () => {
   const { data, error } = await publicClient()
-    .from("guides").select("slug, title, description, created_at")
+    .from("dream_guides").select("slug, title, description, created_at")
     .eq("published", true).order("created_at", { ascending: false }).limit(500);
   if (error) console.error("listGuides", error.message);
   return data ?? [];
@@ -33,29 +33,17 @@ export const getGuide = createServerFn({ method: "GET" })
   .inputValidator((d: { slug: string }) => d)
   .handler(async ({ data }) => {
     const { data: g } = await publicClient()
-      .from("guides").select("slug, title, description, body, created_at, updated_at")
+      .from("dream_guides").select("slug, title, description, body, created_at, updated_at")
       .eq("slug", data.slug).eq("published", true).maybeSingle();
     if (!g) throw notFound();
     return g;
   });
 
-function assertAdmin(claims: unknown) {
-  if (!isAdminEmail((claims as Record<string, unknown> | undefined)?.["email"] as string | undefined))
-    throw new Error("관리자만 이용할 수 있어요.");
-}
-
-export const checkAdmin = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => ({
-    admin: isAdminEmail((context.claims as Record<string, unknown>)?.["email"] as string | undefined),
-  }));
-
 export const adminListGuides = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    assertAdmin(context.claims);
+  .middleware([requireAdmin])
+  .handler(async () => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await supabaseAdmin.from("guides").select("*").order("created_at", { ascending: false });
+    const { data } = await supabaseAdmin.from("dream_guides").select("*").order("created_at", { ascending: false });
     return data ?? [];
   });
 
@@ -69,27 +57,25 @@ const guideInput = z.object({
 });
 
 export const adminSaveGuide = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAdmin])
   .inputValidator((d: unknown) => guideInput.parse(d))
-  .handler(async ({ data, context }) => {
-    assertAdmin(context.claims);
+  .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const row = { slug: data.slug, title: data.title, description: data.description, body: data.body, published: data.published, updated_at: new Date().toISOString() };
     const q = data.id
-      ? supabaseAdmin.from("guides").update(row).eq("id", data.id)
-      : supabaseAdmin.from("guides").insert(row);
+      ? supabaseAdmin.from("dream_guides").update(row).eq("id", data.id)
+      : supabaseAdmin.from("dream_guides").insert(row);
     const { error } = await q;
     if (error) throw new Error(error.code === "23505" ? "같은 주소의 글이 이미 있어요." : "저장하지 못했어요.");
     return { ok: true };
   });
 
 export const adminDeleteGuide = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAdmin])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
-  .handler(async ({ data, context }) => {
-    assertAdmin(context.claims);
+  .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin.from("guides").delete().eq("id", data.id);
+    await supabaseAdmin.from("dream_guides").delete().eq("id", data.id);
     return { ok: true };
   });
 
@@ -100,13 +86,12 @@ const draftInput = z.object({
 
 /** AI가 기존 글 제목과 겹치지 않게 초안(제목·주소·요약·본문)을 채운다. 저장은 하지 않는다. */
 export const adminDraftGuide = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAdmin])
   .inputValidator((d: unknown) => draftInput.parse(d))
-  .handler(async ({ data, context }) => {
-    assertAdmin(context.claims);
+  .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows } = await supabaseAdmin
-      .from("guides").select("title, slug").order("created_at", { ascending: false }).limit(150);
+      .from("dream_guides").select("title, slug").order("created_at", { ascending: false }).limit(150);
     const existing = (rows ?? []).map((r) => `- ${r.title} (${r.slug})`).join("\n") || "(아직 없음)";
     const instructions = `${data.prompt}
 
@@ -141,15 +126,14 @@ const imageInput = z.object({
 
 /** 관리자가 고른 사진을 비공개 저장소에 올리고 글에 넣을 주소를 돌려준다. */
 export const adminUploadGuideImage = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAdmin])
   .inputValidator((d: unknown) => imageInput.parse(d))
-  .handler(async ({ data, context }) => {
-    assertAdmin(context.claims);
+  .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const ext = data.type.split("/")[1] === "jpeg" ? "jpg" : data.type.split("/")[1];
     const name = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
     const bytes = Uint8Array.from(atob(data.base64), (c) => c.charCodeAt(0));
-    const { error } = await supabaseAdmin.storage.from("guide-images").upload(name, bytes, { contentType: data.type });
+    const { error } = await supabaseAdmin.storage.from("dream-guide-images").upload(name, bytes, { contentType: data.type });
     if (error) throw new Error("사진을 올리지 못했어요.");
     return { url: `/api/public/guide-image/${name}` };
   });
