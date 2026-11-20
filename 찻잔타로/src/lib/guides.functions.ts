@@ -6,9 +6,17 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 import { isAdminEmail } from "./access";
 
+const DEFAULT_SUPABASE_URL = "https://zgjpszhkiblaqyrukmey.supabase.co";
+const DEFAULT_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_GR34C0DfqqMh3kZ6Cw1FAA_zG3aclhu";
+const LEGACY_LOVABLE_PROJECT_ID = "gdngxtkwkxteiumlvagf";
+
 function publicClient() {
-  const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
-  return createClient<Database>(process.env["SUPABASE_URL"]!, key, {
+  const rawUrl = process.env["SUPABASE_URL"];
+  const rawKey = process.env["SUPABASE_PUBLISHABLE_KEY"];
+  const useDefault = !rawUrl || !rawKey || rawUrl.includes(LEGACY_LOVABLE_PROJECT_ID);
+  const url = useDefault ? DEFAULT_SUPABASE_URL : rawUrl;
+  const key = useDefault ? DEFAULT_SUPABASE_PUBLISHABLE_KEY : rawKey;
+  return createClient<Database>(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: {
       fetch: (input, init) => {

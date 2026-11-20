@@ -29,8 +29,12 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
+const DEFAULT_SUPABASE_URL = 'https://zgjpszhkiblaqyrukmey.supabase.co';
+const LEGACY_LOVABLE_PROJECT_ID = 'gdngxtkwkxteiumlvagf';
+
 function createSupabaseAdminClient() {
-  const SUPABASE_URL = process.env['SUPABASE_URL'];
+  const rawUrl = process.env['SUPABASE_URL'];
+  const SUPABASE_URL = !rawUrl || rawUrl.includes(LEGACY_LOVABLE_PROJECT_ID) ? DEFAULT_SUPABASE_URL : rawUrl;
   const SUPABASE_SERVICE_ROLE_KEY = process.env['SUPABASE_SERVICE_ROLE_KEY'];
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
