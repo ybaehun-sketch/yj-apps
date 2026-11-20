@@ -14,7 +14,7 @@ export type Database = {
   }
   public: {
     Tables: {
-      stories: {
+      bamboo_stories: {
         Row: {
           body: string
           created_at: string

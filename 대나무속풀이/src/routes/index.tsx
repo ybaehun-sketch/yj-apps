@@ -265,7 +265,7 @@ function Index() {
                   <span className="text-xs opacity-90">오늘 {leftAds}회 남음</span>
                 </Button>
               )}
-              <a href="https://warm-moon-tarot-talk.lovable.app" target="_blank" rel="noopener noreferrer" className="rounded-xl border border-accent/40 bg-accent/10 p-4 text-center text-sm transition hover:bg-accent/20">
+              <a href="https://teacuptarot.com" target="_blank" rel="noopener noreferrer" className="rounded-xl border border-accent/40 bg-accent/10 p-4 text-center text-sm transition hover:bg-accent/20">
                 <span className="block font-semibold">🍵 그 사람의 진짜 속마음이 궁금하다면</span>
                 <span className="text-xs text-muted-foreground">찻잔 타로에서 들여다보기 →</span>
               </a>
@@ -365,7 +365,7 @@ function Index() {
                 속은 비워냈으니, 이제 그 사람의 진짜 속마음과 앞으로의 운을 들여다볼 시간입니다.
               </p>
               <Button asChild className="mt-5 h-auto whitespace-normal bg-accent px-6 py-3 font-semibold text-accent-foreground hover:bg-accent/90"><a
-                href="https://warm-moon-tarot-talk.lovable.app"
+                href="https://teacuptarot.com"
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -378,7 +378,7 @@ function Index() {
           <div className="flex flex-col gap-4">
         {!showStageTarot && (
           <a
-            href="https://warm-moon-tarot-talk.lovable.app"
+            href="https://teacuptarot.com"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-3 rounded-2xl border border-accent/40 bg-card/60 p-4 backdrop-blur transition hover:border-accent"

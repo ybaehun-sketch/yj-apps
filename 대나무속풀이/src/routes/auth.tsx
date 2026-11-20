@@ -1,10 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useState, type FormEvent } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
+import { adminLogin } from "@/lib/admin-auth";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const search = z.object({ redirect: z.string().optional() });
 
@@ -38,22 +38,23 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const { redirect } = Route.useSearch();
   const navigate = useNavigate();
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const go = () => navigate({ to: safePath(redirect) as "/admin" });
 
-  // 구글 로그인 후 돌아왔을 때 세션이 있으면 바로 운영자 화면으로
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => { if (data.session) go(); });
-    const { data: sub } = supabase.auth.onAuthStateChange((e) => { if (e === "SIGNED_IN") go(); });
-    return () => sub.subscription.unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function google() {
-    const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: `${window.location.origin}/auth` });
-    if (res.error) { toast.error("구글 로그인에 실패했어요."); return; }
-    if (res.redirected) return;
-    go();
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const res = await adminLogin({ data: { password } });
+      if (!res.ok) throw new Error(res.message);
+      go();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "로그인에 실패했어요.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -64,8 +65,20 @@ function AuthPage() {
         <h1 className="mt-1 text-center font-serif text-2xl font-bold">
           운영자 로그인
         </h1>
-        <Button variant="outline" className="mt-6 w-full" onClick={google}>Google로 계속하기</Button>
-        <p className="mt-4 text-center text-[11px] text-muted-foreground">운영자 전용 페이지예요. 등록된 운영자만 글을 쓸 수 있어요.</p>
+        <form onSubmit={submit} className="mt-6 space-y-3">
+          <Input
+            type="password"
+            required
+            autoFocus
+            placeholder="관리자 비밀번호"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <Button type="submit" className="w-full" disabled={busy}>
+            로그인
+          </Button>
+        </form>
+        <p className="mt-4 text-center text-[11px] text-muted-foreground">운영자 전용 페이지예요. 관리자 비밀번호를 아시는 분만 들어올 수 있어요.</p>
       </div>
     </main>
   );

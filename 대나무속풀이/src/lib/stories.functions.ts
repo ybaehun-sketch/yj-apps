@@ -2,10 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { notFound } from "@tanstack/react-router";
 import { z } from "zod";
-import { generateChatCompletion } from "@lovable.dev/ai-gateway";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAdmin } from "./admin-auth";
 import type { Database } from "@/integrations/supabase/types";
-import { isAdminEmail } from "./access";
 
 function publicClient() {
   const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
@@ -24,7 +22,7 @@ function publicClient() {
 
 export const listStories = createServerFn({ method: "GET" }).handler(async () => {
   const { data, error } = await publicClient()
-    .from("stories").select("slug, title, description, created_at")
+    .from("bamboo_stories").select("slug, title, description, created_at")
     .eq("published", true).order("created_at", { ascending: false }).limit(500);
   if (error) console.error("listStories", error.message);
   return data ?? [];
@@ -34,28 +32,17 @@ export const getStory = createServerFn({ method: "GET" })
   .inputValidator((d: { slug: string }) => d)
   .handler(async ({ data }) => {
     const { data: s } = await publicClient()
-      .from("stories").select("slug, title, description, body, created_at")
+      .from("bamboo_stories").select("slug, title, description, body, created_at")
       .eq("slug", data.slug).eq("published", true).maybeSingle();
     if (!s) throw notFound();
     return s;
   });
 
-const emailOf = (claims: unknown) =>
-  (claims as Record<string, unknown> | undefined)?.["email"] as string | undefined;
-function assertAdmin(claims: unknown) {
-  if (!isAdminEmail(emailOf(claims))) throw new Error("관리자만 이용할 수 있어요.");
-}
-
-export const checkAdmin = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => ({ admin: isAdminEmail(emailOf(context.claims)) }));
-
 export const adminListStories = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    assertAdmin(context.claims);
+  .middleware([requireAdmin])
+  .handler(async () => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await supabaseAdmin.from("stories").select("*").order("created_at", { ascending: false });
+    const { data } = await supabaseAdmin.from("bamboo_stories").select("*").order("created_at", { ascending: false });
     return data ?? [];
   });
 
@@ -69,37 +56,34 @@ const storyInput = z.object({
 });
 
 export const adminSaveStory = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAdmin])
   .inputValidator((d: unknown) => storyInput.parse(d))
-  .handler(async ({ data, context }) => {
-    assertAdmin(context.claims);
+  .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const row = { slug: data.slug, title: data.title, description: data.description, body: data.body, published: data.published, updated_at: new Date().toISOString() };
     const { error } = data.id
-      ? await supabaseAdmin.from("stories").update(row).eq("id", data.id)
-      : await supabaseAdmin.from("stories").insert(row);
+      ? await supabaseAdmin.from("bamboo_stories").update(row).eq("id", data.id)
+      : await supabaseAdmin.from("bamboo_stories").insert(row);
     if (error) throw new Error(error.code === "23505" ? "같은 주소의 글이 이미 있어요." : "저장하지 못했어요.");
     return { ok: true };
   });
 
 export const adminDeleteStory = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAdmin])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
-  .handler(async ({ data, context }) => {
-    assertAdmin(context.claims);
+  .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin.from("stories").delete().eq("id", data.id);
+    await supabaseAdmin.from("bamboo_stories").delete().eq("id", data.id);
     return { ok: true };
   });
 
 /** AI가 기존 글과 겹치지 않게 초안을 채운다. 저장하지 않는다. */
 export const adminDraftStory = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAdmin])
   .inputValidator((d: unknown) => z.object({ prompt: z.string().trim().min(1).max(8000), topic: z.string().trim().max(300).optional() }).parse(d))
-  .handler(async ({ data, context }) => {
-    assertAdmin(context.claims);
+  .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: rows } = await supabaseAdmin.from("stories").select("title, slug").order("created_at", { ascending: false }).limit(150);
+    const { data: rows } = await supabaseAdmin.from("bamboo_stories").select("title, slug").order("created_at", { ascending: false }).limit(150);
     const existing = (rows ?? []).map((r) => `- ${r.title} (${r.slug})`).join("\n") || "(아직 없음)";
     const instructions = `${data.prompt}
 
@@ -134,15 +118,14 @@ const imageInput = z.object({
 
 /** 관리자가 고른 사진을 비공개 저장소에 올리고 글에 넣을 주소를 돌려준다. */
 export const adminUploadStoryImage = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAdmin])
   .inputValidator((d: unknown) => imageInput.parse(d))
-  .handler(async ({ data, context }) => {
-    assertAdmin(context.claims);
+  .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const ext = data.type.split("/")[1] === "jpeg" ? "jpg" : data.type.split("/")[1];
     const name = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
     const bytes = Uint8Array.from(atob(data.base64), (c) => c.charCodeAt(0));
-    const { error } = await supabaseAdmin.storage.from("story-images").upload(name, bytes, { contentType: data.type });
+    const { error } = await supabaseAdmin.storage.from("bamboo-story-images").upload(name, bytes, { contentType: data.type });
     if (error) throw new Error("사진을 올리지 못했어요.");
     return { url: `/api/public/story-image/${name}` };
   });

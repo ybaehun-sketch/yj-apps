@@ -8,7 +8,7 @@ export const Route = createFileRoute("/api/public/story-image/$name")({
       GET: async ({ params }) => {
         if (!/^[\w-]+\.(jpg|png|webp|gif)$/.test(params.name)) return new Response("Not found", { status: 404 });
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data, error } = await supabaseAdmin.storage.from("story-images").download(params.name);
+        const { data, error } = await supabaseAdmin.storage.from("bamboo-story-images").download(params.name);
         if (error || !data) return new Response("Not found", { status: 404 });
         return new Response(data, {
           headers: { "Content-Type": data.type || "image/jpeg", "Cache-Control": "public, max-age=31536000, immutable" },

@@ -49,7 +49,7 @@ function StoryPage() {
       <section className="mt-4 rounded-3xl border border-accent/50 bg-card/70 p-6 text-center">
         <p className="font-serif text-lg font-bold">마음 속 깊은 곳의 소리를 들어보세요</p>
         <p className="mt-1 text-base text-muted-foreground">복잡한 감정을 털어냈다면, 달빛 아래 따뜻한 차 한 잔과 함께 나의 운을 점쳐보세요.</p>
-        <Button asChild className="mt-4 bg-accent text-accent-foreground hover:bg-accent/90"><a href="https://warm-moon-tarot-talk.lovable.app" target="_blank" rel="noopener noreferrer">🍵 찻잔 타로 보러 가기</a></Button>
+        <Button asChild className="mt-4 bg-accent text-accent-foreground hover:bg-accent/90"><a href="https://teacuptarot.com" target="_blank" rel="noopener noreferrer">🍵 찻잔 타로 보러 가기</a></Button>
       </section>
     </main>
   );
