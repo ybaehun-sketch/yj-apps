@@ -1,5 +1,6 @@
 import { showAlert } from './dialog.js';
 import { t, detectDeviceLang } from './i18n.js';
+import { SAMPLE_MATH_IMG, SAMPLE_ENG_IMG } from './sampleImages.js?v=20261121a';
 
 const STORAGE_KEY = 'yj_wrong_note_v1';
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024; // 15MB
@@ -27,7 +28,7 @@ const DEFAULT_DATA = {
       id: 'sample-1',
       subject: '수학',
       problemText: '이차방정식 x² - 5x + 6 = 0 의 두 근의 합과 곱을 구하시오.',
-      problemImg: '',
+      problemImg: SAMPLE_MATH_IMG,
       answerText: '두 근: 2, 3 → 합 = 5, 곱 = 6 (근과 계수의 관계: -b/a, c/a)',
       answerImg: '',
       wrongCount: 2,
@@ -39,7 +40,7 @@ const DEFAULT_DATA = {
       id: 'sample-2',
       subject: '영어',
       problemText: '다음 빈칸에 알맞은 것은?\n"She has been living in Seoul ___ 2020."\n① for  ② since  ③ during  ④ while',
-      problemImg: '',
+      problemImg: SAMPLE_ENG_IMG,
       answerText: '정답: ② since (특정 시점인 2020년 이후로 계속 ~해왔다)',
       answerImg: '',
       wrongCount: 1,
@@ -69,7 +70,7 @@ function createLocalizedDefaultData() {
           id: 'sample-1',
           subject: 'Math',
           problemText: 'Find the sum and product of the two roots of x² - 5x + 6 = 0.',
-          problemImg: '',
+          problemImg: SAMPLE_MATH_IMG,
           answerText: 'Roots: 2, 3 → Sum = 5, Product = 6 (Vieta’s formulas: -b/a, c/a)',
           answerImg: '',
           wrongCount: 2,
@@ -81,7 +82,7 @@ function createLocalizedDefaultData() {
           id: 'sample-2',
           subject: 'English',
           problemText: 'Choose the best word for the blank:\n"She has been living in New York ___ 2020."\n① for  ② since  ③ during  ④ while',
-          problemImg: '',
+          problemImg: SAMPLE_ENG_IMG,
           answerText: 'Answer: ② since (used with a specific starting point in time)',
           answerImg: '',
           wrongCount: 1,
@@ -109,7 +110,7 @@ function createLocalizedDefaultData() {
           id: 'sample-1',
           subject: '数学',
           problemText: '二次方程式 x² - 5x + 6 = 0 の2つの解の和と積を求めなさい。',
-          problemImg: '',
+          problemImg: SAMPLE_MATH_IMG,
           answerText: '解: 2, 3 → 和 = 5, 積 = 6（解と係数の関係: -b/a, c/a）',
           answerImg: '',
           wrongCount: 2,
@@ -121,7 +122,7 @@ function createLocalizedDefaultData() {
           id: 'sample-2',
           subject: '英語',
           problemText: '空欄に入る最も適切なものを選びなさい。\n"She has been living in Tokyo ___ 2020."\n① for  ② since  ③ during  ④ while',
-          problemImg: '',
+          problemImg: SAMPLE_ENG_IMG,
           answerText: '正解: ② since（特定の起点「2020年からずっと」を表す）',
           answerImg: '',
           wrongCount: 1,
@@ -144,17 +145,25 @@ export function loadState() {
       return initial;
     }
     const parsed = JSON.parse(raw);
-    // 미리보기용 예시 문제 1회 복원 (목록이 비어 있을 때만, 한 번만 실행)
-    const RESEED_KEY = 'yj_demo_reseed_20261118';
-    if (
-      !localStorage.getItem(RESEED_KEY) &&
-      Array.isArray(parsed.problems) &&
-      parsed.problems.length === 0
-    ) {
-      parsed.problems = structuredClone(DEFAULT_DATA.problems);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+    // 체험용 사진 예시 문제 1회 자동 채우기 (기존 예시 문제에 사진이 비어 있을 때만)
+    const SAMPLE_IMG_KEY = 'yj_sample_img_seed_20261121';
+    if (!localStorage.getItem(SAMPLE_IMG_KEY) && Array.isArray(parsed.problems)) {
+      let updated = false;
+      parsed.problems.forEach((p) => {
+        if (p.id === 'sample-1' && !p.problemImg) {
+          p.problemImg = SAMPLE_MATH_IMG;
+          updated = true;
+        }
+        if (p.id === 'sample-2' && !p.problemImg) {
+          p.problemImg = SAMPLE_ENG_IMG;
+          updated = true;
+        }
+      });
+      if (updated) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+      }
+      localStorage.setItem(SAMPLE_IMG_KEY, '1');
     }
-    localStorage.setItem(RESEED_KEY, '1');
     return {
       subjects: Array.isArray(parsed.subjects) ? parsed.subjects : ['국어', '영어', '수학'],
       lastSubject: parsed.lastSubject || '전체',

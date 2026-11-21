@@ -1,5 +1,5 @@
 import { showAlert } from './dialog.js';
-import { t } from './i18n.js';
+import { t } from './i18n.js?v=20261121idle';
 
 /**
  * 「쓱-지우개」 & 「영역 자르기(모서리·선 조절 + 전체 이동)」 부품
@@ -11,8 +11,9 @@ export function createMagicEraser({
   onHintChange
 }) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  let mode = 'eraser'; // 'eraser' | 'crop'
-  let brushRadius = 22;
+  let mode = 'none'; // 'none' | 'eraser' | 'crop'
+  let brushRadius = 20;
+  let protectText = false; // 연필·볼펜 자국 모두 종이 색으로 깔끔하게 지우기
   let history = [];
   let isPointerDown = false;
   let dragAction = null; // null | 'draw' | 'move' | 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'w' | 'e'
@@ -20,6 +21,52 @@ export function createMagicEraser({
   let startRect = null;
   let cropRect = null;
   let baseBeforeCropOverlay = null;
+  let ringPreviewTimer = null;
+
+  const cursorRing = document.createElement('div');
+  cursorRing.className = 'eraser-cursor-ring hidden';
+  if (canvas.parentElement) {
+    canvas.parentElement.appendChild(cursorRing);
+  }
+
+  function getDisplayDiameter() {
+    const clientW = canvas.clientWidth || 360;
+    const displayRadius = brushRadius * (clientW / Math.max(clientW, 260));
+    return Math.max(6, Math.round(displayRadius * 2));
+  }
+
+  function hideCursorRing() {
+    clearTimeout(ringPreviewTimer);
+    cursorRing.classList.add('hidden');
+  }
+
+  function showCursorRingAt(clientX, clientY) {
+    if (mode !== 'eraser' || !canvas.clientWidth) {
+      hideCursorRing();
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const size = getDisplayDiameter();
+    cursorRing.style.width = `${size}px`;
+    cursorRing.style.height = `${size}px`;
+    cursorRing.style.left = `${clientX - rect.left}px`;
+    cursorRing.style.top = `${clientY - rect.top}px`;
+    cursorRing.classList.remove('hidden');
+  }
+
+  function showCursorRingCenterPreview() {
+    if (mode !== 'eraser' || !canvas.clientWidth || !canvas.clientHeight) return;
+    const size = getDisplayDiameter();
+    cursorRing.style.width = `${size}px`;
+    cursorRing.style.height = `${size}px`;
+    cursorRing.style.left = `${canvas.clientWidth / 2}px`;
+    cursorRing.style.top = `${canvas.clientHeight / 2}px`;
+    cursorRing.classList.remove('hidden');
+    clearTimeout(ringPreviewTimer);
+    ringPreviewTimer = setTimeout(() => {
+      if (!isPointerDown) hideCursorRing();
+    }, 950);
+  }
 
   function pushHistory() {
     if (canvas.width === 0 || canvas.height === 0) return;
@@ -46,8 +93,8 @@ export function createMagicEraser({
 
   function setMode(nextMode) {
     const prevMode = mode;
-    mode = nextMode;
-    if (mode === 'eraser') {
+    mode = nextMode || 'none';
+    if (mode !== 'crop') {
       if (prevMode === 'crop' && cropRect && cropRect.w >= 20 && cropRect.h >= 20) {
         applyCropSilently();
       } else if (baseBeforeCropOverlay) {
@@ -55,9 +102,16 @@ export function createMagicEraser({
         baseBeforeCropOverlay = null;
       }
       cropRect = null;
+    }
+
+    if (mode === 'eraser') {
+      canvas.style.touchAction = 'none';
       canvas.style.cursor = 'crosshair';
       onHintChange?.(t('editor.hintEraser'));
-    } else {
+      showCursorRingCenterPreview();
+    } else if (mode === 'crop') {
+      canvas.style.touchAction = 'none';
+      hideCursorRing();
       if (!baseBeforeCropOverlay && canvas.width > 0 && canvas.height > 0) {
         baseBeforeCropOverlay = ctx.getImageData(0, 0, canvas.width, canvas.height);
       }
@@ -73,11 +127,21 @@ export function createMagicEraser({
         drawCropOverlay(cropRect);
       }
       onHintChange?.(t('editor.hintCrop'));
+    } else {
+      canvas.style.touchAction = 'auto';
+      canvas.style.cursor = 'default';
+      hideCursorRing();
+      onHintChange?.(t('editor.hintIdle'));
     }
   }
 
   function setBrushSize(size) {
-    brushRadius = Number(size) || 22;
+    brushRadius = Number(size) || 20;
+    showCursorRingCenterPreview();
+  }
+
+  function setProtectText(flag) {
+    protectText = Boolean(flag);
   }
 
   function undo() {
@@ -168,7 +232,7 @@ export function createMagicEraser({
     const y1 = Math.min(canvas.height - 1, Math.ceil(cy + ring));
     const w = x1 - x0 + 1;
     const h = y1 - y0 + 1;
-    if (w <= 0 || h <= 0) return 'rgb(255,255,255)';
+    if (w <= 0 || h <= 0) return { r: 255, g: 255, b: 255 };
 
     const data = ctx.getImageData(x0, y0, w, h).data;
     const candidates = [];
@@ -179,7 +243,7 @@ export function createMagicEraser({
       const lum = r * 0.299 + g * 0.587 + b * 0.114;
       candidates.push({ r, g, b, lum });
     }
-    if (!candidates.length) return 'rgb(255,255,255)';
+    if (!candidates.length) return { r: 255, g: 255, b: 255 };
     candidates.sort((a, b) => b.lum - a.lum);
     const topCount = Math.max(1, Math.floor(candidates.length * 0.35));
     let sr = 0, sg = 0, sb = 0;
@@ -188,18 +252,73 @@ export function createMagicEraser({
       sg += candidates[i].g;
       sb += candidates[i].b;
     }
-    return `rgb(${Math.round(sr / topCount)}, ${Math.round(sg / topCount)}, ${Math.round(sb / topCount)})`;
+    return {
+      r: Math.round(sr / topCount),
+      g: Math.round(sg / topCount),
+      b: Math.round(sb / topCount)
+    };
   }
 
   function eraseAt(x, y) {
     const r = brushRadius * (canvas.width / Math.max(canvas.clientWidth || 360, 260));
-    const paperColor = samplePaperColor(x, y, r);
-    ctx.save();
-    ctx.fillStyle = paperColor;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    const paper = samplePaperColor(x, y, r);
+
+    if (!protectText) {
+      ctx.save();
+      ctx.fillStyle = `rgb(${paper.r}, ${paper.g}, ${paper.b})`;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      return;
+    }
+
+    const x0 = Math.max(0, Math.floor(x - r));
+    const y0 = Math.max(0, Math.floor(y - r));
+    const x1 = Math.min(canvas.width - 1, Math.ceil(x + r));
+    const y1 = Math.min(canvas.height - 1, Math.ceil(y + r));
+    const w = x1 - x0 + 1;
+    const h = y1 - y0 + 1;
+    if (w <= 0 || h <= 0) return;
+
+    const imgData = ctx.getImageData(x0, y0, w, h);
+    const data = imgData.data;
+    const rSq = r * r;
+    const pr = Math.max(paper.r, 20);
+    const pg = Math.max(paper.g, 20);
+    const pb = Math.max(paper.b, 20);
+
+    for (let py = 0; py < h; py++) {
+      const dy = (y0 + py) - y;
+      for (let px = 0; px < w; px++) {
+        const dx = (x0 + px) - x;
+        const distSq = dx * dx + dy * dy;
+        if (distSq > rSq) continue;
+
+        const idx = (py * w + px) * 4;
+        const cr = data[idx];
+        const cg = data[idx + 1];
+        const cb = data[idx + 2];
+
+        const absChroma = Math.max(cr, cg, cb) - Math.min(cr, cg, cb);
+        const nr = cr / pr;
+        const ng = cg / pg;
+        const nb = cb / pb;
+        const relChroma = Math.max(nr, ng, nb) - Math.min(nr, ng, nb);
+
+        if (absChroma >= 26 || relChroma >= 0.16) {
+          const strength = Math.min(1, Math.max((absChroma - 22) / 30, (relChroma - 0.13) / 0.15));
+          const edgeFactor = distSq > rSq * 0.7 ? Math.max(0, 1 - (Math.sqrt(distSq) / r - 0.83) / 0.17) : 1;
+          const alpha = Math.min(1, strength * edgeFactor);
+          if (alpha > 0.05) {
+            data[idx] = Math.round(cr + (paper.r - cr) * alpha);
+            data[idx + 1] = Math.round(cg + (paper.g - cg) * alpha);
+            data[idx + 2] = Math.round(cb + (paper.b - cb) * alpha);
+          }
+        }
+      }
+    }
+    ctx.putImageData(imgData, x0, y0);
   }
 
   function drawCropOverlay(rect) {
@@ -334,10 +453,13 @@ export function createMagicEraser({
   }
 
   canvas.addEventListener('pointerdown', (e) => {
+    if (mode !== 'eraser' && mode !== 'crop') return;
     isPointerDown = true;
     canvas.setPointerCapture(e.pointerId);
     const pos = getCanvasPos(e);
     if (mode === 'eraser') {
+      clearTimeout(ringPreviewTimer);
+      showCursorRingAt(e.clientX, e.clientY);
       eraseAt(pos.x, pos.y);
     } else {
       dragStart = pos;
@@ -351,7 +473,12 @@ export function createMagicEraser({
   });
 
   canvas.addEventListener('pointermove', (e) => {
+    if (mode !== 'eraser' && mode !== 'crop') return;
     const pos = getCanvasPos(e);
+    if (mode === 'eraser') {
+      clearTimeout(ringPreviewTimer);
+      showCursorRingAt(e.clientX, e.clientY);
+    }
     if (!isPointerDown) {
       if (mode === 'crop') {
         canvas.style.cursor = cursorForAction(hitTestCrop(pos));
@@ -366,14 +493,26 @@ export function createMagicEraser({
     }
   });
 
-  canvas.addEventListener('pointerup', () => {
+  canvas.addEventListener('pointerup', (e) => {
     if (!isPointerDown) return;
     isPointerDown = false;
     dragAction = null;
     startRect = null;
     if (mode === 'eraser') {
       pushHistory();
+      if (e.pointerType === 'touch') {
+        hideCursorRing();
+      }
     }
+  });
+
+  canvas.addEventListener('pointerleave', () => {
+    if (!isPointerDown) hideCursorRing();
+  });
+
+  canvas.addEventListener('pointercancel', () => {
+    isPointerDown = false;
+    hideCursorRing();
   });
 
   function rotate90() {
@@ -418,6 +557,7 @@ export function createMagicEraser({
     loadDataUrl,
     setMode,
     setBrushSize,
+    setProtectText,
     undo,
     rotate90,
     exportDataUrl

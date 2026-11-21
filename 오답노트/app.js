@@ -1,10 +1,10 @@
-import { loadState, saveState, compressImageFile, isSafeImageDataUrl } from './modules/storage.js?v=20261119x';
-import { renderSubjectBar } from './modules/subjectBar.js?v=20261119c';
-import { createMagicEraser } from './modules/magicEraser.js?v=20261119g';
-import { buildReviewQueue, renderReviewCard } from './modules/reviewDeck.js?v=20261119h';
-import { showAlert, showConfirm } from './modules/dialog.js?v=20261119c';
-import { loadLicense, saveLicense, getLicenseStatus } from './modules/trialLicense.js?v=20261119c';
-import { initRippleFeedback } from './modules/ripple.js?v=20261118a';
+import { loadState, saveState, compressImageFile, isSafeImageDataUrl } from './modules/storage.js?v=20261121sample2';
+import { renderSubjectBar } from './modules/subjectBar.js?v=20261121free';
+import { createMagicEraser } from './modules/magicEraser.js?v=20261121idle';
+import { buildReviewQueue, renderReviewCard } from './modules/reviewDeck.js?v=20261121free';
+import { showAlert, showConfirm } from './modules/dialog.js?v=20261121free';
+import { loadLicense, saveLicense, getLicenseStatus } from './modules/trialLicense.js?v=20261121event';
+import { initRippleFeedback } from './modules/ripple.js?v=20261121event';
 import {
   t,
   formatSubjectLabel,
@@ -12,7 +12,7 @@ import {
   getLangPref,
   setLangPref,
   applyStaticTranslations
-} from './modules/i18n.js?v=20261119x';
+} from './modules/i18n.js?v=20261121idle';
 
 const MAX_SUBJECTS = 13;
 const MAX_PROBLEMS_PER_SUBJECT = 50;
@@ -184,6 +184,7 @@ function createPhotoEditorField(ids) {
 
   let images = [];
   let activeIdx = 0;
+  let currentTool = 'none';
 
   const eraser = createMagicEraser({
     canvas: els.canvas,
@@ -193,10 +194,11 @@ function createPhotoEditorField(ids) {
   });
 
   function setTool(tool) {
-    els.toolEraser.classList.toggle('active', tool === 'eraser');
-    els.toolCrop.classList.toggle('active', tool === 'crop');
-    els.sizeRow.classList.toggle('hidden', tool !== 'eraser');
-    eraser.setMode(tool);
+    currentTool = tool || 'none';
+    els.toolEraser.classList.toggle('active', currentTool === 'eraser');
+    els.toolCrop.classList.toggle('active', currentTool === 'crop');
+    els.sizeRow.classList.toggle('hidden', currentTool !== 'eraser');
+    eraser.setMode(currentTool);
   }
 
   function commitCurrentCanvas() {
@@ -217,7 +219,7 @@ function createPhotoEditorField(ids) {
         commitCurrentCanvas();
         activeIdx = idx;
         await eraser.loadDataUrl(images[activeIdx]);
-        setTool('eraser');
+        setTool('none');
         renderTabs();
       });
       els.photoTabs.appendChild(btn);
@@ -235,7 +237,7 @@ function createPhotoEditorField(ids) {
     await eraser.loadDataUrl(images[activeIdx]);
     els.wrap.classList.remove('hidden');
     els.clearBtn.classList.remove('hidden');
-    setTool('eraser');
+    setTool('none');
     renderTabs();
   }
 
@@ -246,7 +248,7 @@ function createPhotoEditorField(ids) {
     els.wrap.classList.add('hidden');
     els.clearBtn.classList.add('hidden');
     els.photoTabs.innerHTML = '';
-    setTool('eraser');
+    setTool('none');
   }
 
   els.input.addEventListener('change', async (e) => {
@@ -289,8 +291,8 @@ function createPhotoEditorField(ids) {
     await showActiveSlot();
   });
 
-  els.toolEraser.addEventListener('click', () => setTool('eraser'));
-  els.toolCrop.addEventListener('click', () => setTool('crop'));
+  els.toolEraser.addEventListener('click', () => setTool(currentTool === 'eraser' ? 'none' : 'eraser'));
+  els.toolCrop.addEventListener('click', () => setTool(currentTool === 'crop' ? 'none' : 'crop'));
   els.rotateBtn?.addEventListener('click', () => eraser.rotate90());
   els.undoBtn.addEventListener('click', () => eraser.undo());
   els.sizeInput.addEventListener('input', (e) => eraser.setBrushSize(e.target.value));
@@ -1598,16 +1600,18 @@ settingsEls.menuLicense.addEventListener('click', () => {
   openLicenseModal(false);
 });
 
+const LEGAL_URL_BASE = 'https://yjstudio.app/wrongnote';
+
 settingsEls.linkGuide.addEventListener('click', () => {
-  showAlert(t('settings.guideBody'), { title: t('settings.guide') });
+  window.open(`${LEGAL_URL_BASE}#guide`, '_blank', 'noopener,noreferrer');
 });
 
 settingsEls.linkTerms.addEventListener('click', () => {
-  showAlert(t('settings.termsBody'), { title: t('settings.terms') });
+  window.open(`${LEGAL_URL_BASE}#terms`, '_blank', 'noopener,noreferrer');
 });
 
 settingsEls.linkPrivacy.addEventListener('click', () => {
-  showAlert(t('settings.privacyBody'), { title: t('settings.privacy') });
+  window.open(`${LEGAL_URL_BASE}#privacy`, '_blank', 'noopener,noreferrer');
 });
 
 licenseEls.btnBuy.addEventListener('click', async () => {
@@ -1631,3 +1635,9 @@ initRippleFeedback();
 updateLicenseUI();
 updateLanguageUI();
 renderHome();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}

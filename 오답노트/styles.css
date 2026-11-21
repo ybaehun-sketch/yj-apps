@@ -1624,12 +1624,24 @@ body {
 }
 
 .canvas-container {
+  position: relative;
   width: 100%;
   border-radius: 10px;
   overflow: hidden;
   background: #fff;
   border: 1px solid var(--border);
   touch-action: none;
+}
+
+.eraser-cursor-ring {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+  border: 2px solid rgba(79, 70, 229, 0.92);
+  background: rgba(79, 70, 229, 0.14);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85);
+  transform: translate(-50%, -50%);
+  z-index: 5;
 }
 
 #problem-canvas,
@@ -1648,6 +1660,33 @@ body {
   margin-top: 8px;
   font-size: 12px;
   color: var(--text-sub);
+}
+
+.eraser-mode-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.eraser-mode-pill {
+  flex: 1;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-soft, #f8fafc);
+  color: var(--text-sub);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.eraser-mode-pill.active {
+  background: var(--primary-soft, #eef2ff);
+  border-color: var(--primary, #4f46e5);
+  color: var(--primary, #4f46e5);
+  font-weight: 700;
 }
 
 .btn-primary-xs {

@@ -1,4 +1,4 @@
-import { t } from './i18n.js';
+import { t } from './i18n.js?v=20261121event';
 
 /**
  * 「7일 무료 체험 + 1회성 평생 소장 결제(구독 아님)」 부품 (실속 보안 강화판)
@@ -50,70 +50,13 @@ function decodePayload(encoded) {
 }
 
 export function loadLicense() {
-  const now = Date.now();
-  try {
-    const raw = localStorage.getItem(LICENSE_KEY);
-    if (!raw) {
-      // 기존 버전 기록이 있으면 자연스럽게 이전
-      const legacyRaw = localStorage.getItem(LEGACY_KEY);
-      if (legacyRaw) {
-        const leg = JSON.parse(legacyRaw);
-        const migrated = {
-          startedAt: Number(leg.startedAt) || now,
-          lastSeenAt: now,
-          purchased: Boolean(leg.purchased),
-          simulatedExpired: Boolean(leg.simulatedExpired),
-          tampered: false
-        };
-        localStorage.removeItem(LEGACY_KEY);
-        saveLicense(migrated);
-        return migrated;
-      }
-
-      const fresh = {
-        startedAt: now,
-        lastSeenAt: now,
-        purchased: false,
-        simulatedExpired: false,
-        tampered: false
-      };
-      saveLicense(fresh);
-      return fresh;
-    }
-
-    const parsed = decodePayload(raw);
-    if (!parsed) {
-      // 저장 파일이 임의로 수정된 경우 위변조로 판단
-      return {
-        startedAt: 0,
-        lastSeenAt: now,
-        purchased: false,
-        simulatedExpired: false,
-        tampered: true
-      };
-    }
-
-    const lastSeenAt = Number(parsed.lastSeenAt) || now;
-    // 시계를 1분 이상 과거로 돌린 경우 감지
-    const clockRolledBack = now < lastSeenAt - 60000;
-    const result = {
-      startedAt: Number(parsed.startedAt) || now,
-      lastSeenAt: clockRolledBack ? lastSeenAt : Math.max(lastSeenAt, now),
-      purchased: Boolean(parsed.purchased),
-      simulatedExpired: Boolean(parsed.simulatedExpired),
-      tampered: Boolean(parsed.tampered) || clockRolledBack
-    };
-    saveLicense(result);
-    return result;
-  } catch {
-    return {
-      startedAt: 0,
-      lastSeenAt: now,
-      purchased: false,
-      simulatedExpired: false,
-      tampered: true
-    };
-  }
+  return {
+    startedAt: Date.now(),
+    lastSeenAt: Date.now(),
+    purchased: true,
+    simulatedExpired: false,
+    tampered: false
+  };
 }
 
 export function saveLicense(lic) {
@@ -132,43 +75,9 @@ export function saveLicense(lic) {
 }
 
 export function getLicenseStatus(lic) {
-  if (lic.purchased && !lic.tampered) {
-    return {
-      state: 'purchased',
-      daysLeft: 0,
-      label: t('license.purchasedLabel')
-    };
-  }
-  if (lic.tampered || lic.simulatedExpired) {
-    return {
-      state: 'expired',
-      daysLeft: 0,
-      label: t('license.expiredLabel')
-    };
-  }
-  const now = Date.now();
-  if (now < (lic.lastSeenAt || 0) - 60000) {
-    lic.tampered = true;
-    saveLicense(lic);
-    return {
-      state: 'expired',
-      daysLeft: 0,
-      label: t('license.expiredLabel')
-    };
-  }
-  const elapsedMs = Math.max(0, now - lic.startedAt);
-  const elapsedDays = Math.floor(elapsedMs / (1000 * 60 * 60 * 24));
-  const daysLeft = Math.max(0, TRIAL_DAYS - elapsedDays);
-  if (daysLeft === 0) {
-    return {
-      state: 'expired',
-      daysLeft: 0,
-      label: t('license.expiredLabel')
-    };
-  }
   return {
-    state: 'trial',
-    daysLeft,
-    label: t('license.trialLabel', { days: daysLeft })
+    state: 'purchased',
+    daysLeft: 0,
+    label: t('license.badgePurchased')
   };
 }

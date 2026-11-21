@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TokbiseoRouteImport } from './routes/tokbiseo'
+import { Route as WrongnoteRouteImport } from './routes/wrongnote'
 import { Route as BambooforestPrivacyRouteImport } from './routes/bambooforest.privacy'
 import { Route as BambooforestTermsRouteImport } from './routes/bambooforest.terms'
 import { Route as DreamsobanPrivacyRouteImport } from './routes/dreamsoban.privacy'
@@ -38,6 +39,11 @@ const TermsRoute = TermsRouteImport.update({
 const TokbiseoRoute = TokbiseoRouteImport.update({
   id: '/tokbiseo',
   path: '/tokbiseo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WrongnoteRoute = WrongnoteRouteImport.update({
+  id: '/wrongnote',
+  path: '/wrongnote',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BambooforestPrivacyRoute = BambooforestPrivacyRouteImport.update({
@@ -76,6 +82,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/tokbiseo': typeof TokbiseoRoute
+  '/wrongnote': typeof WrongnoteRoute
   '/bambooforest/privacy': typeof BambooforestPrivacyRoute
   '/bambooforest/terms': typeof BambooforestTermsRoute
   '/dreamsoban/privacy': typeof DreamsobanPrivacyRoute
@@ -88,6 +95,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/tokbiseo': typeof TokbiseoRoute
+  '/wrongnote': typeof WrongnoteRoute
   '/bambooforest/privacy': typeof BambooforestPrivacyRoute
   '/bambooforest/terms': typeof BambooforestTermsRoute
   '/dreamsoban/privacy': typeof DreamsobanPrivacyRoute
@@ -101,6 +109,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/tokbiseo': typeof TokbiseoRoute
+  '/wrongnote': typeof WrongnoteRoute
   '/bambooforest/privacy': typeof BambooforestPrivacyRoute
   '/bambooforest/terms': typeof BambooforestTermsRoute
   '/dreamsoban/privacy': typeof DreamsobanPrivacyRoute
@@ -115,6 +124,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/terms'
     | '/tokbiseo'
+    | '/wrongnote'
     | '/bambooforest/privacy'
     | '/bambooforest/terms'
     | '/dreamsoban/privacy'
@@ -127,6 +137,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/terms'
     | '/tokbiseo'
+    | '/wrongnote'
     | '/bambooforest/privacy'
     | '/bambooforest/terms'
     | '/dreamsoban/privacy'
@@ -139,6 +150,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/terms'
     | '/tokbiseo'
+    | '/wrongnote'
     | '/bambooforest/privacy'
     | '/bambooforest/terms'
     | '/dreamsoban/privacy'
@@ -152,6 +164,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
   TokbiseoRoute: typeof TokbiseoRoute
+  WrongnoteRoute: typeof WrongnoteRoute
   BambooforestPrivacyRoute: typeof BambooforestPrivacyRoute
   BambooforestTermsRoute: typeof BambooforestTermsRoute
   DreamsobanPrivacyRoute: typeof DreamsobanPrivacyRoute
@@ -188,6 +201,13 @@ declare module '@tanstack/react-router' {
       path: '/tokbiseo'
       fullPath: '/tokbiseo'
       preLoaderRoute: typeof TokbiseoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/wrongnote': {
+      id: '/wrongnote'
+      path: '/wrongnote'
+      fullPath: '/wrongnote'
+      preLoaderRoute: typeof WrongnoteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bambooforest/privacy': {
@@ -240,6 +260,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
   TokbiseoRoute: TokbiseoRoute,
+  WrongnoteRoute: WrongnoteRoute,
   BambooforestPrivacyRoute: BambooforestPrivacyRoute,
   BambooforestTermsRoute: BambooforestTermsRoute,
   DreamsobanPrivacyRoute: DreamsobanPrivacyRoute,

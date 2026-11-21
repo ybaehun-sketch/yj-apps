@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Menu, Sparkles, X, ListChecks, Moon, Coffee, Trees } from "lucide-react";
+import { ArrowRight, Menu, Sparkles, X, ListChecks, Moon, Coffee, Trees, GraduationCap } from "lucide-react";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ContactForm } from "@/components/ContactForm";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -40,6 +40,19 @@ function Index() {
       to: "/tokbiseo" as const,
       url: undefined as string | undefined,
       desc: t.products.items.tokbiseo.desc,
+      quickLinks: [
+        { hash: "terms", label: t.products.items.tokbiseo.quickLinks.terms },
+        { hash: "privacy", label: t.products.items.tokbiseo.quickLinks.privacy },
+        { hash: "guide", label: t.products.items.tokbiseo.quickLinks.guide },
+      ],
+    },
+    {
+      icon: GraduationCap,
+      tag: t.products.items.wrongnote?.tag ?? "Education",
+      name: t.products.items.wrongnote?.name ?? "오답정복",
+      to: "/wrongnote" as const,
+      url: undefined as string | undefined,
+      desc: t.products.items.wrongnote?.desc ?? "3초 등록 · 쓱-지우개 · 가림막 복습 — 수험생을 위한 가장 단순하고 확실한 오답노트 앱.",
       quickLinks: [
         { hash: "terms", label: t.products.items.tokbiseo.quickLinks.terms },
         { hash: "privacy", label: t.products.items.tokbiseo.quickLinks.privacy },

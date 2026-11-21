@@ -35,6 +35,16 @@ export interface TranslationBundle {
           guide: string;
         };
       };
+      wrongnote?: {
+        tag: string;
+        name: string;
+        desc: string;
+        quickLinks: {
+          terms: string;
+          privacy: string;
+          guide: string;
+        };
+      };
       tarot: { tag: string; name: string; desc: string };
       dream: { tag: string; name: string; desc: string };
       bamboo: { tag: string; name: string; desc: string };
@@ -77,6 +87,21 @@ export interface TranslationBundle {
     termsContact: string;
   };
   tokbiseo: {
+    pageTitle: string;
+    introPrefix: string;
+    introStrong: string;
+    introSuffix: string;
+    navAria: string;
+    tabs: { guide: string; terms: string; privacy: string };
+    guideHeading: string;
+    guideIntro: string;
+    guideSteps: { title: string; body: string }[];
+    termsHeading: string;
+    termsArticles: { title: string; body: string }[];
+    privacyHeading: string;
+    privacyServiceName: string;
+  };
+  wrongnote?: {
     pageTitle: string;
     introPrefix: string;
     introStrong: string;
@@ -179,6 +204,16 @@ export const translations: Record<Language, TranslationBundle> = {
           tag: "Utility",
           name: "톡비서",
           desc: "AI 기억 비서 — 텍스트, 스크린샷, 음성까지 던지기만 하면 AI가 알아서 정리하는 나만의 기억 비서.",
+          quickLinks: {
+            terms: "약관",
+            privacy: "개인정보처리방침",
+            guide: "이용방법",
+          },
+        },
+        wrongnote: {
+          tag: "Education",
+          name: "오답정복",
+          desc: "3초 등록 · 쓱-지우개 · 가림막 복습 — 수험생을 위한 가장 단순하고 확실한 오답노트 앱.",
           quickLinks: {
             terms: "약관",
             privacy: "개인정보처리방침",
@@ -340,6 +375,68 @@ export const translations: Record<Language, TranslationBundle> = {
       ],
       privacyHeading: "개인정보처리방침",
       privacyServiceName: "톡비서 서비스",
+    },
+    wrongnote: {
+      pageTitle: "오답정복 (3초 등록 · 쓱-지우개 · 가림막 복습)",
+      introPrefix: "틀린 문제만 가볍게 올려 내 필기를 지우고 다시 풀다 정복하는 수험생 오답노트, ",
+      introStrong: "오답정복",
+      introSuffix: "의 이용방법, 서비스 이용약관 및 개인정보처리방침을 안내합니다.",
+      navAria: "오답정복 문서 바로가기",
+      tabs: {
+        guide: "이용방법",
+        terms: "이용약관",
+        privacy: "개인정보처리방침",
+      },
+      guideHeading: "이용방법",
+      guideIntro:
+        "오답정복은 회원가입이나 복잡한 설정 없이, 틀린 문제를 빠르게 등록하고 필기를 지운 뒤 가림막으로 복습하는 가장 단순하고 확실한 오답노트 도구입니다.",
+      guideSteps: [
+        {
+          title: "1단계 — 3초 오답 올리기:",
+          body: "틀린 문제 사진을 찍거나 앨범에서 선택해 과목을 지정하고 가볍게 보관합니다. 직전에 고른 과목을 자동 기억해 연속 등록이 매우 빠릅니다.",
+        },
+        {
+          title: "2단계 — 쓱-지우개로 새 문제 변신:",
+          body: "문제 사진 속 내가 푼 볼펜 체크·밑줄·채점 자국 위를 손가락으로 쓱 문지르면, 주변 종이 색에 맞춰 감쪽같이 지워져 방금 인쇄한 새 문제처럼 다시 풀 수 있습니다.",
+        },
+        {
+          title: "3단계 — 10초 가림막 복습 및 정복:",
+          body: "정답과 해설은 반투명 가림막으로 가려두고, 터치 한 번으로 확인하며 '맞혔어요 / 또 틀렸어요'를 누릅니다. 정한 횟수만큼 연속 정답을 맞히면 미련 없이 '정복 완료' 처리됩니다.",
+        },
+      ],
+      termsHeading: "이용약관",
+      termsArticles: [
+        {
+          title: "제1조 (목적)",
+          body: '본 약관은 와이제이스튜디오(이하 "회사")가 제공하는 오답정복 서비스(이하 "서비스")의 이용 조건 및 절차, 회사와 이용자의 권리·의무 및 책임 사항을 규정함을 목적으로 합니다.',
+        },
+        {
+          title: "제2조 (약관의 효력 및 개정)",
+          body: "본 약관은 서비스 내 화면 또는 홈페이지에 게시함으로써 효력이 발생합니다. 회사는 관련 법령을 위배하지 않는 범위에서 약관을 개정할 수 있으며, 중요한 변경 시 시행일 최소 7일 전부터 공지합니다.",
+        },
+        {
+          title: "제3조 (서비스의 내용)",
+          body: "회사는 시험 및 학습을 준비하는 이용자가 틀린 문제를 사진으로 등록하고, 필기 자국 지우기 및 가림막 복습을 진행할 수 있는 오답노트 유틸리티 기능을 제공합니다.",
+        },
+        {
+          title: "제4조 (데이터의 기기 내 저장 및 보관)",
+          body: "오답정복은 별도의 회원가입 없이 이용자의 기기(로컬 브라우저 저장소)에 오답 사진과 학습 데이터를 직접 보관합니다. 따라서 기기 변경, 앱 삭제 또는 기기 캐시 초기화 시 저장된 데이터가 소실될 수 있으며, 기기 자체의 분실이나 저장소 초기화로 인한 데이터 손실에 대해 회사는 책임을 지지 않습니다.",
+        },
+        {
+          title: "제5조 (서비스의 이용 및 요금)",
+          body: "현재 서비스의 모든 핵심 기능은 출시 기념 특별 한정 이벤트 기간 동안 무료 혜택으로 제공됩니다. 이벤트 종료 및 향후 정식 유료 플랜이나 결제 모델이 도입될 경우, 회사는 사전에 가격과 결제 조건을 서비스 화면에 명확히 공지합니다.",
+        },
+        {
+          title: "제6조 (책임의 제한)",
+          body: "회사는 천재지변, 기기 오류, 통신 장애 등 불가항력적인 사유로 인한 서비스 중단이나 데이터 손실에 대해 책임을 지지 않습니다.",
+        },
+        {
+          title: "제7조 (준거법, 분쟁 해결 및 문의처)",
+          body: "본 약관은 대한민국 법률을 준거법으로 하며, 분쟁 발생 시 민사소송법상 관할 법원을 관할로 합니다. 서비스 이용 관련 문의는 contact@yjstudio.app으로 접수해 주시기 바랍니다.",
+        },
+      ],
+      privacyHeading: "개인정보처리방침",
+      privacyServiceName: "오답정복 서비스",
     },
     privacy: {
       generalServiceName: "와이제이스튜디오가 제공하는 웹·앱 서비스",
