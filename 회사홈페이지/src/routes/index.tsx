@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Menu, Sparkles, X, ListChecks, Moon, Coffee, Trees, GraduationCap } from "lucide-react";
+import { ArrowRight, ChevronDown, Menu, Sparkles, X, ListChecks, Moon, Coffee, Trees, GraduationCap } from "lucide-react";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ContactForm } from "@/components/ContactForm";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -21,8 +21,11 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
+const DEFAULT_VISIBLE_PRODUCTS = 4;
+
 function Index() {
   const [open, setOpen] = useState(false);
+  const [showAllProducts, setShowAllProducts] = useState(false);
   const { lang } = useLanguage();
   const t = translations[lang];
 
@@ -100,6 +103,9 @@ function Index() {
     },
   ];
 
+  const hasMoreProducts = products.length > DEFAULT_VISIBLE_PRODUCTS;
+  const visibleProducts = showAllProducts ? products : products.slice(0, DEFAULT_VISIBLE_PRODUCTS);
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur">
@@ -147,10 +153,25 @@ function Index() {
 
       <section id="products" className="scroll-mt-20 border-y border-border bg-secondary/40">
         <div className="mx-auto max-w-6xl px-6 py-24">
-          <p className="text-sm font-semibold uppercase tracking-widest text-accent">{t.products.eyebrow}</p>
-          <h2 className="mt-4 font-display text-3xl font-bold md:text-4xl">{t.products.title}</h2>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-widest text-accent">{t.products.eyebrow}</p>
+              <h2 className="mt-4 font-display text-3xl font-bold md:text-4xl">{t.products.title}</h2>
+            </div>
+            {hasMoreProducts && (
+              <button
+                type="button"
+                onClick={() => setShowAllProducts((prev) => !prev)}
+                aria-expanded={showAllProducts}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-xs transition hover:border-primary hover:text-primary"
+              >
+                {showAllProducts ? t.products.showLess : `${t.products.showMore} (+${products.length - DEFAULT_VISIBLE_PRODUCTS})`}
+                <ChevronDown className={`h-4 w-4 transition-transform ${showAllProducts ? "rotate-180" : ""}`} />
+              </button>
+            )}
+          </div>
           <div className="mt-12 grid gap-6 sm:grid-cols-2">
-            {products.map((p) => (
+            {visibleProducts.map((p) => (
               <article key={p.name} className="group rounded-2xl border border-border bg-card p-8 shadow-xs transition hover:-translate-y-1 hover:border-primary hover:shadow-md">
                 <div className="flex items-center justify-between">
                   <span className="grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-primary"><p.icon /></span>

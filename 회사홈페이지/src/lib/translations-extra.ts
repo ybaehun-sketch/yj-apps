@@ -25,6 +25,8 @@ export const extraTranslations: Record<"zh-TW" | "fr" | "de" | "es", Translation
     products: {
       eyebrow: "Products & Universe",
       title: "產品陣容",
+      showMore: "查看更多",
+      showLess: "收起",
       items: {
         tokbiseo: {
           tag: "Utility",
@@ -292,6 +294,8 @@ export const extraTranslations: Record<"zh-TW" | "fr" | "de" | "es", Translation
     products: {
       eyebrow: "Products & Universe",
       title: "Gamme de produits",
+      showMore: "Voir plus",
+      showLess: "Réduire",
       items: {
         tokbiseo: {
           tag: "Utility",
@@ -559,6 +563,8 @@ export const extraTranslations: Record<"zh-TW" | "fr" | "de" | "es", Translation
     products: {
       eyebrow: "Products & Universe",
       title: "Produktportfolio",
+      showMore: "Mehr anzeigen",
+      showLess: "Weniger",
       items: {
         tokbiseo: {
           tag: "Utility",
@@ -826,6 +832,8 @@ export const extraTranslations: Record<"zh-TW" | "fr" | "de" | "es", Translation
     products: {
       eyebrow: "Products & Universe",
       title: "Línea de productos",
+      showMore: "Ver más",
+      showLess: "Mostrar menos",
       items: {
         tokbiseo: {
           tag: "Utility",
