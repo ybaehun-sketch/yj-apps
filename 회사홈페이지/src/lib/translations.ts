@@ -24,6 +24,8 @@ export interface TranslationBundle {
   products: {
     eyebrow: string;
     title: string;
+    showMore: string;
+    showLess: string;
     items: {
       tokbiseo: {
         tag: string;
@@ -199,6 +201,8 @@ export const translations: Record<Language, TranslationBundle> = {
     products: {
       eyebrow: "Products & Universe",
       title: "프로덕트 라인업",
+      showMore: "더보기",
+      showLess: "접기",
       items: {
         tokbiseo: {
           tag: "Utility",
@@ -389,7 +393,7 @@ export const translations: Record<Language, TranslationBundle> = {
       },
       guideHeading: "이용방법",
       guideIntro:
-        "오답정복은 회원가입이나 복잡한 설정 없이, 틀린 문제를 빠르게 등록하고 필기를 지운 뒤 가림막으로 복습하는 가장 단순하고 확실한 오답노트 도구입니다.",
+        "오답정복은 회원가입이나 로그인 없이 내 폰 안에 바로 저장해 쓰는 간편 오답노트입니다. 틀린 문제를 빠르게 등록하고 필기를 지운 뒤 가림막으로 복습할 수 있으며, 모든 문제 데이터는 사용 중인 기기 내부에만 보관되므로 기기를 변경하거나 앱을 삭제하면 저장된 문제를 다른 기기로 옮길 수 없습니다.",
       guideSteps: [
         {
           title: "1단계 — 3초 오답 올리기:",
@@ -419,8 +423,8 @@ export const translations: Record<Language, TranslationBundle> = {
           body: "회사는 시험 및 학습을 준비하는 이용자가 틀린 문제를 사진으로 등록하고, 필기 자국 지우기 및 가림막 복습을 진행할 수 있는 오답노트 유틸리티 기능을 제공합니다.",
         },
         {
-          title: "제4조 (데이터의 기기 내 저장 및 보관)",
-          body: "오답정복은 별도의 회원가입 없이 이용자의 기기(로컬 브라우저 저장소)에 오답 사진과 학습 데이터를 직접 보관합니다. 따라서 기기 변경, 앱 삭제 또는 기기 캐시 초기화 시 저장된 데이터가 소실될 수 있으며, 기기 자체의 분실이나 저장소 초기화로 인한 데이터 손실에 대해 회사는 책임을 지지 않습니다.",
+          title: "제4조 (데이터의 기기 내 저장 및 이전 불가)",
+          body: "오답정복은 회원가입 및 로그인 기능 없이 이용자의 기기 내부 저장소에만 오답 사진과 학습 데이터를 직접 보관합니다. 따라서 기기를 변경할 경우 저장된 문제를 새 기기로 옮길 수 없으며, 앱 삭제 또는 기기 저장소 초기화 시 데이터가 영구 삭제됩니다. 회사는 기기 변경·분실·삭제 등으로 인한 데이터 손실에 대해 복구 또는 책임을 지지 않습니다.",
         },
         {
           title: "제5조 (서비스의 이용 및 요금)",
@@ -541,6 +545,8 @@ export const translations: Record<Language, TranslationBundle> = {
     products: {
       eyebrow: "Products & Universe",
       title: "Product Lineup",
+      showMore: "Show more",
+      showLess: "Show less",
       items: {
         tokbiseo: {
           tag: "Utility",
@@ -809,6 +815,8 @@ export const translations: Record<Language, TranslationBundle> = {
     products: {
       eyebrow: "Products & Universe",
       title: "プロダクトラインアップ",
+      showMore: "もっと見る",
+      showLess: "閉じる",
       items: {
         tokbiseo: {
           tag: "Utility",
