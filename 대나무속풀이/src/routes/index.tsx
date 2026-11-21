@@ -9,6 +9,7 @@ import { PERSONAS, HOTLINES, createReceipt, detectsCrisis, fallbackResult, type 
 import { AD_MAX_PER_DAY, COOLDOWN_MS, adsLeft, check, consume, loadQuota, saveQuota, watchAd, type Quota } from "@/lib/quota";
 import { BurnReceipt } from "@/components/burn-receipt";
 import { LatestStories } from "@/components/latest-stories";
+import { HomeGuideFaq } from "@/components/home-guide-faq";
 import { storiesQuery } from "@/lib/stories-query";
 import { PaperBurn } from "@/components/paper-burn";
 import { Button } from "@/components/ui/button";
@@ -63,8 +64,7 @@ function Index() {
   const [adCountdown, setAdCountdown] = useState<number | null>(null);
   const [quota, setQuota] = useState<Quota | null>(null);
   const [now, setNow] = useState(0);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setQuota(loadQuota(Date.now())); setNow(Date.now()); setMounted(true); }, []);
+  useEffect(() => { setQuota(loadQuota(Date.now())); setNow(Date.now()); }, []);
   const cooldownLeft = quota && quota.used > 0 ? Math.max(0, Math.ceil((quota.lastAt + COOLDOWN_MS - now) / 1000)) : 0;
   useEffect(() => {
     if (cooldownLeft <= 0) return;
@@ -224,7 +224,7 @@ function Index() {
 
   return (
     <>
-    <main className="forest-bg relative min-h-screen overflow-hidden pb-28 text-foreground">
+    <main className="forest-bg relative min-h-screen overflow-hidden pb-12 text-foreground">
       <div className="bamboo-layer" aria-hidden />
       <div className="moon" aria-hidden />
       <div className="absolute right-4 top-4 z-20"><SoundToggle /></div>
@@ -249,19 +249,19 @@ function Index() {
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="font-display">{leftAds > 0 ? "대나무숲에 한 번 더 외치려면?" : "오늘의 숲은 여기까지예요"}</DialogTitle>
-            <DialogDescription>{leftAds > 0 ? "짧은 광고 하나면 한 번 더 외칠 수 있어요." : "오늘 외칠 수 있는 횟수를 모두 썼어요. 내일 다시 만나요 🌙"}</DialogDescription>
+            <DialogDescription>{leftAds > 0 ? "5초간 숨을 고른 뒤 한 번 더 외칠 수 있어요." : "오늘 외칠 수 있는 횟수를 모두 썼어요. 내일 다시 만나요 🌙"}</DialogDescription>
           </DialogHeader>
           {adCountdown !== null ? (
             <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-muted/40 py-10">
-              <p className="text-xs text-muted-foreground">스폰서 광고</p>
+              <p className="text-xs text-muted-foreground">잠시 숨 고르기</p>
               <p className="font-display text-4xl font-bold text-primary">{adCountdown}</p>
-              <p className="text-sm text-muted-foreground">광고가 끝나면 1회 충전돼요</p>
+              <p className="text-sm text-muted-foreground">심호흡이 끝나면 1회 충전돼요</p>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
               {leftAds > 0 && (
                 <Button onClick={startAd} className="fire-btn h-auto flex-col gap-1 py-4 text-ember-foreground">
-                  <span className="font-semibold">📺 5초 광고 보고 1회 충전</span>
+                  <span className="font-semibold">🌿 5초 숨 고르고 1회 충전</span>
                   <span className="text-xs opacity-90">오늘 {leftAds}회 남음</span>
                 </Button>
               )}
@@ -304,7 +304,7 @@ function Index() {
               onChange={(e) => setText(e.target.value.slice(0, 2000))}
               rows={7}
               aria-label="대나무숲에 털어놓을 이야기"
-              placeholder={"김 부장 진짜 양심 터진 거 아니냐...\n오늘 있었던 일 다 털어놓으세요. 누구도 당신을 모릅니다."}
+              placeholder={"오늘 하루 너무 답답하고 억울한 일이 있었어요...\n아무에게도 못 한 이야기, 여기에 다 털어놓고 태워버리세요."}
               wrap="soft"
               className="block w-full min-w-0 max-w-full resize-none overflow-x-hidden whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-2xl border border-border bg-card/70 p-5 leading-relaxed backdrop-blur placeholder:text-muted-foreground/70 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
@@ -374,9 +374,7 @@ function Index() {
             </div>}
           </section>
         )}
-        {phase !== "burning" && (
-          <div className="flex flex-col gap-4">
-        {!showStageTarot && (
+        {phase !== "burning" && !showStageTarot && (
           <a
             href="https://teacuptarot.com"
             target="_blank"
@@ -391,22 +389,11 @@ function Index() {
             <ArrowUpRight className="size-5 shrink-0 text-accent" />
           </a>
         )}
-        <div aria-label="광고" className="relative flex h-[100px] w-full items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 text-xs text-muted-foreground">
-          <span className="absolute right-2 top-1.5 text-[10px] tracking-wider">Ad · 광고</span>
-          Google AdSense 광고 영역 (반응형)
-        </div>
-          </div>
-        )}
         <LatestStories />
+        <HomeGuideFaq />
       </div>
       <LegalFooter />
     </main>
-
-    <aside aria-label="고정 광고" className="ad-dock">
-      <div className="mx-auto flex h-16 max-w-xl items-center justify-center text-xs text-muted-foreground">
-        광고 영역 (320×50)
-      </div>
-    </aside>
     </>
   );
 }

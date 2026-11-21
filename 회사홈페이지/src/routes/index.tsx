@@ -46,9 +46,45 @@ function Index() {
         { hash: "guide", label: t.products.items.tokbiseo.quickLinks.guide },
       ],
     },
-    { icon: Coffee, tag: t.products.items.tarot.tag, name: t.products.items.tarot.name, to: undefined, url: "https://teacuptarot.com", desc: t.products.items.tarot.desc, quickLinks: undefined },
-    { icon: Moon, tag: t.products.items.dream.tag, name: t.products.items.dream.name, to: undefined, url: "https://dreamsoban.app", desc: t.products.items.dream.desc, quickLinks: undefined },
-    { icon: Trees, tag: t.products.items.bamboo.tag, name: t.products.items.bamboo.name, to: undefined, url: "https://bambooforest.app", desc: t.products.items.bamboo.desc, quickLinks: undefined },
+    {
+      icon: Coffee,
+      tag: t.products.items.tarot.tag,
+      name: t.products.items.tarot.name,
+      to: undefined,
+      url: "https://teacuptarot.com",
+      desc: t.products.items.tarot.desc,
+      quickLinks: undefined,
+      internalLinks: [
+        { to: "/teacuptarot/terms" as const, label: t.products.items.tokbiseo.quickLinks.terms },
+        { to: "/teacuptarot/privacy" as const, label: t.products.items.tokbiseo.quickLinks.privacy },
+      ],
+    },
+    {
+      icon: Moon,
+      tag: t.products.items.dream.tag,
+      name: t.products.items.dream.name,
+      to: undefined,
+      url: "https://dreamsoban.app",
+      desc: t.products.items.dream.desc,
+      quickLinks: undefined,
+      internalLinks: [
+        { to: "/dreamsoban/terms" as const, label: t.products.items.tokbiseo.quickLinks.terms },
+        { to: "/dreamsoban/privacy" as const, label: t.products.items.tokbiseo.quickLinks.privacy },
+      ],
+    },
+    {
+      icon: Trees,
+      tag: t.products.items.bamboo.tag,
+      name: t.products.items.bamboo.name,
+      to: undefined,
+      url: "https://bambooforest.app",
+      desc: t.products.items.bamboo.desc,
+      quickLinks: undefined,
+      internalLinks: [
+        { to: "/bambooforest/terms" as const, label: t.products.items.tokbiseo.quickLinks.terms },
+        { to: "/bambooforest/privacy" as const, label: t.products.items.tokbiseo.quickLinks.privacy },
+      ],
+    },
   ];
 
   return (
@@ -119,20 +155,31 @@ function Index() {
                   </>
                 )}
                 {p.to && p.quickLinks ? (
-                  <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <div className="mt-6 flex flex-wrap items-center gap-10">
                     {p.quickLinks.map((ql) => (
                       <Link
                         key={ql.hash}
                         to={p.to}
                         hash={ql.hash}
-                        className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                        className="text-sm font-medium text-primary hover:underline"
                       >
-                        {ql.label} <ArrowRight className="h-3.5 w-3.5" />
+                        {ql.label}
                       </Link>
                     ))}
                   </div>
                 ) : p.url ? (
-                  <a href={p.url} target="_blank" rel="noopener noreferrer" className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline">{p.url.replace("https://", "")} <ArrowRight className="h-4 w-4" /></a>
+                  <div className="mt-6 flex flex-wrap items-center gap-10">
+                    <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary hover:underline">{p.url.replace("https://", "")}</a>
+                    {p.internalLinks?.map((il) => (
+                      <Link
+                        key={il.to}
+                        to={il.to}
+                        className="text-sm font-medium text-primary hover:underline"
+                      >
+                        {il.label}
+                      </Link>
+                    ))}
+                  </div>
                 ) : (
                   <span className="mt-6 inline-block text-sm text-muted-foreground">Coming soon</span>
                 )}

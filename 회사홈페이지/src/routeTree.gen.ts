@@ -13,6 +13,12 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TokbiseoRouteImport } from './routes/tokbiseo'
+import { Route as BambooforestPrivacyRouteImport } from './routes/bambooforest.privacy'
+import { Route as BambooforestTermsRouteImport } from './routes/bambooforest.terms'
+import { Route as DreamsobanPrivacyRouteImport } from './routes/dreamsoban.privacy'
+import { Route as DreamsobanTermsRouteImport } from './routes/dreamsoban.terms'
+import { Route as TeacuptarotPrivacyRouteImport } from './routes/teacuptarot.privacy'
+import { Route as TeacuptarotTermsRouteImport } from './routes/teacuptarot.terms'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,18 +40,60 @@ const TokbiseoRoute = TokbiseoRouteImport.update({
   path: '/tokbiseo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BambooforestPrivacyRoute = BambooforestPrivacyRouteImport.update({
+  id: '/bambooforest/privacy',
+  path: '/bambooforest/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BambooforestTermsRoute = BambooforestTermsRouteImport.update({
+  id: '/bambooforest/terms',
+  path: '/bambooforest/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DreamsobanPrivacyRoute = DreamsobanPrivacyRouteImport.update({
+  id: '/dreamsoban/privacy',
+  path: '/dreamsoban/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DreamsobanTermsRoute = DreamsobanTermsRouteImport.update({
+  id: '/dreamsoban/terms',
+  path: '/dreamsoban/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TeacuptarotPrivacyRoute = TeacuptarotPrivacyRouteImport.update({
+  id: '/teacuptarot/privacy',
+  path: '/teacuptarot/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TeacuptarotTermsRoute = TeacuptarotTermsRouteImport.update({
+  id: '/teacuptarot/terms',
+  path: '/teacuptarot/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/tokbiseo': typeof TokbiseoRoute
+  '/bambooforest/privacy': typeof BambooforestPrivacyRoute
+  '/bambooforest/terms': typeof BambooforestTermsRoute
+  '/dreamsoban/privacy': typeof DreamsobanPrivacyRoute
+  '/dreamsoban/terms': typeof DreamsobanTermsRoute
+  '/teacuptarot/privacy': typeof TeacuptarotPrivacyRoute
+  '/teacuptarot/terms': typeof TeacuptarotTermsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/tokbiseo': typeof TokbiseoRoute
+  '/bambooforest/privacy': typeof BambooforestPrivacyRoute
+  '/bambooforest/terms': typeof BambooforestTermsRoute
+  '/dreamsoban/privacy': typeof DreamsobanPrivacyRoute
+  '/dreamsoban/terms': typeof DreamsobanTermsRoute
+  '/teacuptarot/privacy': typeof TeacuptarotPrivacyRoute
+  '/teacuptarot/terms': typeof TeacuptarotTermsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +101,50 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/tokbiseo': typeof TokbiseoRoute
+  '/bambooforest/privacy': typeof BambooforestPrivacyRoute
+  '/bambooforest/terms': typeof BambooforestTermsRoute
+  '/dreamsoban/privacy': typeof DreamsobanPrivacyRoute
+  '/dreamsoban/terms': typeof DreamsobanTermsRoute
+  '/teacuptarot/privacy': typeof TeacuptarotPrivacyRoute
+  '/teacuptarot/terms': typeof TeacuptarotTermsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/privacy' | '/terms' | '/tokbiseo'
+  fullPaths:
+    | '/'
+    | '/privacy'
+    | '/terms'
+    | '/tokbiseo'
+    | '/bambooforest/privacy'
+    | '/bambooforest/terms'
+    | '/dreamsoban/privacy'
+    | '/dreamsoban/terms'
+    | '/teacuptarot/privacy'
+    | '/teacuptarot/terms'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/privacy' | '/terms' | '/tokbiseo'
-  id: '__root__' | '/' | '/privacy' | '/terms' | '/tokbiseo'
+  to:
+    | '/'
+    | '/privacy'
+    | '/terms'
+    | '/tokbiseo'
+    | '/bambooforest/privacy'
+    | '/bambooforest/terms'
+    | '/dreamsoban/privacy'
+    | '/dreamsoban/terms'
+    | '/teacuptarot/privacy'
+    | '/teacuptarot/terms'
+  id:
+    | '__root__'
+    | '/'
+    | '/privacy'
+    | '/terms'
+    | '/tokbiseo'
+    | '/bambooforest/privacy'
+    | '/bambooforest/terms'
+    | '/dreamsoban/privacy'
+    | '/dreamsoban/terms'
+    | '/teacuptarot/privacy'
+    | '/teacuptarot/terms'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +152,12 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
   TokbiseoRoute: typeof TokbiseoRoute
+  BambooforestPrivacyRoute: typeof BambooforestPrivacyRoute
+  BambooforestTermsRoute: typeof BambooforestTermsRoute
+  DreamsobanPrivacyRoute: typeof DreamsobanPrivacyRoute
+  DreamsobanTermsRoute: typeof DreamsobanTermsRoute
+  TeacuptarotPrivacyRoute: typeof TeacuptarotPrivacyRoute
+  TeacuptarotTermsRoute: typeof TeacuptarotTermsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +190,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TokbiseoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/bambooforest/privacy': {
+      id: '/bambooforest/privacy'
+      path: '/bambooforest/privacy'
+      fullPath: '/bambooforest/privacy'
+      preLoaderRoute: typeof BambooforestPrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bambooforest/terms': {
+      id: '/bambooforest/terms'
+      path: '/bambooforest/terms'
+      fullPath: '/bambooforest/terms'
+      preLoaderRoute: typeof BambooforestTermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dreamsoban/privacy': {
+      id: '/dreamsoban/privacy'
+      path: '/dreamsoban/privacy'
+      fullPath: '/dreamsoban/privacy'
+      preLoaderRoute: typeof DreamsobanPrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dreamsoban/terms': {
+      id: '/dreamsoban/terms'
+      path: '/dreamsoban/terms'
+      fullPath: '/dreamsoban/terms'
+      preLoaderRoute: typeof DreamsobanTermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/teacuptarot/privacy': {
+      id: '/teacuptarot/privacy'
+      path: '/teacuptarot/privacy'
+      fullPath: '/teacuptarot/privacy'
+      preLoaderRoute: typeof TeacuptarotPrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/teacuptarot/terms': {
+      id: '/teacuptarot/terms'
+      path: '/teacuptarot/terms'
+      fullPath: '/teacuptarot/terms'
+      preLoaderRoute: typeof TeacuptarotTermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +240,12 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
   TokbiseoRoute: TokbiseoRoute,
+  BambooforestPrivacyRoute: BambooforestPrivacyRoute,
+  BambooforestTermsRoute: BambooforestTermsRoute,
+  DreamsobanPrivacyRoute: DreamsobanPrivacyRoute,
+  DreamsobanTermsRoute: DreamsobanTermsRoute,
+  TeacuptarotPrivacyRoute: TeacuptarotPrivacyRoute,
+  TeacuptarotTermsRoute: TeacuptarotTermsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

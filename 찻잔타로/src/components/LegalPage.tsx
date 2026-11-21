@@ -26,9 +26,9 @@ export function LegalLinks() {
     <p className="mt-4 flex gap-3">
       <Link to="/guide" className="underline-offset-2 hover:underline">마음 찻집 이야기</Link>
       <span aria-hidden>·</span>
-      <Link to="/terms" className="underline-offset-2 hover:underline">이용약관</Link>
+      <a href="https://yjstudio.app/teacuptarot/terms" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">이용약관</a>
       <span aria-hidden>·</span>
-      <Link to="/privacy" className="font-semibold underline-offset-2 hover:underline">개인정보처리방침</Link>
+      <a href="https://yjstudio.app/teacuptarot/privacy" target="_blank" rel="noopener noreferrer" className="font-semibold underline-offset-2 hover:underline">개인정보처리방침</a>
     </p>
   );
 }
