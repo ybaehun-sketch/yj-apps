@@ -5,6 +5,7 @@ import { QUOTA_BYTES, fmtBytes, trialDaysLeft, type Usage } from "@/lib/storage-
 import { ACCENTS, PLAN_LABEL, type Prefs, type Plan } from "@/components/inbox-extras";
 import jungbiAvatar from "@/assets/jungbi-avatar.png";
 
+const GUIDE_URL = "https://yjstudio.app/tokbiseo#guide";
 const PRIVACY_URL = "https://yjstudio.app/tokbiseo#privacy";
 const TERMS_URL = "https://yjstudio.app/tokbiseo#terms";
 
@@ -381,6 +382,9 @@ export function NavigationDrawer({
           {/* 하단 약관 및 버전 링크 */}
           <div className="flex items-center justify-between px-2 pt-1 text-[11px] text-muted-foreground/80">
             <div className="flex gap-3">
+              <a href={GUIDE_URL} target="_blank" rel="noreferrer" className="hover:underline">
+                {tr("이용방법")}
+              </a>
               <a href={PRIVACY_URL} target="_blank" rel="noreferrer" className="hover:underline">
                 {tr("개인정보")}
               </a>

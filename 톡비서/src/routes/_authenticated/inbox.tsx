@@ -162,6 +162,29 @@ function Inbox() {
   };
 
   const [view, setView] = useState<"stream" | "calendar">("stream");
+  const [highlightedNoteId, setHighlightedNoteId] = useState<string | null>(null);
+  const pendingJumpRef = useRef<string | null>(null);
+
+  const jumpToNote = (noteId: string) => {
+    pendingJumpRef.current = noteId;
+    setHighlightedNoteId(noteId);
+    setView("stream");
+  };
+
+  useEffect(() => {
+    if (view !== "stream" || !pendingJumpRef.current) return;
+    const targetId = pendingJumpRef.current;
+    pendingJumpRef.current = null;
+    requestAnimationFrame(() => {
+      document.getElementById(`note-${targetId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [view, highlightedNoteId]);
+
+  useEffect(() => {
+    if (!highlightedNoteId) return;
+    const timer = setTimeout(() => setHighlightedNoteId(null), 2000);
+    return () => clearTimeout(timer);
+  }, [highlightedNoteId]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
   const [isBillingOpen, setIsBillingOpen] = useState(false);
@@ -740,16 +763,23 @@ function Inbox() {
       {activeAlarms.length > 0 && (
         <div className="space-y-1.5 border-b border-border/60 bg-primary/10 px-3.5 py-2">
           {activeAlarms.map((alarm) => (
-            <div key={alarm.id} className="flex items-start gap-2.5 rounded-2xl bg-card px-3.5 py-2.5 shadow-xs ring-1 ring-primary/30">
-              <MaterialSymbol name="notifications_active" size={18} weight={400} className="mt-0.5 text-primary shrink-0 animate-bounce" />
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-foreground">{tr("톡비서 알림")}</p>
-                <p className="text-xs text-foreground/90">{alarm.remind_message || alarm.summary}</p>
-              </div>
+            <div key={alarm.id} className="flex items-center gap-1.5 rounded-2xl bg-card px-2 py-1.5 shadow-xs ring-1 ring-primary/30 transition-colors hover:ring-primary/60">
+              <button
+                type="button"
+                onClick={() => jumpToNote(alarm.id)}
+                className="flex min-w-0 flex-1 items-start gap-2.5 rounded-xl px-1.5 py-1 text-left transition-colors hover:bg-primary/5 cursor-pointer"
+              >
+                <MaterialSymbol name="notifications_active" size={18} weight={400} className="mt-0.5 text-primary shrink-0 animate-bounce" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-foreground">{tr("톡비서 알림")}</p>
+                  <p className="text-xs text-foreground/90">{alarm.remind_message || alarm.summary}</p>
+                </div>
+                <MaterialSymbol name="chevron_right" size={18} weight={350} className="mt-0.5 shrink-0 text-muted-foreground" />
+              </button>
               <IconButton
                 ariaLabel={tr("알림 닫기")}
                 onClick={() => dismissAlarm(alarm.id)}
-                className="h-7 w-7 min-h-[30px] min-w-[30px] text-muted-foreground hover:text-foreground"
+                className="h-7 w-7 min-h-[30px] min-w-[30px] shrink-0 text-muted-foreground hover:text-foreground"
               >
                 <MaterialSymbol name="close" size={16} weight={350} />
               </IconButton>
@@ -831,6 +861,7 @@ function Inbox() {
                 <NoteThread
                   key={it.n.id}
                   note={lastRef[it.n.id] === `n:${it.n.id}` ? it.n : { ...it.n, confirmed: true }}
+                  highlighted={highlightedNoteId === it.n.id}
                   imageUrl={it.n.image_path ? data?.urls[it.n.image_path] : undefined}
                   audioUrl={it.n.audio_path ? data?.urls[it.n.audio_path] : undefined}
                   fileUrl={it.n.file_path ? data?.urls[it.n.file_path] : undefined}
@@ -1370,9 +1401,14 @@ function AnswerActions({ text }: { text: string }) {
   );
 }
 
-function NoteThread({ note, imageUrl, audioUrl, fileUrl, onConfirm, onDiscard, onUpdate }: { note: Note; imageUrl: string | undefined; audioUrl: string | undefined; fileUrl?: string | undefined; onConfirm: () => void; onDiscard: () => void; onUpdate: (patch: { category: string; tags: string[] }) => void }) {
+function NoteThread({ note, imageUrl, audioUrl, fileUrl, highlighted, onConfirm, onDiscard, onUpdate }: { note: Note; imageUrl: string | undefined; audioUrl: string | undefined; fileUrl?: string | undefined; highlighted?: boolean; onConfirm: () => void; onDiscard: () => void; onUpdate: (patch: { category: string; tags: string[] }) => void }) {
   return (
-    <div id={`note-${note.id}`} className="space-y-2 animate-in fade-in slide-in-from-bottom-1">
+    <div
+      id={`note-${note.id}`}
+      className={`space-y-2 animate-in fade-in slide-in-from-bottom-1 rounded-2xl transition-all duration-300 ${
+        highlighted ? "bg-primary/10 p-2 -m-2 ring-2 ring-primary/50" : ""
+      }`}
+    >
       {audioUrl && (
         <div className="flex justify-end">
           <div className="w-64 max-w-[78%] rounded-2xl rounded-tr-sm border border-primary/20 bg-bubble p-2.5 text-foreground shadow-xs">

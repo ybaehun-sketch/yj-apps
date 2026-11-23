@@ -763,6 +763,7 @@ export const ACCENTS = [
   { key: "yellow", label: "앰버", cls: "bg-[oklch(0.76_0.16_82)]" },
 ] as const;
 
+const GUIDE_URL = "https://yjstudio.app/tokbiseo#guide";
 const PRIVACY_URL = "https://yjstudio.app/tokbiseo#privacy";
 const TERMS_URL = "https://yjstudio.app/tokbiseo#terms";
 /** 1차 스토어 심사용 결제 모달 비활성화 (2차 구글 인앱 결제 연동 시 true로 전환). */
@@ -922,6 +923,7 @@ export function SettingsSheet({ usage, email, joinedAt, prefs, setPrefs, onLogou
               </Section>
               <div className="space-y-1 pt-2 text-center">
                 <div className="flex justify-center gap-4 text-xs text-muted-foreground">
+                  <a href={GUIDE_URL} target="_blank" rel="noreferrer" className="underline">{tr("이용방법")}</a>
                   <a href={PRIVACY_URL} target="_blank" rel="noreferrer" className="underline">{tr("개인정보처리방침")}</a>
                   <a href={TERMS_URL} target="_blank" rel="noreferrer" className="underline">{tr("이용약관")}</a>
                 </div>

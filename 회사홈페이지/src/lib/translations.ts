@@ -319,19 +319,23 @@ export const translations: Record<Language, TranslationBundle> = {
       },
       guideHeading: "이용방법",
       guideIntro:
-        "톡비서는 복잡한 폴더 분류나 정리 없이, 떠오른 생각·메모·스크린샷·음성을 빠르고 가볍게 기록해 두는 AI 기억 비서입니다.",
+        "톡비서는 카톡 나에게 쓰기처럼 편하게 던져 두면, AI가 알아서 요약·분류하고 일정 알림까지 챙겨주는 나만의 기억 비서예요. 복잡한 폴더 정리 없이 아래 4가지만 기억하시면 됩니다.",
       guideSteps: [
         {
-          title: "1단계 — 편하게 던지기:",
-          body: "해야 할 일, 아이디어, 메모, 스크린샷 이미지, 음성 녹음 등 기억해야 할 내용을 입력창에 평소처럼 자유롭게 남깁니다.",
+          title: "1. 생각난 대로 툭 던지기 (글 · 사진 · 음성 · 링크 · 문서):",
+          body: "입력창에 짧은 메모, 예약 문자 스크린샷, 유튜브·웹 링크, 녹음 음성, PDF·워드 문서까지 무엇이든 편하게 보내세요. (예: \"다음 주 수요일 오후 3시 치과 예약\")",
         },
         {
-          title: "2단계 — AI 자동 정리:",
-          body: "톡비서가 입력된 내용을 분석해 핵심 내용을 요약하고 카테고리별로 자동 정리해 줍니다.",
+          title: "2. AI 비서가 알아서 요약 · 정리 · 알림 예약:",
+          body: "보내신 내용을 톡비서가 읽고 1줄로 핵심 요약한 뒤, 일정·할일·아이디어·쇼핑 등 알맞은 카테고리로 자동 분류해 둡니다. 날짜나 약속이 있으면 전날이나 당일 아침에 맞춰 알림도 자동으로 예약해 드려요.",
         },
         {
-          title: "3단계 — 언제든 꺼내 보기:",
-          body: "보관함(인박스)에서 정리된 기록을 한눈에 확인하고, 완료한 항목을 체크하며 하루를 가볍게 관리할 수 있습니다.",
+          title: "3. 말로 편하게 물어보고 바로 고치기:",
+          body: "저장한 내용이 기억나지 않을 땐 채팅창에 그대로 물어보세요. (예: \"성수동 파스타집 어디였지?\", \"방금 알림 화요일 오전 10시로 바꿔줘\") 톡비서가 바로 찾아드리고 수정해 드립니다.",
+        },
+        {
+          title: "4. 캘린더와 알림으로 한눈에 챙기기:",
+          body: "상단의 '캘린더' 탭에서 날짜별 일정을 한눈에 볼 수 있고, 화면 위쪽에 뜨는 '톡비서 알림'을 누르면 해당 메모가 있는 채팅 위치로 바로 이동해 앞뒤 맥락을 확인할 수 있습니다.",
         },
       ],
       termsHeading: "이용약관",
@@ -653,19 +657,23 @@ export const translations: Record<Language, TranslationBundle> = {
       },
       guideHeading: "How to Use",
       guideIntro:
-        "TalkSecretary is an AI memory assistant designed to capture fleeting thoughts, screenshots, voice notes, and tasks effortlessly—without complex folders or manual sorting.",
+        "TalkSecretary is your personal AI memory assistant—just drop things in like messaging yourself, and it summarizes, organizes, and reminds you automatically. No folders needed—just 4 simple steps:",
       guideSteps: [
         {
-          title: "Step 1 — Drop It In Naturally:",
-          body: "Submit tasks, sudden ideas, notes, screenshots/images, or voice recordings into TalkSecretary just as naturally as you think of them.",
+          title: "1. Drop Anything In (Text, Photos, Voice, Links, Docs):",
+          body: "Send quick notes, booking screenshots, YouTube or web links, voice memos, or even PDF/Word files just as you think of them. (e.g., \"Dentist next Wednesday at 3 PM\")",
         },
         {
-          title: "Step 2 — Automatic AI Organization:",
-          body: "TalkSecretary analyzes your text, images, and voice memos, summarizes the key points, and neatly categorizes them for you.",
+          title: "2. Automatic AI Summary, Sorting & Reminders:",
+          body: "TalkSecretary reads what you sent, creates a 1-line summary, and files it under the right category (Schedule, To-Do, Ideas, Shopping, etc.). If there's a date, it sets a friendly reminder for you.",
         },
         {
-          title: "Step 3 — Retrieve Anytime:",
-          body: "Review everything at a glance in your inbox, check off completed items, and stay on top of your day effortlessly.",
+          title: "3. Ask or Edit in Plain Words:",
+          body: "Just ask in the chat when you need something (e.g., \"Where was that pasta place I saved?\" or \"Move that reminder to Tuesday 10 AM\"), and TalkSecretary finds or updates it right away.",
+        },
+        {
+          title: "4. Stay on Track with Calendar & Quick Jump:",
+          body: "Switch to the Calendar tab to view dated notes at a glance, or tap any top 'TalkSecretary Reminder' banner to jump straight to that memo in your chat.",
         },
       ],
       termsHeading: "Terms of Service",
@@ -923,19 +931,23 @@ export const translations: Record<Language, TranslationBundle> = {
       },
       guideHeading: "ご利用方法",
       guideIntro:
-        "トーク秘書（トーク秘書 - AIメモ）は、複雑なフォルダ分けや整理の手間なく、アイデア・メモ・スクリーンショット・音声を手軽に記録できるAI記憶アシスタントです。",
+        "トーク秘書は、自分宛てのチャットのように気軽にメモを投げるだけで、AIが自動で要約・分類・リマインドまでしてくれる記憶アシスタントです。難しいフォルダ分けは不要、次の4つだけでOKです。",
       guideSteps: [
         {
-          title: "ステップ1 — 気軽に投げ込む：",
-          body: "やるべきこと、アイデア、メモ、スクリーンショットや画像、音声録音など、覚えておきたい内容を普段通りに入力・アップロードします。",
+          title: "1. 思いついたまま気軽に投げる（文字・写真・音声・リンク・文書）：",
+          body: "短いメモ、予約画面のスクリーンショット、YouTubeやWebリンク、音声録音、PDF・Word文書まで何でもそのまま送れます。（例：「来週水曜15時に歯医者」）",
         },
         {
-          title: "ステップ2 — AIが自動で整理：",
-          body: "トーク秘書がテキスト・画像・音声を解析し、要点をわかりやすく要約してカテゴリー別に自動で整理します。",
+          title: "2. AIが自動で要約・分類・リマインド予約：",
+          body: "送った内容をAIが読み取り、1行でわかりやすく要約して「予定」「やること」「アイデア」「買い物」などのカテゴリーに自動整理します。日付があれば前日や当日の朝に通知も予約します。",
         },
         {
-          title: "ステップ3 — いつでも見返す：",
-          body: "受信トレイ（インボックス）から整理された記録をひと目で確認し、完了した項目をチェックしながら毎日をスマートに管理できます。",
+          title: "3. 普段の言葉でそのまま検索・修正：",
+          body: "見返したいときはチャットでそのまま聞くだけ（例：「前に保存したパスタのお店どこだっけ？」「さっきの通知を火曜朝10時に変えて」）。すぐに見つけて修正してくれます。",
+        },
+        {
+          title: "4. カレンダーと通知バナーでひと目で確認：",
+          body: "上部の「カレンダー」タブで日付付きメモを一覧でき、画面上部の「トーク秘書通知」をタップすると該当メモのチャット位置へすぐ移動できます。",
         },
       ],
       termsHeading: "利用規約",

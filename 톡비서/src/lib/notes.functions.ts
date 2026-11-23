@@ -124,17 +124,24 @@ export const analyzeAndSaveNote = createServerFn({ method: "POST" })
     }
 
     let raw: unknown = {};
+    let aiUnavailable = false;
     if (getGeminiApiKey()) {
       const text = await callGemini({
         instructions,
         input: parts,
         maxOutputTokens: 1200,
       });
-      if (text === null) throw new Error("잠시 AI 연결이 지연되고 있어요. 다시 던져 주세요");
-      raw = parseGeminiJson(text) ?? {};
+      if (text === null) {
+        aiUnavailable = true;
+      } else {
+        raw = parseGeminiJson(text) ?? {};
+      }
     }
 
     const a = normalizeAnalysis(raw, data.text, data.tzOffsetMin, extra);
+    if (aiUnavailable) {
+      a.secretary_reply = trL(L, "AI 정리가 잠시 지연되어 원문만 먼저 보관해 두었어요");
+    }
     const { data: row, error } = await supabase
       .from("notes")
       .insert({
@@ -175,11 +182,23 @@ function youtubeId(url: string): string | null {
   return null;
 }
 
+const OG_FETCH_TIMEOUT_MS = 5000;
+
+async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = OG_FETCH_TIMEOUT_MS): Promise<Response> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 async function fetchOg(url: string): Promise<{ title: string | null; description: string | null; image: string | null; author?: string | null } | null> {
   const yt = youtubeId(url);
   if (yt) {
     try {
-      const r = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(`https://www.youtube.com/watch?v=${yt}`)}`);
+      const r = await fetchWithTimeout(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(`https://www.youtube.com/watch?v=${yt}`)}`);
       const j = r.ok ? ((await r.json()) as { title?: string; author_name?: string }) : {};
       return {
         title: j.title?.slice(0, 200) ?? null,
@@ -193,19 +212,14 @@ async function fetchOg(url: string): Promise<{ title: string | null; description
     }
   }
   if (!isSafePublicHttpUrl(url)) return null;
+  const headers = { "User-Agent": "Mozilla/5.0 (compatible; JungbiBot/1.0)", Accept: "text/html" };
   try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 5000);
-    const res = await fetch(url, { signal: ctrl.signal, redirect: "manual", headers: { "User-Agent": "Mozilla/5.0 (compatible; JungbiBot/1.0)", Accept: "text/html" } });
-    clearTimeout(t);
+    const res = await fetchWithTimeout(url, { redirect: "manual", headers });
     if (res.status >= 300 && res.status < 400) {
       const loc = res.headers.get("location");
       const nextUrl = loc ? new URL(loc, url).href : "";
       if (!nextUrl || !isSafePublicHttpUrl(nextUrl)) return null;
-      const ctrl2 = new AbortController();
-      const t2 = setTimeout(() => ctrl2.abort(), 5000);
-      const res2 = await fetch(nextUrl, { signal: ctrl2.signal, redirect: "error", headers: { "User-Agent": "Mozilla/5.0 (compatible; JungbiBot/1.0)", Accept: "text/html" } });
-      clearTimeout(t2);
+      const res2 = await fetchWithTimeout(nextUrl, { redirect: "error", headers });
       if (!res2.ok || !(res2.headers.get("content-type") ?? "").includes("html")) return null;
       const html2 = (await res2.text()).slice(0, 300_000);
       return parseOg(html2, nextUrl);
