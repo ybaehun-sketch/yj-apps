@@ -1,0 +1,20 @@
+name = "uldongne-patrol-worker"
+main = "src/index.ts"
+compatibility_date = "2025-02-14"
+
+[triggers]
+crons = ["*/10 * * * *"]
+
+[vars]
+GEMINI_SCAN_MODEL = "gemini-3.5-flash-lite"
+GEMINI_WRITE_MODEL = "gemini-3.8-flash"
+AUTO_PUBLISH_ENABLED = "false"
+MAX_TARGETS_PER_RUN = "12"
+MAX_NEW_POSTS_PER_TARGET = "5"
+
+# Secrets (배포 시 `wrangler secret put <NAME>` 으로 등록)
+# - SUPABASE_URL
+# - SUPABASE_SERVICE_ROLE_KEY
+# - GEMINI_API_KEY
+# - GOV24_API_KEY (공공데이터포털 보조금24 인증키)
+# - WORKER_ADMIN_SECRET (수동 테스트 /run 호출용 비밀키)

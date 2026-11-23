@@ -1,0 +1,28 @@
+﻿{
+    "expo":  {
+                 "name":  "울동네 - 우리동네 복지알림",
+                 "slug":  "uldongne-mobile",
+                 "version":  "1.0.0",
+                 "orientation":  "portrait",
+                 "userInterfaceStyle":  "light",
+                 "splash":  {
+                                "backgroundColor":  "#ffffff"
+                            },
+                 "android":  {
+                                 "package":  "app.yjstudio.uldongne",
+                                 "adaptiveIcon":  {
+                                                      "backgroundColor":  "#1a73e8"
+                                                  }
+                             },
+                 "ios":  {
+                             "bundleIdentifier":  "app.yjstudio.uldongne"
+                         },
+                 "extra":  {
+                               "supabaseUrl":  "https://zgjpszhkiblaqyrukmey.supabase.co",
+                               "supabaseAnonKey":  "sb_publishable_GR34C0DfqqMh3kZ6Cw1FAA_zG3aclhu",
+                               "webBlogBaseUrl":  "https://uldongne.pages.dev",
+                               "admobNativeUnitId":  "",
+                               "admobInterstitialUnitId":  ""
+                           }
+             }
+}

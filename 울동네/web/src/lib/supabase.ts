@@ -1,0 +1,200 @@
+import type { CrawlTarget, WelfarePost } from './types';
+
+function getPublicConfig() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) return null;
+  return { url, anonKey };
+}
+
+function getAdminConfig() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) return null;
+  return { url, serviceKey };
+}
+
+/**
+ * 퍼블릭 웹 매거진 목록 조회 (status='published' AND publish_to_blog=true)
+ */
+export async function fetchPublishedBlogPosts(category?: string): Promise<WelfarePost[]> {
+  const cfg = getPublicConfig();
+  if (!cfg) return [];
+
+  let query =
+    `${cfg.url}/rest/v1/uldongne_welfare_posts` +
+    `?status=eq.published&publish_to_blog=eq.true&order=published_at.desc.nullslast,created_at.desc&limit=40`;
+
+  if (category && category !== '전체') {
+    query += `&category=eq.${encodeURIComponent(category)}`;
+  }
+
+  const res = await fetch(query, {
+    headers: {
+      apikey: cfg.anonKey,
+      Authorization: `Bearer ${cfg.anonKey}`
+    },
+    next: { revalidate: 60 }
+  });
+
+  if (!res.ok) return [];
+  return (await res.json()) as WelfarePost[];
+}
+
+/**
+ * 퍼블릭 웹 매거진 단일 글 조회
+ */
+export async function fetchPublishedPostById(id: string): Promise<WelfarePost | null> {
+  const cfg = getPublicConfig();
+  if (!cfg) return null;
+
+  const query =
+    `${cfg.url}/rest/v1/uldongne_welfare_posts` +
+    `?id=eq.${encodeURIComponent(id)}&status=eq.published&limit=1`;
+
+  const res = await fetch(query, {
+    headers: {
+      apikey: cfg.anonKey,
+      Authorization: `Bearer ${cfg.anonKey}`
+    },
+    next: { revalidate: 60 }
+  });
+
+  if (!res.ok) return null;
+  const rows = (await res.json()) as WelfarePost[];
+  return rows[0] ?? null;
+}
+
+/**
+ * 어드민: 검토 대기(draft) 공고 목록 조회
+ */
+export async function fetchDraftPosts(): Promise<WelfarePost[]> {
+  const cfg = getAdminConfig();
+  if (!cfg) return [];
+
+  const query =
+    `${cfg.url}/rest/v1/uldongne_welfare_posts` +
+    `?status=eq.draft&order=created_at.desc&limit=50`;
+
+  const res = await fetch(query, {
+    headers: {
+      apikey: cfg.serviceKey,
+      Authorization: `Bearer ${cfg.serviceKey}`
+    },
+    cache: 'no-store'
+  });
+
+  if (!res.ok) {
+    throw new Error(`fetchDraftPosts failed: ${res.status}`);
+  }
+  return (await res.json()) as WelfarePost[];
+}
+
+/**
+ * 어드민: 공고 수정 및 상태 변경 (발행/보관)
+ */
+export async function updateWelfarePostAdmin(
+  id: string,
+  patch: Partial<WelfarePost>
+): Promise<WelfarePost> {
+  const cfg = getAdminConfig();
+  if (!cfg) throw new Error('Supabase admin config missing');
+
+  const query = `${cfg.url}/rest/v1/uldongne_welfare_posts?id=eq.${encodeURIComponent(id)}`;
+  const res = await fetch(query, {
+    method: 'PATCH',
+    headers: {
+      apikey: cfg.serviceKey,
+      Authorization: `Bearer ${cfg.serviceKey}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation'
+    },
+    body: JSON.stringify(patch),
+    cache: 'no-store'
+  });
+
+  if (!res.ok) {
+    throw new Error(`updateWelfarePostAdmin failed: ${res.status} ${await res.text()}`);
+  }
+  const rows = (await res.json()) as WelfarePost[];
+  if (!rows[0]) throw new Error('Updated post not found');
+  return rows[0];
+}
+
+/**
+ * 어드민: AI 순찰대 타겟 전체 조회
+ */
+export async function fetchCrawlTargetsAdmin(): Promise<CrawlTarget[]> {
+  const cfg = getAdminConfig();
+  if (!cfg) return [];
+
+  const query = `${cfg.url}/rest/v1/uldongne_crawl_targets?order=status.asc,region_code.asc,org_name.asc`;
+  const res = await fetch(query, {
+    headers: {
+      apikey: cfg.serviceKey,
+      Authorization: `Bearer ${cfg.serviceKey}`
+    },
+    cache: 'no-store'
+  });
+
+  if (!res.ok) {
+    throw new Error(`fetchCrawlTargetsAdmin failed: ${res.status}`);
+  }
+  return (await res.json()) as CrawlTarget[];
+}
+
+/**
+ * 어드민: 신규 순찰 타겟 등록
+ */
+export async function createCrawlTargetAdmin(input: {
+  region_sido: string;
+  region_sigungu: string;
+  region_code: string;
+  org_name: string;
+  source_type: CrawlTarget['source_type'];
+  target_url: string;
+}): Promise<CrawlTarget> {
+  const cfg = getAdminConfig();
+  if (!cfg) throw new Error('Supabase admin config missing');
+
+  const res = await fetch(`${cfg.url}/rest/v1/uldongne_crawl_targets`, {
+    method: 'POST',
+    headers: {
+      apikey: cfg.serviceKey,
+      Authorization: `Bearer ${cfg.serviceKey}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation'
+    },
+    body: JSON.stringify({ ...input, status: 'active' }),
+    cache: 'no-store'
+  });
+
+  if (!res.ok) {
+    throw new Error(`createCrawlTargetAdmin failed: ${res.status} ${await res.text()}`);
+  }
+  const rows = (await res.json()) as CrawlTarget[];
+  return rows[0];
+}
+
+/**
+ * 어드민: 오류 타겟 상태 복구 ('active', fail_count=0)
+ */
+export async function resetCrawlTargetAdmin(id: string): Promise<void> {
+  const cfg = getAdminConfig();
+  if (!cfg) throw new Error('Supabase admin config missing');
+
+  const res = await fetch(`${cfg.url}/rest/v1/uldongne_crawl_targets?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: {
+      apikey: cfg.serviceKey,
+      Authorization: `Bearer ${cfg.serviceKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ status: 'active', fail_count: 0 }),
+    cache: 'no-store'
+  });
+
+  if (!res.ok) {
+    throw new Error(`resetCrawlTargetAdmin failed: ${res.status}`);
+  }
+}

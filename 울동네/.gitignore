@@ -1,0 +1,16 @@
+node_modules/
+.next/
+.expo/
+.wrangler/
+dist/
+out/
+
+# Local secrets (never commit)
+.env
+.env.local
+.env.*.local
+.dev.vars
+!.env.example
+*.pem
+*.key
+firebase-service-account.json
