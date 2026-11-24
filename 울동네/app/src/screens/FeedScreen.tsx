@@ -41,7 +41,10 @@ export function FeedScreen({
   const scrollOffsetY = useRef(0);
 
   const isDark = prefs.theme === 'dark';
-  const cardLimit = prefs.cardLimit ?? 40;
+  const cardLimit =
+    prefs.cardLimit === 20 || prefs.cardLimit === 30 || prefs.cardLimit === 40
+      ? prefs.cardLimit
+      : 30;
   const keywordsKey = prefs.keywords.join(',');
 
   async function loadPosts(isRefresh = false) {
@@ -113,13 +116,20 @@ export function FeedScreen({
           postTerms.some((pt) => pt.includes(uk.toLowerCase()) || uk.toLowerCase().includes(pt))
         );
         return { post, isMatch };
-      });
+      })
+      .filter((item) => (prefs.keywords.length > 0 ? item.isMatch : true));
 
     const sorted = [...withMatch].sort((a, b) => {
-      if (prefs.sortOrder === 'keyword_first') {
+      if (
+        prefs.sortOrder === 'region_keyword_first' ||
+        (prefs.sortOrder as string) === 'region_first' ||
+        (prefs.sortOrder as string) === 'keyword_first'
+      ) {
+        const aIsLocal = prefs.regionCode !== '00000' && a.post.region_code === prefs.regionCode;
+        const bIsLocal = prefs.regionCode !== '00000' && b.post.region_code === prefs.regionCode;
+        if (aIsLocal !== bIsLocal) return aIsLocal ? -1 : 1;
         if (a.isMatch !== b.isMatch) return a.isMatch ? -1 : 1;
-      }
-      if (prefs.sortOrder === 'deadline') {
+      } else if (prefs.sortOrder === 'deadline') {
         const da = a.post.deadline_date ? new Date(a.post.deadline_date).getTime() : Number.MAX_SAFE_INTEGER;
         const db = b.post.deadline_date ? new Date(b.post.deadline_date).getTime() : Number.MAX_SAFE_INTEGER;
         if (da !== db) return da - db;
@@ -140,7 +150,7 @@ export function FeedScreen({
       }
     });
     return rows;
-  }, [posts, prefs.hideExpired, prefs.sortOrder, expandedUserKeywords, cardLimit]);
+  }, [posts, prefs.hideExpired, prefs.sortOrder, prefs.regionCode, prefs.keywords.length, expandedUserKeywords, cardLimit]);
 
   return (
     <View style={[styles.container, isDark && styles.containerDark]}>
@@ -154,15 +164,6 @@ export function FeedScreen({
         </View>
 
         <View style={styles.topActions}>
-          <TouchableOpacity
-            onPress={() => loadPosts(true)}
-            disabled={refreshing}
-            style={[styles.settingsBtn, isDark && styles.settingsBtnDark]}
-          >
-            <Text style={[styles.settingsBtnText, isDark && styles.textDark]}>
-              {refreshing ? '갱신중' : '↻'}
-            </Text>
-          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setDrawerOpen(true)}
             style={[styles.settingsBtn, isDark && styles.settingsBtnDark]}
@@ -196,6 +197,62 @@ export function FeedScreen({
             data={feedRows}
             keyExtractor={(item) => (item.type === 'post' ? item.post.id : item.key)}
             contentContainerStyle={styles.listContent}
+            ListHeaderComponent={
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setDrawerOpen(true)}
+                style={[styles.selectionBox, isDark && styles.selectionBoxDark]}
+              >
+                <View style={styles.selectionHeader}>
+                  <View style={styles.selectionRegionRow}>
+                    <Text style={[styles.selectionLabel, isDark && styles.textMutedDark]}>
+                      내 동네
+                    </Text>
+                    <View style={[styles.selectionRegionBadge, isDark && styles.selectionRegionBadgeDark]}>
+                      <Text
+                        style={[
+                          styles.selectionRegionText,
+                          prefs.largeText && styles.selectionTextLarge,
+                          isDark && styles.selectionRegionTextDark
+                        ]}
+                      >
+                        {prefs.regionSido} {prefs.regionSigungu}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.selectionEditHint, isDark && styles.textMutedDark]}>
+                    변경 ›
+                  </Text>
+                </View>
+
+                <View style={styles.selectionKeywordsRow}>
+                  <Text style={[styles.selectionLabel, isDark && styles.textMutedDark]}>
+                    관심 키워드
+                  </Text>
+                  <View style={styles.keywordChipList}>
+                    {prefs.keywords.length > 0 ? (
+                      prefs.keywords.map((kw) => (
+                        <View key={kw} style={[styles.keywordChip, isDark && styles.keywordChipDark]}>
+                          <Text
+                            style={[
+                              styles.keywordChipText,
+                              prefs.largeText && styles.selectionTextLarge,
+                              isDark && styles.textDark
+                            ]}
+                          >
+                            #{kw}
+                          </Text>
+                        </View>
+                      ))
+                    ) : (
+                      <Text style={[styles.emptyKeywordText, isDark && styles.textMutedDark]}>
+                        전체 공고 (눌러서 키워드 추가)
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            }
             onScroll={(e) => {
               scrollOffsetY.current = e.nativeEvent.contentOffset.y;
             }}
@@ -209,7 +266,6 @@ export function FeedScreen({
               ) : (
                 <WelfareCard
                   post={item.post}
-                  isKeywordMatch={item.isMatch}
                   largeText={prefs.largeText}
                   isDark={isDark}
                   onPress={() => onSelectPost(item.post)}
@@ -219,7 +275,9 @@ export function FeedScreen({
             ListEmptyComponent={
               <View style={styles.emptyBox}>
                 <Text style={[styles.emptyText, isDark && styles.textMutedDark]}>
-                  표시할 공고가 없습니다.
+                  {prefs.keywords.length > 0
+                    ? '선택한 관심 키워드에 맞는 소식이 아직 없습니다.\n설정에서 관심 키워드를 변경해 보세요.'
+                    : '표시할 공고가 없습니다.'}
                 </Text>
               </View>
             }
@@ -248,7 +306,7 @@ export function FeedScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff'
+    backgroundColor: '#eff2f6'
   },
   containerDark: {
     backgroundColor: '#12151b'
@@ -259,10 +317,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 14,
+    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#dadce0'
+    borderBottomColor: '#e3e7ed'
   },
   topBarDark: {
+    backgroundColor: '#171b23',
     borderBottomColor: '#2d323e'
   },
   brandWrap: {
@@ -337,6 +397,88 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 24
   },
+  selectionBox: {
+    backgroundColor: '#eef4ff',
+    borderWidth: 1,
+    borderColor: '#cfe0fc',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
+    gap: 10
+  },
+  selectionBoxDark: {
+    backgroundColor: '#1a2230',
+    borderColor: '#2d3544'
+  },
+  selectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  selectionRegionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  selectionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#5f6368'
+  },
+  selectionRegionBadge: {
+    backgroundColor: '#e8f0fe',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 6
+  },
+  selectionRegionBadgeDark: {
+    backgroundColor: '#233554'
+  },
+  selectionRegionText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1a73e8'
+  },
+  selectionRegionTextDark: {
+    color: '#8ab4f8'
+  },
+  selectionEditHint: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#5f6368'
+  },
+  selectionKeywordsRow: {
+    gap: 6
+  },
+  keywordChipList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6
+  },
+  keywordChip: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#dadce0',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4
+  },
+  keywordChipDark: {
+    backgroundColor: '#232833',
+    borderColor: '#363d4d'
+  },
+  keywordChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#3c4043'
+  },
+  selectionTextLarge: {
+    fontSize: 14
+  },
+  emptyKeywordText: {
+    fontSize: 12,
+    color: '#5f6368'
+  },
   emptyBox: {
     paddingVertical: 60,
     alignItems: 'center'
@@ -347,8 +489,8 @@ const styles = StyleSheet.create({
   },
   bottomNotice: {
     borderTopWidth: 1,
-    borderTopColor: '#eceff1',
-    backgroundColor: '#f8f9fa',
+    borderTopColor: '#e3e7ed',
+    backgroundColor: '#eef1f5',
     paddingHorizontal: 14,
     paddingVertical: 8,
     alignItems: 'center'

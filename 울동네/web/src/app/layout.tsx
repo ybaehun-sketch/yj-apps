@@ -18,7 +18,7 @@ export default function RootLayout({
 
   return (
     <html lang="ko">
-      <body className="min-h-screen bg-white text-[#202124] antialiased">
+      <body className="min-h-screen bg-[#eff2f6] text-[#202124] antialiased">
         {adsenseClient ? (
           <Script
             async
@@ -28,7 +28,7 @@ export default function RootLayout({
           />
         ) : null}
 
-        <header className="border-b border-[#dadce0] bg-white">
+        <header className="border-b border-[#e3e7ed] bg-white">
           <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
             <Link href="/" className="flex items-center gap-2.5">
               <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#1a73e8] text-sm font-bold text-white">
@@ -53,7 +53,7 @@ export default function RootLayout({
 
         <main className="mx-auto max-w-4xl px-4 py-8">{children}</main>
 
-        <footer className="mt-16 border-t border-[#dadce0] bg-[#f8f9fa]">
+        <footer className="mt-16 border-t border-[#e3e7ed] bg-[#eef1f5]">
           <div className="mx-auto max-w-4xl px-4 py-8 text-sm leading-relaxed text-[#5f6368]">
             <p className="font-medium text-[#202124]">
               울동네 · YJ 스튜디오 민간 생활정보 큐레이션 서비스

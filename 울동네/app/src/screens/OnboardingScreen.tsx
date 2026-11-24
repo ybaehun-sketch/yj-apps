@@ -64,10 +64,10 @@ export function OnboardingScreen({ initialPrefs, onComplete }: OnboardingScreenP
       regionSigungu: selectedRegion.sigungu,
       regionCode: selectedRegion.code,
       keywords: selectedKeywords.length > 0 ? selectedKeywords : ['생활/문화'],
-      sortOrder: initialPrefs?.sortOrder ?? 'keyword_first',
+      sortOrder: initialPrefs?.sortOrder ?? 'region_keyword_first',
       hideExpired: initialPrefs?.hideExpired ?? true,
-      largeText: initialPrefs?.largeText ?? false,
-      cardLimit: initialPrefs?.cardLimit ?? 40,
+      largeText: initialPrefs?.largeText ?? true,
+      cardLimit: initialPrefs?.cardLimit === 20 || initialPrefs?.cardLimit === 30 || initialPrefs?.cardLimit === 40 ? initialPrefs.cardLimit : 30,
       theme: initialPrefs?.theme ?? 'light'
     });
   }
@@ -145,7 +145,7 @@ export function OnboardingScreen({ initialPrefs, onComplete }: OnboardingScreenP
 const styles = StyleSheet.create({
   container: {
     padding: 20,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#eff2f6',
     flexGrow: 1
   },
   header: {

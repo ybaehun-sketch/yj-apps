@@ -52,6 +52,7 @@ export default function App() {
         <DetailScreen
           post={selectedPost}
           largeText={prefs.largeText}
+          isDark={isDark}
           onBack={() => setSelectedPost(null)}
         />
       ) : (
@@ -94,7 +95,7 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     height: '100%',
     maxHeight: 860,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#eff2f6',
     borderRadius: 28,
     borderWidth: 1,
     borderColor: '#cfd8e3',
@@ -111,7 +112,7 @@ const styles = StyleSheet.create({
   },
   safe: {
     flex: 1,
-    backgroundColor: '#ffffff'
+    backgroundColor: '#eff2f6'
   },
   safeDark: {
     backgroundColor: '#12151b'

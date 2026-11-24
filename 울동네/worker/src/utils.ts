@@ -6,7 +6,7 @@ const DEFAULT_USER_AGENT =
  */
 export async function fetchWithTimeout(
   url: string,
-  timeoutMs = 15000,
+  timeoutMs = 30000,
   init: RequestInit = {}
 ): Promise<Response> {
   const controller = new AbortController();
@@ -116,6 +116,55 @@ export function toAbsoluteUrl(href: string, baseUrl: string): string {
 }
 
 /**
+ * JSON 문자열 내부의 이스케이프되지 않은 제어문자를 안전하게 보정
+ */
+function sanitizeJsonControlChars(input: string): string {
+  let out = '';
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    if (escaped) {
+      out += ch;
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\' && inString) {
+      out += ch;
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      out += ch;
+      continue;
+    }
+    if (inString) {
+      if (ch === '\n') {
+        out += '\\n';
+        continue;
+      }
+      if (ch === '\r') {
+        out += '\\r';
+        continue;
+      }
+      if (ch === '\t') {
+        out += '\\t';
+        continue;
+      }
+      const code = ch.charCodeAt(0);
+      if (code < 0x20) {
+        continue;
+      }
+    }
+    out += ch;
+  }
+
+  return out;
+}
+
+/**
  * LLM 응답에서 마크다운 코드 펜스를 제거하고 안전하게 JSON 파싱
  */
 export function parseJsonFromLlm<T>(rawText: string): T {
@@ -124,7 +173,11 @@ export function parseJsonFromLlm<T>(rawText: string): T {
     .replace(/^```\s*/i, '')
     .replace(/\s*```$/i, '')
     .trim();
-  return JSON.parse(trimmed) as T;
+  try {
+    return JSON.parse(trimmed) as T;
+  } catch {
+    return JSON.parse(sanitizeJsonControlChars(trimmed)) as T;
+  }
 }
 
 /**

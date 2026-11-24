@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { AdSenseSlot } from '@/components/AdSenseSlot';
 import { AppInstallBanner } from '@/components/AppInstallBanner';
+import { DeadlineBadge } from '@/components/DeadlineBadge';
 import { fetchPublishedBlogPosts } from '@/lib/supabase';
 
 const CATEGORIES = [
@@ -11,6 +12,14 @@ const CATEGORIES = [
   '소상공인/일자리',
   '생활/문화'
 ];
+
+const CATEGORY_PILL_STYLES: Record<string, string> = {
+  '돌봄/육아': 'bg-[#fff1e8] text-[#b85418]',
+  '어르신/건강': 'bg-[#e8f7f0] text-[#167a4b]',
+  '주거/난방비': 'bg-[#eaf3ff] text-[#1967d2]',
+  '소상공인/일자리': 'bg-[#f3efff] text-[#653bc4]',
+  '생활/문화': 'bg-[#fef7e0] text-[#9c6500]'
+};
 
 const PAGE_SIZE = 10;
 
@@ -63,7 +72,7 @@ export default async function HomePage({
 
   return (
     <div>
-      <section className="border-b border-[#dadce0] pb-6">
+      <section className="rounded-2xl border border-[#d6e2f7] bg-gradient-to-br from-[#eaf1ff] via-[#f5f8ff] to-[#fcfbf8] p-6 shadow-sm sm:p-7">
         <h1 className="text-2xl font-bold tracking-tight text-[#202124] sm:text-3xl">
           놓치기 쉬운 우리 동네 지원금·생활 혜택
         </h1>
@@ -100,7 +109,7 @@ export default async function HomePage({
               name="q"
               defaultValue={searchQuery}
               placeholder="관심 키워드 검색 (예: 난방비, 돌봄, 홍천군, 소상공인)"
-              className="w-full rounded-full border border-[#dadce0] bg-[#f8f9fa] py-2.5 pl-10 pr-4 text-[15px] text-[#202124] outline-none transition focus:border-[#1a73e8] focus:bg-white"
+              className="w-full rounded-full border border-[#d6deea] bg-white py-2.5 pl-10 pr-4 text-[15px] text-[#202124] shadow-sm outline-none transition focus:border-[#1a73e8]"
             />
           </div>
           <button
@@ -163,15 +172,19 @@ export default async function HomePage({
         <div className="grid gap-4">
           {posts.map((post, idx) => (
             <div key={post.id} className="contents">
-              <article className="rounded-2xl border border-[#dadce0] bg-white p-6 transition hover:border-[#1a73e8]">
+              <article className="rounded-2xl border border-[#dfe3ea] bg-[#fcfbf8] p-6 shadow-sm transition hover:border-[#1a73e8] hover:bg-white hover:shadow-md">
                 <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-[#5f6368]">
-                  <span className="rounded bg-[#e8f0fe] px-2.5 py-0.5 text-[#1a73e8]">
+                  <span className="rounded-md bg-[#e8f0fe] px-2.5 py-0.5 font-semibold text-[#1a73e8]">
                     {post.region_sigungu === '전체' ? '전국 공통' : `${post.region_sido} ${post.region_sigungu}`}
                   </span>
-                  <span>{post.category}</span>
-                  {post.deadline_date ? (
-                    <span className="text-[#d93025]">마감 {post.deadline_date}</span>
-                  ) : null}
+                  <span
+                    className={`rounded-md px-2.5 py-0.5 font-semibold ${
+                      CATEGORY_PILL_STYLES[post.category] ?? 'bg-[#f1f3f4] text-[#5f6368]'
+                    }`}
+                  >
+                    {post.category}
+                  </span>
+                  <DeadlineBadge deadlineDate={post.deadline_date} />
                 </div>
 
                 <h2 className="mt-2.5 text-xl font-bold leading-snug text-[#202124]">
@@ -186,12 +199,6 @@ export default async function HomePage({
 
                 <div className="mt-4 flex items-center justify-between border-t border-[#f1f3f4] pt-3 text-xs text-[#5f6368]">
                   <span>출처: {post.org_name}</span>
-                  <Link
-                    href={`/posts/${post.id}`}
-                    className="font-semibold text-[#1a73e8] hover:underline"
-                  >
-                    생활 꿀팁·체크리스트 전체 보기 →
-                  </Link>
                 </div>
               </article>
 

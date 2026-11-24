@@ -3,7 +3,11 @@ main = "src/index.ts"
 compatibility_date = "2025-02-14"
 
 [triggers]
-crons = ["*/10 * * * *"]
+# 한국시간(KST) 기준:
+# - 화~토 새벽 05:00 (UTC 월~금 20:00): 정기 순찰 (토요일 새벽 5시까지 금요일 데이터 처리)
+# - 월~금 낮 12:30 (UTC 월~금 03:30): 정기 순찰 (토·일 휴무 후 월요일 점심 12:30 재개)
+# - 월~금 오후 18:00 (UTC 월~금 09:00): 오류·정지 기관 재점검
+crons = ["0 20 * * 1-5", "30 3 * * 1-5", "0 9 * * 1-5"]
 
 [vars]
 GEMINI_SCAN_MODEL = "gemini-3.5-flash-lite"
@@ -11,12 +15,17 @@ GEMINI_WRITE_MODEL = "gemini-3.8-flash"
 AUTO_PUBLISH_ENABLED = "true"
 APP_AUTO_PUBLISH_MIN_CONFIDENCE = "80"
 MAX_BLOG_DRAFTS_PER_DAY = "3"
-MAX_TARGETS_PER_RUN = "12"
+MAX_TARGETS_PER_RUN = "50"
 MAX_NEW_POSTS_PER_TARGET = "5"
+PATROL_RELAY_DELAY_MS = "5000"
+PATROL_MAX_BATCHES = "20"
 
 # Secrets (배포 시 `wrangler secret put <NAME>` 으로 등록)
 # - SUPABASE_URL
 # - SUPABASE_SERVICE_ROLE_KEY
 # - GEMINI_API_KEY
 # - GOV24_API_KEY (공공데이터포털 보조금24 인증키)
-# - WORKER_ADMIN_SECRET (수동 테스트 /run 호출용 비밀키)
+# - WORKER_ADMIN_SECRET (수동 테스트 /run 및 50곳 이어달리기 호출용 비밀키)
+# - WORKER_PUBLIC_URL (배포된 Worker 주소: 이어달리기 자동 호출 시 사용)
+# - BACKUP_LLM_API_KEY (추후 타사 AI 백업 연결 시 등록: openai / anthropic 등)
+# - BACKUP_LLM_PROVIDER / BACKUP_LLM_MODEL / BACKUP_LLM_BASE_URL (선택 사항)

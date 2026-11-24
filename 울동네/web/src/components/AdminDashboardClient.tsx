@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { CrawlTarget, WelfarePost } from '@/lib/types';
+import { AppPublishCalendarModal } from './AppPublishCalendarModal';
 import { PatrolStatusModal, type PatrolFilterTab } from './PatrolStatusModal';
 
 interface AdminDashboardClientProps {
@@ -27,11 +28,30 @@ export function AdminDashboardClient({
   const [toast, setToast] = useState<string>('');
   const [patrolModalOpen, setPatrolModalOpen] = useState(false);
   const [patrolModalTab, setPatrolModalTab] = useState<PatrolFilterTab>('all');
+  const [patrolModalRegion, setPatrolModalRegion] = useState<string>('ALL');
+  const [calendarModalOpen, setCalendarModalOpen] = useState(false);
+  const [expandedDraftIds, setExpandedDraftIds] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    if (initialDrafts.length > 0) {
+      initial[initialDrafts[0].id] = true;
+    }
+    return initial;
+  });
 
-  function openPatrolModal(tab: PatrolFilterTab) {
+  function toggleDraftExpand(postId: string) {
+    setExpandedDraftIds((prev) => ({
+      ...prev,
+      [postId]: !prev[postId]
+    }));
+  }
+
+  function openPatrolModal(tab: PatrolFilterTab, region = 'ALL') {
     setPatrolModalTab(tab);
+    setPatrolModalRegion(region);
     setPatrolModalOpen(true);
   }
+
+  const [showErrorTargets, setShowErrorTargets] = useState(false);
 
   // 신규 타겟 폼 상태
   const [newTarget, setNewTarget] = useState({
@@ -153,20 +173,6 @@ export function AdminDashboardClient({
     setToast('새 순찰 대상이 등록되었습니다.');
   }
 
-  async function handleResetTarget(id: string) {
-    const res = await fetch('/api/admin/targets', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id })
-    });
-    if (res.ok) {
-      setTargets((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, status: 'active', fail_count: 0 } : t))
-      );
-      setToast('타겟 상태를 정상으로 복구했습니다.');
-    }
-  }
-
   if (!authenticated) {
     return (
       <div className="mx-auto max-w-md rounded-xl border border-[#dadce0] bg-white p-8">
@@ -228,10 +234,10 @@ export function AdminDashboardClient({
           <h2 className="text-lg font-bold text-[#202124]">AI 순찰대 현황</h2>
           <button
             type="button"
-            onClick={() => openPatrolModal('all')}
+            onClick={() => openPatrolModal('all', 'ALL')}
             className="rounded-lg border border-[#d2e3fc] bg-[#f8fbff] px-3.5 py-1.5 text-xs font-semibold text-[#1a73e8] hover:bg-[#e8f0fe]"
           >
-            전체 순찰 지역 한눈에 보기 ({targets.length}곳)
+            순찰지역 테이블 보기 ({targets.length}곳)
           </button>
         </div>
         <div className="grid grid-cols-3 gap-4">
@@ -240,10 +246,7 @@ export function AdminDashboardClient({
             onClick={() => openPatrolModal('active')}
             className="rounded-xl border border-[#dadce0] bg-white p-4 text-left transition hover:border-[#1a73e8] hover:bg-[#f8fbff]"
           >
-            <div className="flex items-center justify-between text-xs text-[#5f6368]">
-              <span>정상 순찰 중</span>
-              <span className="text-[#1a73e8]">세부 보기 →</span>
-            </div>
+            <div className="text-xs text-[#5f6368]">정상 순찰 중</div>
             <div className="mt-1 text-2xl font-bold text-[#1a73e8]">{activeCount}곳</div>
           </button>
           <button
@@ -251,10 +254,7 @@ export function AdminDashboardClient({
             onClick={() => openPatrolModal('error')}
             className="rounded-xl border border-[#dadce0] bg-white p-4 text-left transition hover:border-[#d93025] hover:bg-[#fef7f6]"
           >
-            <div className="flex items-center justify-between text-xs text-[#5f6368]">
-              <span>오류(3회 실패)</span>
-              <span className="text-[#d93025]">세부 보기 →</span>
-            </div>
+            <div className="text-xs text-[#5f6368]">오류(3회 실패)</div>
             <div className="mt-1 text-2xl font-bold text-[#d93025]">{errorCount}곳</div>
           </button>
           <button
@@ -262,34 +262,38 @@ export function AdminDashboardClient({
             onClick={() => openPatrolModal('paused')}
             className="rounded-xl border border-[#dadce0] bg-white p-4 text-left transition hover:border-[#5f6368] hover:bg-[#f8f9fa]"
           >
-            <div className="flex items-center justify-between text-xs text-[#5f6368]">
-              <span>일시 정지</span>
-              <span>세부 보기 →</span>
-            </div>
+            <div className="text-xs text-[#5f6368]">일시 정지</div>
             <div className="mt-1 text-2xl font-bold text-[#5f6368]">{pausedCount}곳</div>
           </button>
         </div>
 
         {errorCount > 0 ? (
           <div className="rounded-xl border border-[#fad2cf] bg-[#fce8e6] p-4">
-            <div className="text-sm font-bold text-[#c5221f]">확인이 필요한 순찰 대상</div>
-            <ul className="mt-2 space-y-2 text-sm">
-              {targets
-                .filter((t) => t.status === 'error')
-                .map((t) => (
-                  <li key={t.id} className="flex items-center justify-between gap-2">
-                    <span>
-                      {t.org_name} ({t.region_sigungu}) - 실패 {t.fail_count}회
-                    </span>
-                    <button
-                      onClick={() => handleResetTarget(t.id)}
-                      className="rounded bg-white px-2.5 py-1 text-xs font-semibold text-[#c5221f] border border-[#fad2cf]"
-                    >
-                      다시 활성화
-                    </button>
-                  </li>
-                ))}
-            </ul>
+            <button
+              type="button"
+              onClick={() => setShowErrorTargets((prev) => !prev)}
+              className="flex w-full items-center justify-between text-left"
+            >
+              <span className="text-sm font-bold text-[#c5221f]">
+                확인이 필요한 순찰 대상 ({errorCount}곳)
+              </span>
+              <span className="text-xs font-semibold text-[#c5221f]">
+                {showErrorTargets ? '접기 ▴' : '펼치기 ▾'}
+              </span>
+            </button>
+            {showErrorTargets ? (
+              <ul className="mt-3 space-y-2 border-t border-[#fad2cf] pt-3 text-sm">
+                {targets
+                  .filter((t) => t.status === 'error')
+                  .map((t) => (
+                    <li key={t.id} className="flex items-center justify-between gap-2">
+                      <span>
+                        {t.org_name} ({t.region_sigungu}) - 실패 {t.fail_count}회
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+            ) : null}
           </div>
         ) : null}
 
@@ -359,52 +363,82 @@ export function AdminDashboardClient({
         </form>
       </section>
 
-      {/* 2. 검토 대기함 */}
+      {/* 2. 검토 대기 초안 */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-[#202124]">
-            검토 대기 공고 ({drafts.length}건)
+            검토 대기 초안 ({drafts.length}건)
           </h2>
         </div>
 
         {drafts.length === 0 ? (
           <div className="rounded-xl border border-[#dadce0] bg-[#f8f9fa] p-8 text-center text-sm text-[#5f6368]">
-            현재 검토 대기 중인 공고가 없습니다.
+            현재 검토 대기 중인 초안이 없습니다.
           </div>
         ) : (
-          <div className="space-y-6">
-            {drafts.map((post) => (
+          <div className="space-y-4">
+            {drafts.map((post, idx) => {
+              const isExpanded = expandedDraftIds[post.id] ?? idx === 0;
+              return (
               <div
                 key={post.id}
                 className="rounded-xl border border-[#dadce0] bg-white p-5 space-y-4"
               >
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#dadce0] pb-3">
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <span className="rounded bg-[#e8f0fe] px-2 py-0.5 font-semibold text-[#1a73e8]">
-                      {post.region_sigungu}
-                    </span>
-                    <span className="rounded bg-[#f1f3f4] px-2 py-0.5 text-[#202124]">
-                      {post.category}
-                    </span>
-                    <span className="text-[#5f6368]">
-                      AI 확신도: <strong>{post.ai_confidence}점</strong>
-                    </span>
-                    {post.has_attachment_only ? (
-                      <span className="rounded bg-[#fef7e0] px-2 py-0.5 font-medium text-[#b06000]">
-                        첨부파일 위주 공고
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => toggleDraftExpand(post.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggleDraftExpand(post.id);
+                    }
+                  }}
+                  className={`flex cursor-pointer flex-wrap items-center justify-between gap-2 ${
+                    isExpanded ? 'border-b border-[#dadce0] pb-3' : ''
+                  }`}
+                >
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className="rounded bg-[#e8f0fe] px-2 py-0.5 font-semibold text-[#1a73e8]">
+                        {post.region_sigungu}
                       </span>
+                      <span className="rounded bg-[#f1f3f4] px-2 py-0.5 text-[#202124]">
+                        {post.category}
+                      </span>
+                      <span className="text-[#5f6368]">
+                        AI 확신도: <strong>{post.ai_confidence}점</strong>
+                      </span>
+                      {post.has_attachment_only ? (
+                        <span className="rounded bg-[#fef7e0] px-2 py-0.5 font-medium text-[#b06000]">
+                          첨부파일 위주 공고
+                        </span>
+                      ) : null}
+                    </div>
+                    {!isExpanded ? (
+                      <div className="truncate pt-1 text-sm font-bold text-[#202124]">
+                        {post.blog_title || post.app_title}
+                      </div>
                     ) : null}
                   </div>
-                  <a
-                    href={post.source_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-medium text-[#1a73e8] hover:underline"
-                  >
-                    원문 확인 ↗
-                  </a>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <a
+                      href={post.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-xs font-medium text-[#1a73e8] hover:underline"
+                    >
+                      원문 확인 ↗
+                    </a>
+                    <span className="rounded-md border border-[#dadce0] bg-[#f8f9fa] px-2.5 py-1 text-xs font-semibold text-[#3c4043]">
+                      {isExpanded ? '접기 ▴' : '펼쳐보기 ▾'}
+                    </span>
+                  </div>
                 </div>
 
+                {isExpanded ? (
+                  <>
                 <div>
                   <label className="block text-xs font-bold text-[#1a73e8]">
                     블로그 글 제목 (웹 매거진 노출용)
@@ -535,18 +569,32 @@ export function AdminDashboardClient({
                     {busyId === post.id ? '처리 중...' : '블로그 발행하기'}
                   </button>
                 </div>
+                  </>
+                ) : null}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
 
       {/* 3. 모바일 앱 AI 자동 발행 현황 */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-[#202124]">
-            모바일 앱 자동 발행 현황 ({appPosts.length}건)
-          </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-lg font-bold text-[#202124]">
+              모바일 앱 자동 발행 현황 ({appPosts.length}건)
+            </h2>
+            <button
+              type="button"
+              onClick={() => setCalendarModalOpen(true)}
+              className="inline-flex items-center gap-1 rounded-lg border border-[#dadce0] bg-white px-2.5 py-1 text-xs font-semibold text-[#3c4043] hover:border-[#1a73e8] hover:bg-[#f8fbff] hover:text-[#1a73e8]"
+              title="날짜별 발행 현황 달력 보기"
+            >
+              <span aria-hidden="true">📅</span>
+              <span>달력</span>
+            </button>
+          </div>
           <span className="text-xs text-[#5f6368]">AI 확신도 기준 충족 시 자동 노출·알림</span>
         </div>
 
@@ -586,9 +634,17 @@ export function AdminDashboardClient({
       <PatrolStatusModal
         open={patrolModalOpen}
         initialTab={patrolModalTab}
+        initialRegion={patrolModalRegion}
         targets={targets}
         onClose={() => setPatrolModalOpen(false)}
-        onResetTarget={handleResetTarget}
+      />
+
+      <AppPublishCalendarModal
+        open={calendarModalOpen}
+        posts={appPosts}
+        busyId={busyId}
+        onClose={() => setCalendarModalOpen(false)}
+        onHidePost={(post) => handlePostAction(post, 'hide_app')}
       />
     </div>
   );

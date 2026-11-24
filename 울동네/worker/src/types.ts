@@ -16,9 +16,18 @@ export interface Env {
   GOV24_API_KEY?: string;
   WELFARE_API_KEY?: string;
   WORKER_ADMIN_SECRET?: string;
+  WORKER_PUBLIC_URL?: string;
+  PATROL_RELAY_DELAY_MS?: string;
+  PATROL_MAX_BATCHES?: string;
   FIREBASE_SERVICE_ACCOUNT_JSON?: string;
   GEMINI_SCAN_MODEL: string;
   GEMINI_WRITE_MODEL: string;
+  GEMINI_SCAN_FALLBACK_MODEL?: string;
+  GEMINI_WRITE_FALLBACK_MODEL?: string;
+  BACKUP_LLM_PROVIDER?: string;
+  BACKUP_LLM_API_KEY?: string;
+  BACKUP_LLM_MODEL?: string;
+  BACKUP_LLM_BASE_URL?: string;
   AUTO_PUBLISH_ENABLED: string;
   APP_AUTO_PUBLISH_MIN_CONFIDENCE?: string;
   MAX_BLOG_DRAFTS_PER_DAY?: string;
@@ -54,10 +63,26 @@ export interface GeneratedWelfarePost {
   app_summary_3lines: string;
   app_detail_summary: string;
   publish_to_blog: boolean;
-  blog_title: string;
-  blog_content_md: string;
+  blog_title: string | null;
+  blog_content_md: string | null;
   deadline_date: string | null;
   contact_phone: string | null;
+  ai_confidence: number;
+}
+
+export interface BlogCandidateRow {
+  id: string;
+  region_sido: string;
+  region_sigungu: string;
+  org_name: string;
+  category: WelfareCategory;
+  app_title: string;
+  app_summary_3lines: string;
+  app_detail_summary: string;
+  source_url: string;
+  contact_phone: string | null;
+  deadline_date: string | null;
+  persona_style_id: number | null;
   ai_confidence: number;
 }
 

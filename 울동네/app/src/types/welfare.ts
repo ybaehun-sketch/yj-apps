@@ -5,7 +5,7 @@ export type WelfareCategory =
   | '소상공인/일자리'
   | '생활/문화';
 
-export type SortOrder = 'keyword_first' | 'deadline' | 'latest';
+export type SortOrder = 'region_keyword_first' | 'deadline' | 'latest';
 
 export type AppTheme = 'light' | 'dark';
 
@@ -36,6 +36,6 @@ export interface UserPreferences {
   sortOrder: SortOrder;
   hideExpired: boolean;
   largeText: boolean;
-  cardLimit: 20 | 40 | 60;
+  cardLimit: 20 | 30 | 40;
   theme: AppTheme;
 }

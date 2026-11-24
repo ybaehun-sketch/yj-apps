@@ -11,7 +11,7 @@ import {
   TouchableWithoutFeedback,
   View
 } from 'react-native';
-import { RECOMMENDED_KEYWORDS, STANDARD_CATEGORIES } from '../constants/keywords';
+import { RECOMMENDED_KEYWORDS } from '../constants/keywords';
 import type { AppTheme, SortOrder, UserPreferences } from '../types/welfare';
 import { RegionDropdownSelector } from './RegionDropdownSelector';
 
@@ -47,7 +47,7 @@ const LEGAL_MOCKUP_CONTENT: Record<
     body:
       '1. 슬라이드 설정에서 내 동네(관심 지역)와 관심 키워드를 선택하세요.\n\n' +
       '2. 메인 화면에 내 동네와 전국 공통 혜택이 3~4줄 요약 카드로 자동 정리되어 나타납니다.\n\n' +
-      '3. 설정에서 카드 나열 순서(최신순·기한 임박순·관심 우선), 노출 개수, 앱 테마를 자유롭게 바꿀 수 있습니다.\n\n' +
+      '3. 설정에서 카드 나열 순서(내 지역 우선·최신순·기한 임박순), 노출 개수, 앱 테마를 자유롭게 바꿀 수 있습니다.\n\n' +
       '4. 마음에 드는 카드를 눌러 상세 내용을 보고 [신청하러 가기]로 공식 페이지에 바로 이동하세요.'
   }
 };
@@ -57,6 +57,8 @@ const MAX_KEYWORDS = 3;
 const FRAME_WIDTH =
   Platform.OS === 'web' ? Math.min(Dimensions.get('window').width, 420) : Dimensions.get('window').width;
 const DRAWER_WIDTH = Math.min(340, FRAME_WIDTH * 0.84);
+
+type AccordionSection = 'region' | 'keywords' | 'sort' | 'limit' | 'theme';
 
 export function SettingsDrawerModal({
   visible,
@@ -68,8 +70,13 @@ export function SettingsDrawerModal({
   const [customKeyword, setCustomKeyword] = useState('');
   const [keywordNotice, setKeywordNotice] = useState('');
   const [legalModal, setLegalModal] = useState<LegalModalType>(null);
+  const [openSection, setOpenSection] = useState<AccordionSection | null>(null);
 
   const isDark = prefs.theme === 'dark';
+
+  function toggleSection(section: AccordionSection) {
+    setOpenSection((prev) => (prev === section ? null : section));
+  }
 
   useEffect(() => {
     if (visible) {
@@ -147,207 +154,309 @@ export function SettingsDrawerModal({
 
             <ScrollView contentContainerStyle={styles.drawerBody}>
               {/* 1. 관심 지역 (시·도 → 시·군·구 2단 드롭다운) */}
-              <Text style={[styles.sectionLabel, isDark && styles.textDark]}>관심 지역</Text>
-              <RegionDropdownSelector
-                selectedSido={prefs.regionSido}
-                selectedCode={prefs.regionCode}
-                isDark={isDark}
-                onSelectRegion={(r) =>
-                  onSavePrefs({
-                    ...prefs,
-                    regionSido: r.sido,
-                    regionSigungu: r.sigungu,
-                    regionCode: r.code
-                  })
-                }
-              />
-
-              {/* 2. 관심 키워드 (최대 3개) */}
-              <Text style={[styles.sectionLabel, isDark && styles.textDark]}>
-                관심 키워드 ({prefs.keywords.length}/{MAX_KEYWORDS})
-              </Text>
-              {keywordNotice ? (
-                <Text style={styles.limitNotice}>{keywordNotice}</Text>
-              ) : null}
-              <View style={styles.chipWrap}>
-                {Array.from(
-                  new Set([...STANDARD_CATEGORIES, ...RECOMMENDED_KEYWORDS, ...prefs.keywords])
-                ).map((kw) => {
-                  const active = prefs.keywords.includes(kw);
-                  return (
-                    <TouchableOpacity
-                      key={kw}
-                      onPress={() => toggleKeyword(kw)}
-                      style={[
-                        styles.chip,
-                        isDark && styles.chipDark,
-                        active && styles.chipActive
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          isDark && styles.textMutedDark,
-                          active && styles.chipTextActive
-                        ]}
-                      >
-                        #{kw}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+              <View style={[styles.accordionGroup, isDark && styles.borderDark]}>
+                <TouchableOpacity
+                  onPress={() => toggleSection('region')}
+                  style={styles.accordionHeader}
+                >
+                  <Text style={[styles.sectionLabel, isDark && styles.textDark]}>관심 지역</Text>
+                  <View style={styles.accordionRight}>
+                    <Text style={[styles.accordionSummary, isDark && styles.textMutedDark]}>
+                      {prefs.regionSigungu === '전체' ? prefs.regionSido : prefs.regionSigungu}
+                    </Text>
+                    <Text style={[styles.accordionArrow, isDark && styles.textMutedDark]}>
+                      {openSection === 'region' ? '▴' : '▾'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                {openSection === 'region' ? (
+                  <View style={styles.accordionContent}>
+                    <RegionDropdownSelector
+                      selectedSido={prefs.regionSido}
+                      selectedCode={prefs.regionCode}
+                      isDark={isDark}
+                      onSelectRegion={(r) =>
+                        onSavePrefs({
+                          ...prefs,
+                          regionSido: r.sido,
+                          regionSigungu: r.sigungu,
+                          regionCode: r.code
+                        })
+                      }
+                    />
+                  </View>
+                ) : null}
               </View>
 
-              <View style={styles.inputRow}>
-                <TextInput
-                  value={customKeyword}
-                  onChangeText={setCustomKeyword}
-                  placeholder="키워드 추가 (예: 장학금)"
-                  placeholderTextColor={isDark ? '#80868b' : '#9aa0a6'}
-                  style={[styles.input, isDark && styles.inputDark]}
-                  onSubmitEditing={addCustomKeyword}
-                />
-                <TouchableOpacity onPress={addCustomKeyword} style={styles.addBtn}>
-                  <Text style={styles.addBtnText}>추가</Text>
+              {/* 2. 관심 키워드 (최대 3개, 중복 없는 6개 예시 키워드) */}
+              <View style={[styles.accordionGroup, isDark && styles.borderDark]}>
+                <TouchableOpacity
+                  onPress={() => toggleSection('keywords')}
+                  style={styles.accordionHeader}
+                >
+                  <Text style={[styles.sectionLabel, isDark && styles.textDark]}>
+                    관심 키워드 ({prefs.keywords.length}/{MAX_KEYWORDS})
+                  </Text>
+                  <Text style={[styles.accordionArrow, isDark && styles.textMutedDark]}>
+                    {openSection === 'keywords' ? '▴' : '▾'}
+                  </Text>
                 </TouchableOpacity>
+                {openSection === 'keywords' ? (
+                  <View style={styles.accordionContent}>
+                    {keywordNotice ? (
+                      <Text style={styles.limitNotice}>{keywordNotice}</Text>
+                    ) : null}
+                    <View style={styles.chipWrap}>
+                      {Array.from(new Set([...RECOMMENDED_KEYWORDS, ...prefs.keywords])).map((kw) => {
+                        const active = prefs.keywords.includes(kw);
+                        return (
+                          <TouchableOpacity
+                            key={kw}
+                            onPress={() => toggleKeyword(kw)}
+                            style={[
+                              styles.chip,
+                              isDark && styles.chipDark,
+                              active && styles.chipActive
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.chipText,
+                                isDark && styles.textMutedDark,
+                                active && styles.chipTextActive
+                              ]}
+                            >
+                              #{kw}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+
+                    <View style={styles.inputRow}>
+                      <TextInput
+                        value={customKeyword}
+                        onChangeText={setCustomKeyword}
+                        placeholder="키워드 추가 (예: 장학금)"
+                        placeholderTextColor={isDark ? '#80868b' : '#9aa0a6'}
+                        style={[styles.input, isDark && styles.inputDark]}
+                        onSubmitEditing={addCustomKeyword}
+                      />
+                      <TouchableOpacity onPress={addCustomKeyword} style={styles.addBtn}>
+                        <Text style={styles.addBtnText}>추가</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : null}
               </View>
 
               {/* 3. 카드 나열 순서 */}
-              <Text style={[styles.sectionLabel, isDark && styles.textDark]}>카드 나열 순서</Text>
-              <View style={styles.chipWrap}>
-                {(
-                  [
-                    { key: 'keyword_first', label: '관심 키워드 우선' },
-                    { key: 'latest', label: '최신순' },
-                    { key: 'deadline', label: '기한 임박순' }
-                  ] as Array<{ key: SortOrder; label: string }>
-                ).map((item) => {
-                  const active = prefs.sortOrder === item.key;
-                  return (
-                    <TouchableOpacity
-                      key={item.key}
-                      onPress={() => onSavePrefs({ ...prefs, sortOrder: item.key })}
-                      style={[
-                        styles.chip,
-                        isDark && styles.chipDark,
-                        active && styles.chipActive
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          isDark && styles.textMutedDark,
-                          active && styles.chipTextActive
-                        ]}
-                      >
-                        {item.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+              <View style={[styles.accordionGroup, isDark && styles.borderDark]}>
+                <TouchableOpacity
+                  onPress={() => toggleSection('sort')}
+                  style={styles.accordionHeader}
+                >
+                  <Text style={[styles.sectionLabel, isDark && styles.textDark]}>카드 나열 순서</Text>
+                  <View style={styles.accordionRight}>
+                    <Text style={[styles.accordionSummary, isDark && styles.textMutedDark]}>
+                      {prefs.sortOrder === 'latest'
+                        ? '최신순'
+                        : prefs.sortOrder === 'deadline'
+                          ? '기한 임박순'
+                          : '내 지역 우선'}
+                    </Text>
+                    <Text style={[styles.accordionArrow, isDark && styles.textMutedDark]}>
+                      {openSection === 'sort' ? '▴' : '▾'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                {openSection === 'sort' ? (
+                  <View style={styles.accordionContent}>
+                    <View style={styles.chipWrap}>
+                      {(
+                        [
+                          { key: 'region_keyword_first', label: '내 지역 우선' },
+                          { key: 'latest', label: '최신순' },
+                          { key: 'deadline', label: '기한 임박순' }
+                        ] as Array<{ key: SortOrder; label: string }>
+                      ).map((item) => {
+                        const active =
+                          prefs.sortOrder === item.key ||
+                          (item.key === 'region_keyword_first' &&
+                            ((prefs.sortOrder as string) === 'keyword_first' ||
+                              (prefs.sortOrder as string) === 'region_first'));
+                        return (
+                          <TouchableOpacity
+                            key={item.key}
+                            onPress={() => onSavePrefs({ ...prefs, sortOrder: item.key })}
+                            style={[
+                              styles.chip,
+                              isDark && styles.chipDark,
+                              active && styles.chipActive
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.chipText,
+                                isDark && styles.textMutedDark,
+                                active && styles.chipTextActive
+                              ]}
+                            >
+                              {item.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ) : null}
               </View>
 
               {/* 4. 노출될 카드 개수 */}
-              <Text style={[styles.sectionLabel, isDark && styles.textDark]}>노출될 카드 개수</Text>
-              <View style={styles.chipWrap}>
-                {([20, 40, 60] as const).map((cnt) => {
-                  const active = (prefs.cardLimit ?? 40) === cnt;
-                  return (
-                    <TouchableOpacity
-                      key={cnt}
-                      onPress={() => onSavePrefs({ ...prefs, cardLimit: cnt })}
-                      style={[
-                        styles.chip,
-                        isDark && styles.chipDark,
-                        active && styles.chipActive
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          isDark && styles.textMutedDark,
-                          active && styles.chipTextActive
-                        ]}
-                      >
-                        {cnt}개
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+              <View style={[styles.accordionGroup, isDark && styles.borderDark]}>
+                <TouchableOpacity
+                  onPress={() => toggleSection('limit')}
+                  style={styles.accordionHeader}
+                >
+                  <Text style={[styles.sectionLabel, isDark && styles.textDark]}>노출될 카드 개수</Text>
+                  <View style={styles.accordionRight}>
+                    <Text style={[styles.accordionSummary, isDark && styles.textMutedDark]}>
+                      {prefs.cardLimit === 20 || prefs.cardLimit === 30 || prefs.cardLimit === 40
+                        ? `${prefs.cardLimit}개`
+                        : '30개'}
+                    </Text>
+                    <Text style={[styles.accordionArrow, isDark && styles.textMutedDark]}>
+                      {openSection === 'limit' ? '▴' : '▾'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                {openSection === 'limit' ? (
+                  <View style={styles.accordionContent}>
+                    <View style={styles.chipWrap}>
+                      {([20, 30, 40] as const).map((cnt) => {
+                        const currentLimit =
+                          prefs.cardLimit === 20 || prefs.cardLimit === 30 || prefs.cardLimit === 40
+                            ? prefs.cardLimit
+                            : 30;
+                        const active = currentLimit === cnt;
+                        return (
+                          <TouchableOpacity
+                            key={cnt}
+                            onPress={() => onSavePrefs({ ...prefs, cardLimit: cnt })}
+                            style={[
+                              styles.chip,
+                              isDark && styles.chipDark,
+                              active && styles.chipActive
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.chipText,
+                                isDark && styles.textMutedDark,
+                                active && styles.chipTextActive
+                              ]}
+                            >
+                              {cnt}개
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ) : null}
               </View>
 
               {/* 5. 앱 테마 & 보기 옵션 */}
-              <Text style={[styles.sectionLabel, isDark && styles.textDark]}>앱 설정 및 테마</Text>
-              <View style={styles.chipWrap}>
-                {(
-                  [
-                    { key: 'light', label: '밝은 화이트 테마' },
-                    { key: 'dark', label: '어두운 다크 테마' }
-                  ] as Array<{ key: AppTheme; label: string }>
-                ).map((t) => {
-                  const active = (prefs.theme ?? 'light') === t.key;
-                  return (
-                    <TouchableOpacity
-                      key={t.key}
-                      onPress={() => onSavePrefs({ ...prefs, theme: t.key })}
-                      style={[
-                        styles.chip,
-                        isDark && styles.chipDark,
-                        active && styles.chipActive
-                      ]}
-                    >
-                      <Text
+              <View style={[styles.accordionGroup, isDark && styles.borderDark]}>
+                <TouchableOpacity
+                  onPress={() => toggleSection('theme')}
+                  style={styles.accordionHeader}
+                >
+                  <Text style={[styles.sectionLabel, isDark && styles.textDark]}>앱 설정 및 테마</Text>
+                  <View style={styles.accordionRight}>
+                    <Text style={[styles.accordionSummary, isDark && styles.textMutedDark]}>
+                      {(prefs.theme ?? 'light') === 'dark' ? '다크' : '화이트'}
+                    </Text>
+                    <Text style={[styles.accordionArrow, isDark && styles.textMutedDark]}>
+                      {openSection === 'theme' ? '▴' : '▾'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                {openSection === 'theme' ? (
+                  <View style={styles.accordionContent}>
+                    <View style={styles.chipWrap}>
+                      {(
+                        [
+                          { key: 'light', label: '밝은 화이트 테마' },
+                          { key: 'dark', label: '어두운 다크 테마' }
+                        ] as Array<{ key: AppTheme; label: string }>
+                      ).map((t) => {
+                        const active = (prefs.theme ?? 'light') === t.key;
+                        return (
+                          <TouchableOpacity
+                            key={t.key}
+                            onPress={() => onSavePrefs({ ...prefs, theme: t.key })}
+                            style={[
+                              styles.chip,
+                              isDark && styles.chipDark,
+                              active && styles.chipActive
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.chipText,
+                                isDark && styles.textMutedDark,
+                                active && styles.chipTextActive
+                              ]}
+                            >
+                              {t.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+
+                    <View style={styles.toggleRow}>
+                      <TouchableOpacity
+                        onPress={() => onSavePrefs({ ...prefs, largeText: !prefs.largeText })}
                         style={[
-                          styles.chipText,
-                          isDark && styles.textMutedDark,
-                          active && styles.chipTextActive
+                          styles.chip,
+                          isDark && styles.chipDark,
+                          prefs.largeText && styles.chipActive
                         ]}
                       >
-                        {t.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+                        <Text
+                          style={[
+                            styles.chipText,
+                            isDark && styles.textMutedDark,
+                            prefs.largeText && styles.chipTextActive
+                          ]}
+                        >
+                          {prefs.largeText ? '☑ 큰 글씨 켜짐' : '☐ 큰 글씨'}
+                        </Text>
+                      </TouchableOpacity>
 
-              <View style={styles.toggleRow}>
-                <TouchableOpacity
-                  onPress={() => onSavePrefs({ ...prefs, largeText: !prefs.largeText })}
-                  style={[
-                    styles.chip,
-                    isDark && styles.chipDark,
-                    prefs.largeText && styles.chipActive
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      isDark && styles.textMutedDark,
-                      prefs.largeText && styles.chipTextActive
-                    ]}
-                  >
-                    {prefs.largeText ? '☑ 큰 글씨 켜짐' : '☐ 큰 글씨'}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => onSavePrefs({ ...prefs, hideExpired: !prefs.hideExpired })}
-                  style={[
-                    styles.chip,
-                    isDark && styles.chipDark,
-                    prefs.hideExpired && styles.chipActive
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      isDark && styles.textMutedDark,
-                      prefs.hideExpired && styles.chipTextActive
-                    ]}
-                  >
-                    {prefs.hideExpired ? '☑ 마감 공고 숨김' : '☐ 마감 공고 포함'}
-                  </Text>
-                </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => onSavePrefs({ ...prefs, hideExpired: !prefs.hideExpired })}
+                        style={[
+                          styles.chip,
+                          isDark && styles.chipDark,
+                          prefs.hideExpired && styles.chipActive
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.chipText,
+                            isDark && styles.textMutedDark,
+                            prefs.hideExpired && styles.chipTextActive
+                          ]}
+                        >
+                          {prefs.hideExpired ? '☑ 마감 공고 숨김' : '☐ 마감 공고 포함'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : null}
               </View>
 
               {/* 6. 설정칸 하단 목업 안내 (약관·개인정보처리방침·이용방법 모달) */}
@@ -467,12 +576,39 @@ const styles = StyleSheet.create({
     padding: 18,
     paddingBottom: 36
   },
-  sectionLabel: {
+  accordionGroup: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#e8eaed',
+    paddingVertical: 6
+  },
+  accordionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10
+  },
+  accordionRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
+  accordionSummary: {
+    fontSize: 13,
+    color: '#5f6368',
+    fontWeight: '500'
+  },
+  accordionArrow: {
     fontSize: 14,
+    color: '#5f6368',
+    fontWeight: '700'
+  },
+  accordionContent: {
+    paddingBottom: 10
+  },
+  sectionLabel: {
+    fontSize: 17,
     fontWeight: '700',
-    color: '#202124',
-    marginTop: 16,
-    marginBottom: 8
+    color: '#202124'
   },
   chipWrap: {
     flexDirection: 'row',

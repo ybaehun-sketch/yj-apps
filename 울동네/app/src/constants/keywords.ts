@@ -9,14 +9,12 @@ export const STANDARD_CATEGORIES: WelfareCategory[] = [
 ];
 
 export const RECOMMENDED_KEYWORDS: string[] = [
-  '방학돌봄',
-  '초등체험',
-  '난방비',
-  '대상포진',
-  '소상공인',
+  '돌봄/육아',
+  '어르신/건강',
+  '주거/난방비',
+  '소상공인/일자리',
   '출산지원',
-  '어르신건강',
-  '주거지원'
+  '생활/문화'
 ];
 
 /**

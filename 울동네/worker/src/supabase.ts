@@ -1,4 +1,4 @@
-import type { CrawlTarget, Env, WelfarePostInsert } from './types';
+import type { BlogCandidateRow, CrawlTarget, Env, WelfarePostInsert } from './types';
 
 function getHeaders(env: Env): HeadersInit {
   return {
@@ -10,15 +10,45 @@ function getHeaders(env: Env): HeadersInit {
 
 /**
  * status = 'active' 이고 last_checked_at 이 가장 오래된 타겟 N개 조회
+ * (이어달리기 회차에서는 roundStartedAt 이전에 점검된 타겟만 조회)
  */
-export async function fetchOldestActiveTargets(env: Env, limit: number): Promise<CrawlTarget[]> {
+export async function fetchOldestActiveTargets(
+  env: Env,
+  limit: number,
+  checkedBeforeIso?: string
+): Promise<CrawlTarget[]> {
+  const roundFilter = checkedBeforeIso
+    ? `&or=(last_checked_at.is.null,last_checked_at.lt.${encodeURIComponent(checkedBeforeIso)})`
+    : '';
   const url =
     `${env.SUPABASE_URL}/rest/v1/uldongne_crawl_targets` +
-    `?status=eq.active&order=last_checked_at.asc.nullsfirst&limit=${limit}`;
+    `?status=eq.active${roundFilter}&order=last_checked_at.asc.nullsfirst&limit=${limit}`;
 
   const res = await fetch(url, { headers: getHeaders(env) });
   if (!res.ok) {
     throw new Error(`Supabase fetch targets failed: ${res.status} ${await res.text()}`);
+  }
+  return (await res.json()) as CrawlTarget[];
+}
+
+/**
+ * 오류('error') 또는 일시정지('paused')로 멈춘 타겟 N개 조회 (오후 6시 재점검용)
+ */
+export async function fetchStoppedTargets(
+  env: Env,
+  limit: number,
+  checkedBeforeIso?: string
+): Promise<CrawlTarget[]> {
+  const roundFilter = checkedBeforeIso
+    ? `&or=(last_checked_at.is.null,last_checked_at.lt.${encodeURIComponent(checkedBeforeIso)})`
+    : '';
+  const url =
+    `${env.SUPABASE_URL}/rest/v1/uldongne_crawl_targets` +
+    `?status=in.(error,paused)${roundFilter}&order=last_checked_at.asc.nullsfirst&limit=${limit}`;
+
+  const res = await fetch(url, { headers: getHeaders(env) });
+  if (!res.ok) {
+    throw new Error(`Supabase fetch stopped targets failed: ${res.status} ${await res.text()}`);
   }
   return (await res.json()) as CrawlTarget[];
 }
@@ -95,5 +125,68 @@ export async function insertWelfarePost(env: Env, post: WelfarePostInsert): Prom
 
   if (!res.ok) {
     throw new Error(`Supabase insertWelfarePost failed: ${res.status} ${await res.text()}`);
+  }
+}
+
+/**
+ * 모아둔 블로그 후보 목록 조회 (publish_to_blog = true && blog_status = 'none')
+ * ai_confidence(정확도+검색가치) 높은 순으로 정렬해 반환
+ */
+export async function fetchBlogCandidates(env: Env): Promise<BlogCandidateRow[]> {
+  const url =
+    `${env.SUPABASE_URL}/rest/v1/uldongne_welfare_posts` +
+    `?publish_to_blog=eq.true&blog_status=eq.none` +
+    `&select=id,region_sido,region_sigungu,org_name,category,app_title,app_summary_3lines,app_detail_summary,source_url,contact_phone,deadline_date,persona_style_id,ai_confidence` +
+    `&order=ai_confidence.desc,created_at.desc&limit=50`;
+
+  const res = await fetch(url, { headers: getHeaders(env) });
+  if (!res.ok) {
+    throw new Error(`Supabase fetchBlogCandidates failed: ${res.status} ${await res.text()}`);
+  }
+  return (await res.json()) as BlogCandidateRow[];
+}
+
+/**
+ * 선별된 후보 1건을 블로그 초안('draft')으로 승격 저장
+ */
+export async function promoteCandidateToBlogDraft(
+  env: Env,
+  postId: string,
+  blogTitle: string,
+  blogContentMd: string
+): Promise<void> {
+  const url = `${env.SUPABASE_URL}/rest/v1/uldongne_welfare_posts?id=eq.${encodeURIComponent(postId)}`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: getHeaders(env),
+    body: JSON.stringify({
+      blog_title: blogTitle,
+      blog_content_md: blogContentMd,
+      blog_status: 'draft'
+    })
+  });
+
+  if (!res.ok) {
+    throw new Error(`Supabase promoteCandidateToBlogDraft failed: ${res.status} ${await res.text()}`);
+  }
+}
+
+/**
+ * 새벽 5시 선별에서 제외된 나머지 후보 정리 (다음 날 후보와 섞이지 않도록)
+ */
+export async function clearRemainingBlogCandidates(env: Env, postIds: string[]): Promise<void> {
+  if (postIds.length === 0) return;
+  const inClause = postIds.map((id) => encodeURIComponent(id)).join(',');
+  const url = `${env.SUPABASE_URL}/rest/v1/uldongne_welfare_posts?id=in.(${inClause})`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: getHeaders(env),
+    body: JSON.stringify({
+      publish_to_blog: false
+    })
+  });
+
+  if (!res.ok) {
+    throw new Error(`Supabase clearRemainingBlogCandidates failed: ${res.status} ${await res.text()}`);
   }
 }

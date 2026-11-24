@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { KOREA_REGIONS, normalizeSidoName } from '@/lib/koreaRegions';
 import type { CrawlTarget } from '@/lib/types';
 
 export type PatrolFilterTab = 'all' | 'active' | 'error' | 'paused';
@@ -8,67 +9,60 @@ export type PatrolFilterTab = 'all' | 'active' | 'error' | 'paused';
 interface PatrolStatusModalProps {
   open: boolean;
   initialTab: PatrolFilterTab;
+  initialRegion?: string;
   targets: CrawlTarget[];
   onClose: () => void;
-  onResetTarget: (targetId: string) => Promise<void>;
 }
 
-const SOURCE_TYPE_LABEL: Record<CrawlTarget['source_type'], string> = {
-  API_GOV24: '공공데이터(보조금24)',
-  API_WELFARE: '복지로 안내',
-  WEB_BOARD: '지자체 게시판',
-  FAMILYNET: '가족센터 게시판'
-};
+interface RegionCellData {
+  key: string;
+  sido: string;
+  sigungu: string;
+  items: CrawlTarget[];
+  activeCount: number;
+  errorCount: number;
+  pausedCount: number;
+}
 
-const STATUS_BADGE: Record<
+const STATUS_DOT: Record<
   CrawlTarget['status'],
-  { label: string; className: string }
+  { label: string; dotClass: string }
 > = {
-  active: {
-    label: '정상 순찰',
-    className: 'bg-[#e8f0fe] text-[#1a73e8]'
-  },
-  error: {
-    label: '오류 확인필요',
-    className: 'bg-[#fce8e6] text-[#c5221f]'
-  },
-  paused: {
-    label: '일시 정지',
-    className: 'bg-[#f1f3f4] text-[#5f6368]'
-  }
+  active: { label: '정상', dotClass: 'bg-[#22c55e]' },
+  error: { label: '오류', dotClass: 'bg-[#facc15]' },
+  paused: { label: '일시정지', dotClass: 'bg-[#ef4444]' }
 };
 
-function formatRegionLabel(target: CrawlTarget) {
-  if (target.region_sigungu === '전체' || target.region_code === '00000') {
-    return '전국 공통';
-  }
-  return `${target.region_sido} ${target.region_sigungu}`;
+function isCommonTarget(target: CrawlTarget) {
+  return target.region_sigungu === '전체' || target.region_code === '00000';
 }
 
-function formatCheckedAt(iso: string | null) {
-  if (!iso) return '아직 순찰 기록 없음';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString('ko-KR', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+function sortTargetsBySeverity(items: CrawlTarget[]) {
+  const order: Record<CrawlTarget['status'], number> = {
+    paused: 0,
+    error: 1,
+    active: 2
+  };
+  return [...items].sort((a, b) => order[a.status] - order[b.status]);
+}
+
+function matchesTab(cell: RegionCellData, tab: PatrolFilterTab) {
+  if (tab === 'all') return true;
+  if (tab === 'active') return cell.activeCount > 0;
+  if (tab === 'error') return cell.errorCount > 0;
+  if (tab === 'paused') return cell.pausedCount > 0;
+  return true;
 }
 
 export function PatrolStatusModal({
   open,
   initialTab,
   targets,
-  onClose,
-  onResetTarget
+  onClose
 }: PatrolStatusModalProps) {
   const [tab, setTab] = useState<PatrolFilterTab>(initialTab);
-  const [selectedRegion, setSelectedRegion] = useState<string>('ALL');
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
-  // 모달이 열릴 때 초기 탭 동기화
   const [lastOpen, setLastOpen] = useState(open);
   const [lastInitialTab, setLastInitialTab] = useState(initialTab);
   if (open !== lastOpen || initialTab !== lastInitialTab) {
@@ -76,13 +70,12 @@ export function PatrolStatusModal({
     setLastInitialTab(initialTab);
     if (open) {
       setTab(initialTab);
-      setSelectedRegion('ALL');
+      setSelectedKey(null);
     }
   }
 
   const counts = useMemo(
     () => ({
-      all: targets.length,
       active: targets.filter((t) => t.status === 'active').length,
       error: targets.filter((t) => t.status === 'error').length,
       paused: targets.filter((t) => t.status === 'paused').length
@@ -90,53 +83,173 @@ export function PatrolStatusModal({
     [targets]
   );
 
-  // 현재 순찰 중인 지역별 요약 (한눈에 파악용)
-  const regionSummaries = useMemo(() => {
-    const map = new Map<
-      string,
-      { label: string; total: number; active: number; error: number; paused: number }
-    >();
-    for (const t of targets) {
-      const label = formatRegionLabel(t);
-      const prev = map.get(label) ?? {
-        label,
-        total: 0,
-        active: 0,
-        error: 0,
-        paused: 0
-      };
-      prev.total += 1;
-      prev[t.status] += 1;
-      map.set(label, prev);
-    }
-    return Array.from(map.values());
-  }, [targets]);
+  const { commonCell, sidoSections } = useMemo(() => {
+    const commonItems: CrawlTarget[] = [];
+    const targetMap = new Map<string, CrawlTarget[]>();
 
-  const filteredTargets = useMemo(() => {
-    return targets.filter((t) => {
-      if (tab !== 'all' && t.status !== tab) return false;
-      if (selectedRegion !== 'ALL' && formatRegionLabel(t) !== selectedRegion) {
-        return false;
+    for (const t of targets) {
+      if (isCommonTarget(t)) {
+        commonItems.push(t);
+        continue;
       }
-      return true;
+      const sido = normalizeSidoName(t.region_sido);
+      const sigungu = t.region_sigungu.trim();
+      const key = `${sido}::${sigungu}`;
+      const list = targetMap.get(key) ?? [];
+      list.push(t);
+      targetMap.set(key, list);
+    }
+
+    const common: RegionCellData = {
+      key: 'COMMON',
+      sido: '전국',
+      sigungu: '전국 공통',
+      items: sortTargetsBySeverity(commonItems),
+      activeCount: commonItems.filter((t) => t.status === 'active').length,
+      errorCount: commonItems.filter((t) => t.status === 'error').length,
+      pausedCount: commonItems.filter((t) => t.status === 'paused').length
+    };
+
+    const usedKeys = new Set<string>();
+    const sections = KOREA_REGIONS.map((group) => {
+      const cells: RegionCellData[] = group.sigungus.map((sigungu) => {
+        const key = `${group.sido}::${sigungu}`;
+        usedKeys.add(key);
+        const items = sortTargetsBySeverity(targetMap.get(key) ?? []);
+        return {
+          key,
+          sido: group.sido,
+          sigungu,
+          items,
+          activeCount: items.filter((t) => t.status === 'active').length,
+          errorCount: items.filter((t) => t.status === 'error').length,
+          pausedCount: items.filter((t) => t.status === 'paused').length
+        };
+      });
+
+      // 혹시 기본 목록 외 시군구명이 들어온 경우 누락 없이 포함
+      for (const [key, rawItems] of targetMap.entries()) {
+        if (!usedKeys.has(key) && key.startsWith(`${group.sido}::`)) {
+          usedKeys.add(key);
+          const sigungu = key.split('::')[1] ?? '';
+          const items = sortTargetsBySeverity(rawItems);
+          cells.push({
+            key,
+            sido: group.sido,
+            sigungu,
+            items,
+            activeCount: items.filter((t) => t.status === 'active').length,
+            errorCount: items.filter((t) => t.status === 'error').length,
+            pausedCount: items.filter((t) => t.status === 'paused').length
+          });
+        }
+      }
+
+      const filteredCells =
+        tab === 'all' ? cells : cells.filter((c) => matchesTab(c, tab));
+
+      const activeRegionCount = filteredCells.filter((c) => c.items.length > 0).length;
+      const problemCount = filteredCells.reduce(
+        (sum, c) => sum + c.errorCount + c.pausedCount,
+        0
+      );
+
+      return {
+        sido: group.sido,
+        cells: filteredCells,
+        activeRegionCount,
+        problemCount
+      };
+    }).filter((section) => section.cells.length > 0);
+
+    // 문제 있는 시·도 최상단, 다음 활성화된 시·도, 나머지 비활성 시·도 순 정렬
+    sections.sort((a, b) => {
+      const aProblem = a.problemCount > 0 ? 1 : 0;
+      const bProblem = b.problemCount > 0 ? 1 : 0;
+      if (aProblem !== bProblem) return bProblem - aProblem;
+
+      const aActive = a.activeRegionCount > 0 ? 1 : 0;
+      const bActive = b.activeRegionCount > 0 ? 1 : 0;
+      if (aActive !== bActive) return bActive - aActive;
+
+      return 0;
     });
-  }, [targets, tab, selectedRegion]);
+
+    return { commonCell: common, sidoSections: sections };
+  }, [targets, tab]);
 
   if (!open) return null;
 
+  const showCommon =
+    commonCell.items.length > 0 && matchesTab(commonCell, tab);
+
+  const renderDetailBox = (cell: RegionCellData, title: string) => (
+    <div className="mt-3 rounded-xl border border-[#dadce0] bg-[#fafafa] p-3.5">
+      <div className="mb-2.5 flex items-center justify-between">
+        <span className="text-xs font-bold text-[#202124]">
+          {title} 상세현황 ({cell.items.length}곳)
+        </span>
+        <button
+          type="button"
+          onClick={() => setSelectedKey(null)}
+          className="text-xs font-medium text-[#5f6368] hover:text-[#202124]"
+        >
+          접기 ▴
+        </button>
+      </div>
+      <div className="space-y-2">
+        {cell.items.map((t) => (
+          <div
+            key={t.id}
+            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#e8eaed] bg-white px-3 py-2 text-xs"
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <span
+                className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${STATUS_DOT[t.status].dotClass}`}
+              />
+              {t.target_url ? (
+                <a
+                  href={t.target_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="truncate font-semibold text-[#1a73e8] hover:underline"
+                  title={t.target_url}
+                >
+                  {t.org_name}
+                </a>
+              ) : (
+                <span className="truncate font-semibold text-[#202124]">
+                  {t.org_name}
+                </span>
+              )}
+              <span className="shrink-0 text-[#5f6368]">
+                ({STATUS_DOT[t.status].label})
+              </span>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {t.target_url ? (
+                <a
+                  href={t.target_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded border border-[#dadce0] bg-[#f8f9fa] px-2.5 py-1 font-medium text-[#3c4043] hover:bg-[#e8f0fe] hover:text-[#1a73e8]"
+                >
+                  바로가기 ↗
+                </a>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[88vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[#dadce0] bg-white shadow-2xl">
+      <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-[#dadce0] bg-white shadow-2xl">
         {/* 상단 헤더 */}
         <div className="flex items-center justify-between border-b border-[#dadce0] px-6 py-4">
-          <div>
-            <h3 className="text-lg font-bold text-[#202124]">
-              AI 순찰 지역 · 게시판 세부 현황
-            </h3>
-            <p className="text-xs text-[#5f6368]">
-              어느 지역의 어느 게시판을 순찰 중인지 상태별·지역별로 한눈에 확인하실 수 있습니다.
-            </p>
-          </div>
+          <h3 className="text-lg font-bold text-[#202124]">순찰지역 테이블</h3>
           <button
             type="button"
             onClick={onClose}
@@ -146,155 +259,172 @@ export function PatrolStatusModal({
           </button>
         </div>
 
-        <div className="flex-1 space-y-5 overflow-y-auto p-6">
-          {/* 상태별 탭 */}
-          <div className="flex flex-wrap gap-2">
+        {/* 본문 */}
+        <div className="flex-1 space-y-4 overflow-y-auto p-6">
+          {/* 정상 · 오류 · 일시정지 3개 버튼 + 갯수만 표시 */}
+          <div className="flex flex-wrap items-center gap-2">
             {(
               [
-                { key: 'all', label: `전체 (${counts.all})` },
-                { key: 'active', label: `정상 순찰 (${counts.active})` },
-                { key: 'error', label: `오류 (${counts.error})` },
-                { key: 'paused', label: `일시 정지 (${counts.paused})` }
-              ] as Array<{ key: PatrolFilterTab; label: string }>
+                { key: 'active', label: '정상', count: counts.active, dotClass: 'bg-[#22c55e]' },
+                { key: 'error', label: '오류', count: counts.error, dotClass: 'bg-[#facc15]' },
+                { key: 'paused', label: '일시정지', count: counts.paused, dotClass: 'bg-[#ef4444]' }
+              ] as Array<{
+                key: Exclude<PatrolFilterTab, 'all'>;
+                label: string;
+                count: number;
+                dotClass: string;
+              }>
             ).map((item) => {
-              const active = tab === item.key;
+              const selected = tab === item.key;
               return (
                 <button
                   key={item.key}
                   type="button"
-                  onClick={() => setTab(item.key)}
-                  className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-                    active
-                      ? 'bg-[#1a73e8] text-white'
-                      : 'border border-[#dadce0] bg-white text-[#5f6368] hover:bg-[#f8f9fa]'
+                  onClick={() => setTab((prev) => (prev === item.key ? 'all' : item.key))}
+                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
+                    selected
+                      ? 'border-[#1a73e8] bg-[#e8f0fe] text-[#1a73e8]'
+                      : 'border-[#dadce0] bg-white text-[#202124] hover:bg-[#f8f9fa]'
                   }`}
                 >
-                  {item.label}
+                  <span className={`inline-block h-2.5 w-2.5 rounded-full ${item.dotClass}`} />
+                  <span>
+                    {item.label} {item.count}
+                  </span>
                 </button>
               );
             })}
           </div>
 
-          {/* 현재 순찰 지역 한눈에 파악 */}
-          <div className="rounded-xl border border-[#dadce0] bg-[#f8f9fa] p-4">
-            <div className="mb-2.5 flex items-center justify-between">
-              <span className="text-xs font-bold text-[#202124]">
-                현재 순찰 지역 한눈에 보기 (클릭 시 해당 지역만 보기)
-              </span>
-              {selectedRegion !== 'ALL' ? (
+          {/* 전국 공통 */}
+          {showCommon ? (
+            <div className="rounded-xl border border-[#dadce0] bg-white p-3.5">
+              <div className="flex items-center justify-between gap-2">
                 <button
                   type="button"
-                  onClick={() => setSelectedRegion('ALL')}
-                  className="text-xs font-semibold text-[#1a73e8] hover:underline"
+                  onClick={() =>
+                    setSelectedKey((prev) =>
+                      prev === commonCell.key ? null : commonCell.key
+                    )
+                  }
+                  className={`flex w-full items-center justify-between rounded-lg border px-3.5 py-2.5 text-left transition ${
+                    commonCell.errorCount + commonCell.pausedCount > 0
+                      ? 'border-[#f5c2c0] bg-[#fff8f6] hover:bg-[#fef1ee]'
+                      : 'border-[#dadce0] bg-white hover:bg-[#f8f9fa]'
+                  } ${
+                    selectedKey === commonCell.key
+                      ? 'ring-2 ring-[#1a73e8] border-[#1a73e8]'
+                      : ''
+                  }`}
                 >
-                  전체 지역 보기
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-sm font-bold text-[#202124]">
+                      전국 공통
+                    </span>
+                    <div className="flex items-center gap-1">
+                      {commonCell.items.map((t) => (
+                        <span
+                          key={t.id}
+                          title={`${t.org_name} (${STATUS_DOT[t.status].label})`}
+                          className={`inline-block h-2.5 w-2.5 rounded-full ${STATUS_DOT[t.status].dotClass}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <span className="text-xs font-semibold text-[#5f6368]">
+                    {commonCell.items.length}곳{' '}
+                    {selectedKey === commonCell.key ? '▴' : '▾'}
+                  </span>
                 </button>
-              ) : null}
-            </div>
-            {regionSummaries.length === 0 ? (
-              <p className="text-xs text-[#5f6368]">등록된 순찰 지역이 없습니다.</p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {regionSummaries.map((r) => {
-                  const selected = selectedRegion === r.label;
-                  return (
-                    <button
-                      key={r.label}
-                      type="button"
-                      onClick={() =>
-                        setSelectedRegion((prev) => (prev === r.label ? 'ALL' : r.label))
-                      }
-                      className={`rounded-lg border px-3 py-1.5 text-left text-xs transition ${
-                        selected
-                          ? 'border-[#1a73e8] bg-[#e8f0fe] text-[#1a73e8]'
-                          : 'border-[#dadce0] bg-white text-[#202124] hover:bg-[#f1f3f4]'
-                      }`}
-                    >
-                      <span className="font-bold">{r.label}</span>{' '}
-                      <span className="text-[#5f6368]">총 {r.total}곳</span>
-                      {r.error > 0 ? (
-                        <span className="ml-1 font-semibold text-[#c5221f]">
-                          (오류 {r.error})
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
               </div>
-            )}
-          </div>
+              {selectedKey === commonCell.key
+                ? renderDetailBox(commonCell, '전국 공통')
+                : null}
+            </div>
+          ) : null}
 
-          {/* 세부 게시판 리스트 */}
-          {filteredTargets.length === 0 ? (
-            <div className="rounded-xl border border-[#dadce0] bg-white p-8 text-center text-sm text-[#5f6368]">
-              해당 조건에 맞는 순찰 게시판이 없습니다.
+          {/* 시·도별 전국 지자체 격자형 표 */}
+          {sidoSections.length === 0 && !showCommon ? (
+            <div className="rounded-xl border border-[#dadce0] bg-[#f8f9fa] p-8 text-center text-sm text-[#5f6368]">
+              해당 상태의 지역이 없습니다.
             </div>
           ) : (
-            <div className="divide-y divide-[#dadce0] rounded-xl border border-[#dadce0] bg-white">
-              {filteredTargets.map((target) => {
-                const badge = STATUS_BADGE[target.status];
+            <div className="divide-y divide-[#dadce0] overflow-hidden rounded-xl border border-[#dadce0] bg-white">
+              {sidoSections.map((section) => {
+                const selectedCellInSection = section.cells.find(
+                  (c) => c.key === selectedKey
+                );
+
                 return (
-                  <div
-                    key={target.id}
-                    className="flex flex-wrap items-start justify-between gap-4 p-4"
-                  >
-                    <div className="min-w-0 flex-1 space-y-1.5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={`rounded px-2 py-0.5 text-xs font-semibold ${badge.className}`}
-                        >
-                          {badge.label}
-                          {target.status === 'error' ? ` (${target.fail_count}회 실패)` : ''}
-                        </span>
-                        <span className="rounded bg-[#f1f3f4] px-2 py-0.5 text-xs font-medium text-[#3c4043]">
-                          {formatRegionLabel(target)}
-                        </span>
-                        <span className="text-xs text-[#5f6368]">
-                          {SOURCE_TYPE_LABEL[target.source_type]}
-                        </span>
-                      </div>
-
-                      <div className="text-sm font-bold text-[#202124]">
-                        {target.org_name}
-                      </div>
-
-                      <div className="truncate text-xs text-[#5f6368]">
-                        게시판 주소:{' '}
-                        <a
-                          href={target.target_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[#1a73e8] hover:underline"
-                        >
-                          {target.target_url}
-                        </a>
-                      </div>
-
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#5f6368]">
-                        <span>최근 순찰: {formatCheckedAt(target.last_checked_at)}</span>
-                        {target.last_item_title ? (
-                          <span>최근 확인 공고: {target.last_item_title}</span>
-                        ) : null}
-                      </div>
+                  <div key={section.sido} className="p-3.5">
+                    <div className="mb-2.5 flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#202124]">
+                        {section.sido}
+                      </span>
+                      <span className="text-[11px] font-medium text-[#5f6368]">
+                        활성 {section.activeRegionCount} / 전체 {section.cells.length}
+                      </span>
                     </div>
 
-                    {target.status === 'error' ? (
-                      <button
-                        type="button"
-                        disabled={busyId === target.id}
-                        onClick={async () => {
-                          setBusyId(target.id);
-                          try {
-                            await onResetTarget(target.id);
-                          } finally {
-                            setBusyId(null);
-                          }
-                        }}
-                        className="shrink-0 rounded-lg border border-[#fad2cf] bg-[#fce8e6] px-3 py-1.5 text-xs font-semibold text-[#c5221f] hover:bg-[#fad2cf]"
-                      >
-                        {busyId === target.id ? '처리 중...' : '다시 활성화'}
-                      </button>
-                    ) : null}
+                    <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7">
+                      {section.cells.map((cell) => {
+                        const isActive = cell.items.length > 0;
+                        const hasProblem = cell.errorCount + cell.pausedCount > 0;
+                        const isSelected = selectedKey === cell.key;
+
+                        if (!isActive) {
+                          return (
+                            <div
+                              key={cell.key}
+                              className="flex items-center justify-center rounded-lg border border-[#e8eaed] bg-[#f1f3f4] px-2 py-2 text-center text-xs font-medium text-[#9aa0a6]"
+                            >
+                              {cell.sigungu}
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <button
+                            key={cell.key}
+                            type="button"
+                            onClick={() =>
+                              setSelectedKey((prev) =>
+                                prev === cell.key ? null : cell.key
+                              )
+                            }
+                            className={`flex flex-col items-center justify-center gap-1 rounded-lg border px-2 py-2 text-center transition ${
+                              hasProblem
+                                ? 'border-[#f5c2c0] bg-[#fff8f6] text-[#202124] hover:bg-[#fef1ee]'
+                                : 'border-[#dadce0] bg-white text-[#202124] hover:border-[#1a73e8] hover:bg-[#f8faff]'
+                            } ${
+                              isSelected
+                                ? 'border-[#1a73e8] ring-2 ring-[#1a73e8]'
+                                : ''
+                            }`}
+                          >
+                            <span className="text-xs font-bold leading-tight">
+                              {cell.sigungu}
+                            </span>
+                            <div className="flex flex-wrap items-center justify-center gap-1">
+                              {cell.items.map((t) => (
+                                <span
+                                  key={t.id}
+                                  title={`${t.org_name} (${STATUS_DOT[t.status].label})`}
+                                  className={`inline-block h-2 w-2 rounded-full ${STATUS_DOT[t.status].dotClass}`}
+                                />
+                              ))}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {selectedCellInSection
+                      ? renderDetailBox(
+                          selectedCellInSection,
+                          `${selectedCellInSection.sido} ${selectedCellInSection.sigungu}`
+                        )
+                      : null}
                   </div>
                 );
               })}

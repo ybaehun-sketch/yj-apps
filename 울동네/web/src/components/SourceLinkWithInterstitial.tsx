@@ -9,10 +9,11 @@ const STORAGE_KEY = 'uldongne_web_last_interstitial_ms';
 
 export function SourceLinkWithInterstitial({ sourceUrl }: { sourceUrl: string }) {
   const [adModalOpen, setAdModalOpen] = useState(false);
+  const isAdsenseConnected = Boolean(process.env.NEXT_PUBLIC_ADSENSE_CLIENT);
 
   function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
-    // 테스트용 목업 링크는 대표님이 바로 확인하실 수 있도록 항상 목업 전면광고를 띄움
-    if (sourceUrl.includes('mockup')) {
+    // 애드센스 심사·연결 전까지는 항상 목업 모달을 먼저 띄워 흐름과 배치를 확인함
+    if (!isAdsenseConnected || sourceUrl.includes('mockup')) {
       e.preventDefault();
       setAdModalOpen(true);
       return;
