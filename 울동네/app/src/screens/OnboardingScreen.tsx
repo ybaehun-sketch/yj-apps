@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { RegionDropdownSelector } from '../components/RegionDropdownSelector';
 import { RECOMMENDED_KEYWORDS, STANDARD_CATEGORIES } from '../constants/keywords';
 import { REGION_OPTIONS, type RegionOption } from '../constants/regions';
 import type { UserPreferences } from '../types/welfare';
@@ -16,17 +17,28 @@ interface OnboardingScreenProps {
   onComplete: (prefs: UserPreferences) => void;
 }
 
+const MAX_KEYWORDS = 3;
+
 export function OnboardingScreen({ initialPrefs, onComplete }: OnboardingScreenProps) {
   const defaultRegion =
-    REGION_OPTIONS.find((r) => r.code === initialPrefs?.regionCode) ?? REGION_OPTIONS[0];
+    REGION_OPTIONS.find((r) => r.code === initialPrefs?.regionCode) ??
+    REGION_OPTIONS.find((r) => r.code === '51720') ??
+    REGION_OPTIONS[0];
 
   const [selectedRegion, setSelectedRegion] = useState<RegionOption>(defaultRegion);
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>(
-    initialPrefs?.keywords ?? ['방학돌봄', '난방비']
+    (initialPrefs?.keywords ?? ['방학돌봄', '난방비']).slice(0, MAX_KEYWORDS)
   );
   const [customInput, setCustomInput] = useState('');
+  const [keywordNotice, setKeywordNotice] = useState('');
 
   function toggleKeyword(kw: string) {
+    const exists = selectedKeywords.includes(kw);
+    if (!exists && selectedKeywords.length >= MAX_KEYWORDS) {
+      setKeywordNotice(`관심 키워드는 최대 ${MAX_KEYWORDS}개까지 선택할 수 있어요.`);
+      return;
+    }
+    setKeywordNotice('');
     setSelectedKeywords((prev) =>
       prev.includes(kw) ? prev.filter((item) => item !== kw) : [...prev, kw]
     );
@@ -36,6 +48,11 @@ export function OnboardingScreen({ initialPrefs, onComplete }: OnboardingScreenP
     const clean = customInput.replace(/^#/, '').trim();
     if (!clean) return;
     if (!selectedKeywords.includes(clean)) {
+      if (selectedKeywords.length >= MAX_KEYWORDS) {
+        setKeywordNotice(`관심 키워드는 최대 ${MAX_KEYWORDS}개까지 선택할 수 있어요.`);
+        return;
+      }
+      setKeywordNotice('');
       setSelectedKeywords((prev) => [...prev, clean]);
     }
     setCustomInput('');
@@ -49,7 +66,9 @@ export function OnboardingScreen({ initialPrefs, onComplete }: OnboardingScreenP
       keywords: selectedKeywords.length > 0 ? selectedKeywords : ['생활/문화'],
       sortOrder: initialPrefs?.sortOrder ?? 'keyword_first',
       hideExpired: initialPrefs?.hideExpired ?? true,
-      largeText: initialPrefs?.largeText ?? false
+      largeText: initialPrefs?.largeText ?? false,
+      cardLimit: initialPrefs?.cardLimit ?? 40,
+      theme: initialPrefs?.theme ?? 'light'
     });
   }
 
@@ -63,33 +82,25 @@ export function OnboardingScreen({ initialPrefs, onComplete }: OnboardingScreenP
         </Text>
       </View>
 
-      {/* 1단계: 지역 선택 */}
+      {/* 1단계: 지역 선택 (시·도 → 시·군·구 2단 드롭다운) */}
       <View style={styles.section}>
         <Text style={styles.stepTitle}>1단계. 내 동네 선택</Text>
-        <View style={styles.chipWrap}>
-          {REGION_OPTIONS.map((region) => {
-            const active = region.code === selectedRegion.code;
-            return (
-              <TouchableOpacity
-                key={region.code}
-                onPress={() => setSelectedRegion(region)}
-                style={[styles.chip, active && styles.chipActive]}
-              >
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                  {region.sigungu}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <RegionDropdownSelector
+          selectedSido={selectedRegion.sido}
+          selectedCode={selectedRegion.code}
+          onSelectRegion={(region) => setSelectedRegion(region)}
+        />
       </View>
 
-      {/* 2단계: 표준 관심 분야 + 추천 키워드 */}
+      {/* 2단계: 표준 관심 분야 + 추천 키워드 (최대 3개) */}
       <View style={styles.section}>
-        <Text style={styles.stepTitle}>2단계. 관심 분야 및 키워드 선택</Text>
-        <Text style={styles.helperText}>
-          표준 분야와 추천 키워드를 고르시면 비슷한 단어 공고까지 함께 챙겨드려요.
+        <Text style={styles.stepTitle}>
+          2단계. 관심 분야 및 키워드 선택 ({selectedKeywords.length}/{MAX_KEYWORDS})
         </Text>
+        <Text style={styles.helperText}>
+          최대 3개까지 고르시면 비슷한 단어 공고까지 함께 챙겨드려요.
+        </Text>
+        {keywordNotice ? <Text style={styles.limitNotice}>{keywordNotice}</Text> : null}
 
         <View style={styles.chipWrap}>
           {[...STANDARD_CATEGORIES, ...RECOMMENDED_KEYWORDS].map((kw) => {
@@ -242,5 +253,10 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '700'
+  },
+  limitNotice: {
+    fontSize: 12,
+    color: '#d93025',
+    marginBottom: 8
   }
 });

@@ -26,6 +26,10 @@ export interface WelfarePost {
   ai_confidence: number;
   auto_published: boolean;
   status: 'draft' | 'published' | 'archived';
+  app_status?: 'draft' | 'published' | 'hidden';
+  app_published_at?: string | null;
+  blog_status?: 'none' | 'draft' | 'published' | 'rejected';
+  blog_published_at?: string | null;
   deadline_date: string | null;
   contact_phone: string | null;
   source_url: string;

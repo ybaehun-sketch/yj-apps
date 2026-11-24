@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { AdSenseSlot } from '@/components/AdSenseSlot';
 import { AppInstallBanner } from '@/components/AppInstallBanner';
+import { SourceLinkWithInterstitial } from '@/components/SourceLinkWithInterstitial';
 import { fetchPublishedPostById } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -11,6 +11,9 @@ function renderSimpleMarkdown(md: string) {
   return lines.map((line, idx) => {
     const trimmed = line.trim();
     if (!trimmed) return <div key={idx} className="h-3" />;
+    if (trimmed === '---' || trimmed === '***') {
+      return <hr key={idx} className="my-6 border-[#e8eaed]" />;
+    }
     if (trimmed.startsWith('### ')) {
       return (
         <h3 key={idx} className="mt-7 mb-2 text-xl font-bold text-[#202124]">
@@ -35,7 +38,7 @@ function renderSimpleMarkdown(md: string) {
     if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
       return (
         <li key={idx} className="ml-5 list-disc text-[18px] leading-[1.8] text-[#202124]">
-          {trimmed.replace(/^[-*]\s+/, '').replace(/\*\*/g, '')}
+          {trimmed.replace(/^[-*]\s+(\[[ xX]\]\s*)?/, '').replace(/\*\*/g, '')}
         </li>
       );
     }
@@ -89,7 +92,6 @@ export default async function PostDetailPage({
       </header>
 
       <AppInstallBanner />
-      <AdSenseSlot position="top" />
 
       <section className="my-6 rounded-xl border border-[#dadce0] bg-[#f8f9fa] p-5">
         <div className="text-sm font-bold text-[#1a73e8]">한눈에 보는 핵심 요약</div>
@@ -97,8 +99,6 @@ export default async function PostDetailPage({
           {post.app_summary_3lines}
         </p>
       </section>
-
-      <AdSenseSlot position="middle" />
 
       <section className="mt-6 space-y-2">
         {post.blog_content_md
@@ -112,14 +112,7 @@ export default async function PostDetailPage({
           본 글은 {post.org_name}의 공개 공고를 바탕으로 쉽게 정리한 안내문입니다. 최종 신청과 세부 기준 확인은 공식 페이지에서 진행해 주세요.
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
-          <a
-            href={post.source_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center rounded-lg bg-[#1a73e8] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1557b0]"
-          >
-            공식 원문 페이지 바로가기 ↗
-          </a>
+          <SourceLinkWithInterstitial sourceUrl={post.source_url} />
           {post.contact_phone ? (
             <a
               href={`tel:${post.contact_phone}`}
@@ -131,7 +124,6 @@ export default async function PostDetailPage({
         </div>
       </section>
 
-      <AdSenseSlot position="bottom" />
       <AppInstallBanner />
     </article>
   );

@@ -11,17 +11,20 @@ function getSupabaseConfig() {
 /**
  * 선택한 지역(region_code) + 전국 공통('00000')의 발행된 복지 공고 조회
  */
-export async function fetchFeedPosts(regionCode: string): Promise<WelfarePost[]> {
+export async function fetchFeedPosts(
+  regionCode: string,
+  limit = 40
+): Promise<WelfarePost[]> {
   const { url, anonKey } = getSupabaseConfig();
   if (!url || !anonKey) {
     // 초기 로컬 미리보기용 샘플 데이터 반환 (연동 전 UI 확인용)
-    return getSamplePosts(regionCode);
+    return getSamplePosts(regionCode).slice(0, limit);
   }
 
   const query =
     `${url}/rest/v1/uldongne_welfare_posts` +
-    `?status=eq.published&region_code=in.(${encodeURIComponent(regionCode)},00000)` +
-    `&order=published_at.desc.nullslast&limit=80`;
+    `?app_status=eq.published&region_code=in.(${encodeURIComponent(regionCode)},00000)` +
+    `&order=app_published_at.desc.nullslast,created_at.desc&limit=${limit}`;
 
   const res = await fetch(query, {
     headers: {

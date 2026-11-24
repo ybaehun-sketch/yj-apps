@@ -14,7 +14,7 @@ export async function PATCH(
 
   const { id } = await context.params;
   const body = (await request.json()) as {
-    action: 'publish' | 'archive' | 'save';
+    action: 'publish' | 'archive' | 'reject' | 'hide_app' | 'save';
     updates?: Partial<
       Pick<
         WelfarePost,
@@ -31,18 +31,25 @@ export async function PATCH(
   };
 
   const patch: Partial<WelfarePost> = { ...(body.updates ?? {}) };
+  const nowIso = new Date().toISOString();
 
   if (body.action === 'publish') {
+    patch.blog_status = 'published';
+    patch.blog_published_at = nowIso;
+    patch.publish_to_blog = true;
     patch.status = 'published';
-    patch.published_at = new Date().toISOString();
-  } else if (body.action === 'archive') {
-    patch.status = 'archived';
+    patch.published_at = nowIso;
+  } else if (body.action === 'reject' || body.action === 'archive') {
+    patch.blog_status = 'rejected';
+    patch.publish_to_blog = false;
+  } else if (body.action === 'hide_app') {
+    patch.app_status = 'hidden';
   }
 
   const updated = await updateWelfarePostAdmin(id, patch);
 
   let fcmResult: { sentCount: number; skipped: boolean; topics: string[] } | null = null;
-  if (body.action === 'publish') {
+  if (body.action === 'publish' && updated.app_status !== 'published') {
     try {
       fcmResult = await sendFcmTopicsForPost(updated);
     } catch (err) {

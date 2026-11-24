@@ -15,30 +15,55 @@ function getAdminConfig() {
 }
 
 /**
- * 퍼블릭 웹 매거진 목록 조회 (status='published' AND publish_to_blog=true)
+ * 퍼블릭 웹 매거진 목록 조회 (blog_status='published', 검색어/카테고리/페이지네이션 지원)
  */
-export async function fetchPublishedBlogPosts(category?: string): Promise<WelfarePost[]> {
+export async function fetchPublishedBlogPosts(options?: {
+  category?: string;
+  q?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<{ posts: WelfarePost[]; totalCount: number }> {
   const cfg = getPublicConfig();
-  if (!cfg) return [];
+  if (!cfg) return { posts: [], totalCount: 0 };
+
+  const page = Math.max(1, options?.page ?? 1);
+  const pageSize = Math.max(1, options?.pageSize ?? 10);
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
 
   let query =
     `${cfg.url}/rest/v1/uldongne_welfare_posts` +
-    `?status=eq.published&publish_to_blog=eq.true&order=published_at.desc.nullslast,created_at.desc&limit=40`;
+    `?blog_status=eq.published&order=blog_published_at.desc.nullslast,created_at.desc`;
 
-  if (category && category !== '전체') {
-    query += `&category=eq.${encodeURIComponent(category)}`;
+  if (options?.category && options.category !== '전체') {
+    query += `&category=eq.${encodeURIComponent(options.category)}`;
+  }
+
+  const trimmedQ = options?.q?.trim();
+  if (trimmedQ) {
+    const safeQ = trimmedQ.replace(/[(),*]/g, ' ').trim();
+    if (safeQ) {
+      const pattern = `*${safeQ}*`;
+      query += `&or=(${encodeURIComponent(`blog_title.ilike.${pattern},app_title.ilike.${pattern},blog_content_md.ilike.${pattern}`)})`;
+    }
   }
 
   const res = await fetch(query, {
     headers: {
       apikey: cfg.anonKey,
-      Authorization: `Bearer ${cfg.anonKey}`
+      Authorization: `Bearer ${cfg.anonKey}`,
+      Prefer: 'count=exact',
+      Range: `${from}-${to}`
     },
-    next: { revalidate: 60 }
+    cache: 'no-store'
   });
 
-  if (!res.ok) return [];
-  return (await res.json()) as WelfarePost[];
+  if (!res.ok) return { posts: [], totalCount: 0 };
+  const posts = (await res.json()) as WelfarePost[];
+  const contentRange = res.headers.get('content-range') ?? '';
+  const totalMatch = contentRange.match(/\/(\d+)$/);
+  const totalCount = totalMatch ? Number(totalMatch[1]) : posts.length;
+  return { posts, totalCount };
 }
 
 /**
@@ -50,7 +75,7 @@ export async function fetchPublishedPostById(id: string): Promise<WelfarePost | 
 
   const query =
     `${cfg.url}/rest/v1/uldongne_welfare_posts` +
-    `?id=eq.${encodeURIComponent(id)}&status=eq.published&limit=1`;
+    `?id=eq.${encodeURIComponent(id)}&blog_status=eq.published&limit=1`;
 
   const res = await fetch(query, {
     headers: {
@@ -66,7 +91,7 @@ export async function fetchPublishedPostById(id: string): Promise<WelfarePost | 
 }
 
 /**
- * 어드민: 검토 대기(draft) 공고 목록 조회
+ * 어드민: 블로그 초안 검토 대기(blog_status='draft') 목록 조회
  */
 export async function fetchDraftPosts(): Promise<WelfarePost[]> {
   const cfg = getAdminConfig();
@@ -74,7 +99,7 @@ export async function fetchDraftPosts(): Promise<WelfarePost[]> {
 
   const query =
     `${cfg.url}/rest/v1/uldongne_welfare_posts` +
-    `?status=eq.draft&order=created_at.desc&limit=50`;
+    `?blog_status=eq.draft&order=created_at.desc&limit=50`;
 
   const res = await fetch(query, {
     headers: {
@@ -87,6 +112,29 @@ export async function fetchDraftPosts(): Promise<WelfarePost[]> {
   if (!res.ok) {
     throw new Error(`fetchDraftPosts failed: ${res.status}`);
   }
+  return (await res.json()) as WelfarePost[];
+}
+
+/**
+ * 어드민: AI가 앱에 자동 발행한 카드 목록 조회
+ */
+export async function fetchAppPublishedPosts(): Promise<WelfarePost[]> {
+  const cfg = getAdminConfig();
+  if (!cfg) return [];
+
+  const query =
+    `${cfg.url}/rest/v1/uldongne_welfare_posts` +
+    `?app_status=eq.published&order=app_published_at.desc.nullslast,created_at.desc&limit=30`;
+
+  const res = await fetch(query, {
+    headers: {
+      apikey: cfg.serviceKey,
+      Authorization: `Bearer ${cfg.serviceKey}`
+    },
+    cache: 'no-store'
+  });
+
+  if (!res.ok) return [];
   return (await res.json()) as WelfarePost[];
 }
 

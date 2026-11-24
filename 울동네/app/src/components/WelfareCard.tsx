@@ -6,6 +6,7 @@ interface WelfareCardProps {
   post: WelfarePost;
   isKeywordMatch: boolean;
   largeText: boolean;
+  isDark?: boolean;
   onPress: () => void;
 }
 
@@ -30,6 +31,7 @@ export function WelfareCard({
   post,
   isKeywordMatch,
   largeText,
+  isDark = false,
   onPress
 }: WelfareCardProps) {
   const dday = getDdayLabel(post.deadline_date);
@@ -38,7 +40,7 @@ export function WelfareCard({
     <TouchableOpacity
       activeOpacity={0.75}
       onPress={onPress}
-      style={styles.card}
+      style={[styles.card, isDark && styles.cardDark]}
     >
       <View style={styles.badgeRow}>
         <View style={styles.regionBadge}>
@@ -61,16 +63,16 @@ export function WelfareCard({
         ) : null}
       </View>
 
-      <Text style={[styles.title, largeText && styles.titleLarge]} numberOfLines={2}>
+      <Text style={[styles.title, largeText && styles.titleLarge, isDark && styles.textDark]} numberOfLines={2}>
         {post.app_title}
       </Text>
 
-      <Text style={[styles.summary, largeText && styles.summaryLarge]}>
+      <Text style={[styles.summary, largeText && styles.summaryLarge, isDark && styles.textMutedDark]}>
         {post.app_summary_3lines}
       </Text>
 
       <View style={styles.footerRow}>
-        <Text style={styles.orgText}>{post.org_name}</Text>
+        <Text style={[styles.orgText, isDark && styles.textMutedDark]}>{post.org_name}</Text>
         <Text style={styles.moreText}>자세히 보기 →</Text>
       </View>
     </TouchableOpacity>
@@ -85,6 +87,16 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12
+  },
+  cardDark: {
+    backgroundColor: '#1e222a',
+    borderColor: '#323844'
+  },
+  textDark: {
+    color: '#f1f3f4'
+  },
+  textMutedDark: {
+    color: '#9aa0a6'
   },
   badgeRow: {
     flexDirection: 'row',

@@ -8,7 +8,9 @@ crons = ["*/10 * * * *"]
 [vars]
 GEMINI_SCAN_MODEL = "gemini-3.5-flash-lite"
 GEMINI_WRITE_MODEL = "gemini-3.8-flash"
-AUTO_PUBLISH_ENABLED = "false"
+AUTO_PUBLISH_ENABLED = "true"
+APP_AUTO_PUBLISH_MIN_CONFIDENCE = "80"
+MAX_BLOG_DRAFTS_PER_DAY = "3"
 MAX_TARGETS_PER_RUN = "12"
 MAX_NEW_POSTS_PER_TARGET = "5"
 

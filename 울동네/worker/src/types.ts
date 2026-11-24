@@ -14,10 +14,14 @@ export interface Env {
   SUPABASE_SERVICE_ROLE_KEY: string;
   GEMINI_API_KEY: string;
   GOV24_API_KEY?: string;
+  WELFARE_API_KEY?: string;
   WORKER_ADMIN_SECRET?: string;
+  FIREBASE_SERVICE_ACCOUNT_JSON?: string;
   GEMINI_SCAN_MODEL: string;
   GEMINI_WRITE_MODEL: string;
   AUTO_PUBLISH_ENABLED: string;
+  APP_AUTO_PUBLISH_MIN_CONFIDENCE?: string;
+  MAX_BLOG_DRAFTS_PER_DAY?: string;
   MAX_TARGETS_PER_RUN: string;
   MAX_NEW_POSTS_PER_TARGET: string;
 }
@@ -68,6 +72,10 @@ export interface WelfarePostInsert extends GeneratedWelfarePost {
   has_attachment_only: boolean;
   auto_published: boolean;
   status: 'draft' | 'published';
+  app_status: 'draft' | 'published' | 'hidden';
+  app_published_at: string | null;
+  blog_status: 'none' | 'draft' | 'published' | 'rejected';
+  blog_published_at: string | null;
   source_url: string;
   published_at: string | null;
 }

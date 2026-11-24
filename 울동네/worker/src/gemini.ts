@@ -122,8 +122,11 @@ export async function generateWelfarePost(
 ): Promise<GeneratedWelfarePost> {
   const { target, noticeTitle, detailUrl, detailText, hasAttachmentOnly, persona } = params;
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const currentYear = todayStr.slice(0, 4);
+
   const systemPrompt = `너는 '울동네' 생활복지 큐레이션 매거진의 수석 에디터다.
-아래 지침을 엄격히 지켜 JSON 객체 하나만 반환하라.
+오늘 날짜는 ${todayStr}(${currentYear}년)이다. 아래 지침을 엄격히 지켜 JSON 객체 하나만 반환하라.
 
 1. category는 반드시 다음 5개 중 정확히 하나만 선택:
    "돌봄/육아", "어르신/건강", "주거/난방비", "소상공인/일자리", "생활/문화"
@@ -132,12 +135,14 @@ export async function generateWelfarePost(
 4. app_summary_3lines는 반드시 "대상: ...\n혜택: ...\n신청방법: ..." 3줄 형식으로 작성하라.
 5. has_attachment_only가 true인 경우, 본문에 없는 세부 금액이나 조건을 절대 추측해 지어내지 말고 제목과 확인된 정보만 요약한 뒤 "상세 자격 및 신청 서식은 하단 원문·첨부파일에서 확인해 주세요"라고 안내하라.
 6. publish_to_blog 판별: 전국 공통 제도이거나 본문 정보가 풍부해 검색 유입 가치가 높으면 true, 소수 인원 단기 로컬 모집이거나 첨부파일만 있어 정보량이 적으면 false로 설정하라.
-7. blog_content_md 작성 시 아래 페르소나 문체를 적용하고, 하단에 반드시:
-   - [실생활 절약 꿀팁]
-   - [신청 전 준비 서류 체크리스트]
-   - [자주 헷갈리는 탈락·주의사항]
-   섹션을 마크다운으로 포함하라.
-8. ai_confidence는 원문 정보의 명확성과 정확도 확신 수준을 0~100 정수로 평가하라.
+7. blog_content_md 작성 원칙 (검색 품질 및 사람 편집자 문체 유지):
+   - 아래 페르소나 문체를 자연스럽게 적용하되, 매 글마다 다른 사람이 쓴 칼럼처럼 서두와 구성을 다양하게 작성하라.
+   - "[실생활 절약 꿀팁]", "[신청 전 준비 서류 체크리스트]"처럼 대괄호([])로 묶은 고정 소제목이나 "- [ ]" 체크박스 기호, "---" 구분선은 절대 사용하지 마라. 대신 글 주제에 어울리는 자연스러운 소제목("## 소제목")을 매번 새롭게 지어라.
+   - 독자가 자신의 상황인지 1초 만에 이해할 수 있도록 구체적인 가상 상황 예시(예: "예를 들어 월세 50만 원을 내는 사회초년생이라면...", "맞벌이 가정 기준으로...")를 1가지 이상 자연스럽게 포함하라.
+   - 원문에 ${currentYear}년 이전의 과거 마감일이나 옛날 기준 연도가 적혀 있으면 그대로 옮기지 말고, "매년 정기 신청 기간(해당 기관 최신 공고 기준)"처럼 현재 시점에 맞게 안내하라. (없는 금액이나 조건은 절대 지어내지 마라.)
+   - 준비 서류, 생활 속 절약 포인트, 흔한 탈락 주의사항을 자연스러운 문단과 목록("- 항목")으로 녹여내라.
+8. deadline_date는 오늘(${todayStr}) 이후 유효한 마감일이 원문에 명확할 때만 "YYYY-MM-DD"로 적고, 상시 제도이거나 이미 지난 과거 날짜라면 null로 설정하라.
+9. ai_confidence는 원문 정보의 명확성과 정확도 확신 수준을 0~100 정수로 평가하라.
 
 [적용할 글맛 페르소나 #${persona.id}: ${persona.name}]
 ${persona.toneGuide}
@@ -177,6 +182,13 @@ ${detailText.slice(0, 5000)}`;
     ? raw.category
     : '생활/문화';
 
+  const validDeadline =
+    raw.deadline_date &&
+    /^\d{4}-\d{2}-\d{2}$/.test(raw.deadline_date) &&
+    raw.deadline_date >= todayStr
+      ? raw.deadline_date
+      : null;
+
   return {
     category: safeCategory,
     keywords: Array.isArray(raw.keywords) && raw.keywords.length > 0 ? raw.keywords : [target.region_sigungu],
@@ -186,7 +198,7 @@ ${detailText.slice(0, 5000)}`;
     publish_to_blog: Boolean(raw.publish_to_blog) && !hasAttachmentOnly,
     blog_title: raw.blog_title || noticeTitle,
     blog_content_md: raw.blog_content_md || '',
-    deadline_date: raw.deadline_date && /^\d{4}-\d{2}-\d{2}$/.test(raw.deadline_date) ? raw.deadline_date : null,
+    deadline_date: validDeadline,
     contact_phone: raw.contact_phone || null,
     ai_confidence: typeof raw.ai_confidence === 'number' ? Math.min(100, Math.max(0, Math.round(raw.ai_confidence))) : 75
   };

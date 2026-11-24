@@ -65,6 +65,14 @@ CREATE TABLE IF NOT EXISTS public.uldongne_welfare_posts (
   status VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (
     status IN ('draft', 'published', 'archived')
   ),
+  app_status VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (
+    app_status IN ('draft', 'published', 'hidden')
+  ),
+  app_published_at TIMESTAMPTZ,
+  blog_status VARCHAR(20) NOT NULL DEFAULT 'none' CHECK (
+    blog_status IN ('none', 'draft', 'published', 'rejected')
+  ),
+  blog_published_at TIMESTAMPTZ,
   deadline_date DATE,                             -- 신청 마감일 (D-Day 계산용)
   contact_phone TEXT,                             -- 문의처 전화번호
   source_url TEXT NOT NULL,                       -- 공식 공고 원문 링크
@@ -114,7 +122,7 @@ CREATE POLICY "Public can read published uldongne_welfare_posts"
   ON public.uldongne_welfare_posts
   FOR SELECT
   TO anon, authenticated
-  USING (status = 'published');
+  USING (app_status = 'published' OR blog_status = 'published' OR status = 'published');
 
 -- ----------------------------------------------------------------------------
 -- 5. Phase 1 홍천군 거점 초기 시드 데이터 (uldongne_crawl_targets)
@@ -127,6 +135,20 @@ INSERT INTO public.uldongne_crawl_targets (
     '행정안전부 보조금24 공공서비스 API',
     'API_GOV24',
     'https://api.odcloud.kr/api/gov24/v3/serviceList',
+    'active'
+  ),
+  (
+    '전국', '전체', '00000',
+    '보건복지부 복지로 중앙부처 복지서비스 API',
+    'API_WELFARE',
+    'https://apis.data.go.kr/B554287/NationalWelfareInformationsV001/NationalWelfarelistV001',
+    'active'
+  ),
+  (
+    '전국', '전체', '00000',
+    '보건복지부 복지로 지자체 복지서비스 API',
+    'API_WELFARE',
+    'https://apis.data.go.kr/B554287/LocalGovernmentWelfareInformations/LcgvWelfarelist',
     'active'
   ),
   (

@@ -60,6 +60,26 @@ export async function checkPostExists(env: Env, externalId: string): Promise<boo
 }
 
 /**
+ * 오늘(KST 기준) 생성된 블로그 초안/발행 글 수 조회 (하루 최대 2~3건 제한용)
+ */
+export async function countTodayBlogDrafts(env: Env): Promise<number> {
+  const now = new Date();
+  const kstDate = new Date(now.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const kstStartIso = new Date(`${kstDate}T00:00:00+09:00`).toISOString();
+
+  const url =
+    `${env.SUPABASE_URL}/rest/v1/uldongne_welfare_posts` +
+    `?blog_status=in.(draft,published)&created_at=gte.${encodeURIComponent(kstStartIso)}&select=id`;
+
+  const res = await fetch(url, { headers: getHeaders(env) });
+  if (!res.ok) {
+    throw new Error(`Supabase countTodayBlogDrafts failed: ${res.status} ${await res.text()}`);
+  }
+  const rows = (await res.json()) as Array<{ id: string }>;
+  return rows.length;
+}
+
+/**
  * 가공된 복지 공고 저장 (중복 external_id 충돌 시 무시)
  */
 export async function insertWelfarePost(env: Env, post: WelfarePostInsert): Promise<void> {

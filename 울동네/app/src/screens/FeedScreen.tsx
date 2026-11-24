@@ -1,8 +1,9 @@
-import * as WebBrowser from 'expo-web-browser';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  PanResponder,
+  Platform,
   RefreshControl,
   StyleSheet,
   Text,
@@ -10,10 +11,11 @@ import {
   View
 } from 'react-native';
 import { NativeAdCard } from '../components/NativeAdCard';
+import { SettingsDrawerModal } from '../components/SettingsDrawerModal';
 import { getDdayLabel, WelfareCard } from '../components/WelfareCard';
 import { expandKeywordsWithSynonyms } from '../constants/keywords';
 import { fetchFeedPosts } from '../services/supabaseService';
-import type { SortOrder, UserPreferences, WelfarePost } from '../types/welfare';
+import type { UserPreferences, WelfarePost } from '../types/welfare';
 
 interface FeedScreenProps {
   prefs: UserPreferences;
@@ -29,29 +31,64 @@ type FeedRow =
 export function FeedScreen({
   prefs,
   onUpdatePrefs,
-  onOpenSettings,
   onSelectPost
 }: FeedScreenProps) {
   const [posts, setPosts] = useState<WelfarePost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const scrollOffsetY = useRef(0);
+
+  const isDark = prefs.theme === 'dark';
+  const cardLimit = prefs.cardLimit ?? 40;
+  const keywordsKey = prefs.keywords.join(',');
 
   async function loadPosts(isRefresh = false) {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
     try {
-      const data = await fetchFeedPosts(prefs.regionCode);
+      const data = await fetchFeedPosts(prefs.regionCode, cardLimit);
       setPosts(data);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setPullDistance(0);
     }
   }
 
   useEffect(() => {
-    loadPosts();
-  }, [prefs.regionCode]);
+    loadPosts(posts.length > 0);
+  }, [prefs.regionCode, cardLimit, keywordsKey]);
+
+  const webPullResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_evt, gesture) =>
+          Platform.OS === 'web' &&
+          !refreshing &&
+          scrollOffsetY.current <= 4 &&
+          gesture.dy > 10 &&
+          Math.abs(gesture.dy) > Math.abs(gesture.dx),
+        onPanResponderMove: (_evt, gesture) => {
+          if (gesture.dy > 0) {
+            setPullDistance(Math.min(84, gesture.dy));
+          }
+        },
+        onPanResponderRelease: (_evt, gesture) => {
+          if (gesture.dy >= 52 && !refreshing) {
+            loadPosts(true);
+          } else {
+            setPullDistance(0);
+          }
+        },
+        onPanResponderTerminate: () => {
+          setPullDistance(0);
+        }
+      }),
+    [refreshing, prefs.regionCode, cardLimit]
+  );
 
   const expandedUserKeywords = useMemo(
     () => expandKeywordsWithSynonyms(prefs.keywords),
@@ -59,105 +96,80 @@ export function FeedScreen({
   );
 
   const feedRows = useMemo<FeedRow[]>(() => {
-    const checkMatch = (post: WelfarePost) => {
-      const targetText = [post.category, post.app_title, ...(post.keywords || [])]
-        .join(' ')
-        .toLowerCase();
-      return expandedUserKeywords.some((kw) => targetText.includes(kw.toLowerCase()));
-    };
+    const withMatch = posts
+      .filter((post) => {
+        if (!prefs.hideExpired) return true;
+        const dday = getDdayLabel(post.deadline_date);
+        return !dday?.isExpired;
+      })
+      .map((post) => {
+        const postTerms = [
+          post.category,
+          ...(post.keywords || []),
+          post.app_title
+        ].map((t) => t.toLowerCase());
 
-    const filtered = posts.filter((post) => {
-      if (!prefs.hideExpired) return true;
-      const dday = getDdayLabel(post.deadline_date);
-      return !dday?.isExpired;
-    });
+        const isMatch = expandedUserKeywords.some((uk) =>
+          postTerms.some((pt) => pt.includes(uk.toLowerCase()) || uk.toLowerCase().includes(pt))
+        );
+        return { post, isMatch };
+      });
 
-    const sorted = [...filtered].sort((a, b) => {
+    const sorted = [...withMatch].sort((a, b) => {
       if (prefs.sortOrder === 'keyword_first') {
-        const ma = checkMatch(a) ? 1 : 0;
-        const mb = checkMatch(b) ? 1 : 0;
-        if (ma !== mb) return mb - ma;
+        if (a.isMatch !== b.isMatch) return a.isMatch ? -1 : 1;
       }
       if (prefs.sortOrder === 'deadline') {
-        const da = a.deadline_date ? new Date(a.deadline_date).getTime() : Number.MAX_SAFE_INTEGER;
-        const db = b.deadline_date ? new Date(b.deadline_date).getTime() : Number.MAX_SAFE_INTEGER;
+        const da = a.post.deadline_date ? new Date(a.post.deadline_date).getTime() : Number.MAX_SAFE_INTEGER;
+        const db = b.post.deadline_date ? new Date(b.post.deadline_date).getTime() : Number.MAX_SAFE_INTEGER;
         if (da !== db) return da - db;
       }
-      const ta = a.published_at ? new Date(a.published_at).getTime() : 0;
-      const tb = b.published_at ? new Date(b.published_at).getTime() : 0;
-      return tb - ta;
+      const pa = a.post.published_at ? new Date(a.post.published_at).getTime() : 0;
+      const pb = b.post.published_at ? new Date(b.post.published_at).getTime() : 0;
+      return pb - pa;
     });
 
-    // 소식 카드 3개당 1개 비율로 네이티브 광고 삽입
+    const limited = sorted.slice(0, cardLimit);
+
+    // 심사 전 앱 형태 구성용 목업 AD 카드를 3개당 1개 비율로 자연스럽게 배치
     const rows: FeedRow[] = [];
-    sorted.forEach((post, idx) => {
-      rows.push({ type: 'post', post, isMatch: checkMatch(post) });
-      if ((idx + 1) % 3 === 0) {
-        rows.push({ type: 'ad', key: `ad-${idx}` });
+    limited.forEach((item, index) => {
+      rows.push({ type: 'post', post: item.post, isMatch: item.isMatch });
+      if ((index + 1) % 3 === 0) {
+        rows.push({ type: 'ad', key: `ad-${index}` });
       }
     });
     return rows;
-  }, [posts, prefs.hideExpired, prefs.sortOrder, expandedUserKeywords]);
-
-  function setSortOrder(order: SortOrder) {
-    onUpdatePrefs({ ...prefs, sortOrder: order });
-  }
+  }, [posts, prefs.hideExpired, prefs.sortOrder, expandedUserKeywords, cardLimit]);
 
   return (
-    <View style={styles.container}>
-      {/* 상단 바 */}
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={onOpenSettings} style={styles.regionBtn}>
-          <Text style={styles.regionBtnText}>{prefs.regionSigungu} ▾</Text>
-        </TouchableOpacity>
+    <View style={[styles.container, isDark && styles.containerDark]}>
+      {/* 심플 상단 바: 앱 이름 + 설정 버튼 */}
+      <View style={[styles.topBar, isDark && styles.topBarDark]}>
+        <View style={styles.brandWrap}>
+          <Text style={[styles.appTitle, isDark && styles.textDark]}>울동네</Text>
+          <Text style={[styles.regionTag, isDark && styles.regionTagDark]}>
+            {prefs.regionSigungu}
+          </Text>
+        </View>
 
         <View style={styles.topActions}>
           <TouchableOpacity
-            onPress={() => onUpdatePrefs({ ...prefs, largeText: !prefs.largeText })}
-            style={[styles.iconBtn, prefs.largeText && styles.iconBtnActive]}
+            onPress={() => loadPosts(true)}
+            disabled={refreshing}
+            style={[styles.settingsBtn, isDark && styles.settingsBtnDark]}
           >
-            <Text style={[styles.iconBtnText, prefs.largeText && styles.iconBtnTextActive]}>
-              가+
+            <Text style={[styles.settingsBtnText, isDark && styles.textDark]}>
+              {refreshing ? '갱신중' : '↻'}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={onOpenSettings} style={styles.iconBtn}>
-            <Text style={styles.iconBtnText}>관심 키워드</Text>
+          <TouchableOpacity
+            onPress={() => setDrawerOpen(true)}
+            style={[styles.settingsBtn, isDark && styles.settingsBtnDark]}
+          >
+            <Text style={[styles.settingsBtnText, isDark && styles.textDark]}>설정</Text>
           </TouchableOpacity>
         </View>
-      </View>
-
-      {/* 정렬 및 마감 숨김 바 */}
-      <View style={styles.sortBar}>
-        <View style={styles.sortPills}>
-          {(
-            [
-              { key: 'keyword_first', label: '관심순' },
-              { key: 'deadline', label: '마감임박순' },
-              { key: 'latest', label: '최신순' }
-            ] as Array<{ key: SortOrder; label: string }>
-          ).map((item) => {
-            const active = prefs.sortOrder === item.key;
-            return (
-              <TouchableOpacity
-                key={item.key}
-                onPress={() => setSortOrder(item.key)}
-                style={[styles.sortPill, active && styles.sortPillActive]}
-              >
-                <Text style={[styles.sortPillText, active && styles.sortPillTextActive]}>
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        <TouchableOpacity
-          onPress={() => onUpdatePrefs({ ...prefs, hideExpired: !prefs.hideExpired })}
-        >
-          <Text style={styles.hideExpiredText}>
-            {prefs.hideExpired ? '☑ 마감 숨김' : '☐ 마감 포함'}
-          </Text>
-        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -165,47 +177,70 @@ export function FeedScreen({
           <ActivityIndicator size="large" color="#1a73e8" />
         </View>
       ) : (
-        <FlatList
-          data={feedRows}
-          keyExtractor={(item) => (item.type === 'post' ? item.post.id : item.key)}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => loadPosts(true)} />
-          }
-          renderItem={({ item }) =>
-            item.type === 'ad' ? (
-              <NativeAdCard largeText={prefs.largeText} />
-            ) : (
-              <WelfareCard
-                post={item.post}
-                isKeywordMatch={item.isMatch}
-                largeText={prefs.largeText}
-                onPress={() => onSelectPost(item.post)}
-              />
-            )
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyBox}>
-              <Text style={styles.emptyText}>표시할 공고가 없습니다.</Text>
-            </View>
-          }
-          ListFooterComponent={
-            <View style={styles.disclaimerFooter}>
-              <Text style={styles.disclaimerText}>
-                본 앱은 정부·지자체 공식 앱이 아닌 민간 생활정보 큐레이션 서비스이며, 최종 확인과 신청은 공식 출처에서 진행하셔야 합니다.
+        <View
+          style={styles.feedWrap}
+          {...(Platform.OS === 'web' ? webPullResponder.panHandlers : {})}
+        >
+          {(pullDistance > 12 || refreshing) ? (
+            <View style={[styles.pullBanner, isDark && styles.pullBannerDark]}>
+              <Text style={[styles.pullBannerText, isDark && styles.textMutedDark]}>
+                {refreshing
+                  ? '새 키워드와 최신 공고를 불러오는 중...'
+                  : pullDistance >= 52
+                    ? '↻ 놓으면 새로고침됩니다'
+                    : '↓ 아래로 더 당겨서 새로고침'}
               </Text>
-              <View style={styles.legalLinks}>
-                <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync('https://yjstudio.app/privacy')}>
-                  <Text style={styles.legalLinkText}>개인정보처리방침</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync('https://yjstudio.app/terms')}>
-                  <Text style={styles.legalLinkText}>이용약관</Text>
-                </TouchableOpacity>
-              </View>
             </View>
-          }
-        />
+          ) : null}
+          <FlatList
+            data={feedRows}
+            keyExtractor={(item) => (item.type === 'post' ? item.post.id : item.key)}
+            contentContainerStyle={styles.listContent}
+            onScroll={(e) => {
+              scrollOffsetY.current = e.nativeEvent.contentOffset.y;
+            }}
+            scrollEventThrottle={16}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={() => loadPosts(true)} />
+            }
+            renderItem={({ item }) =>
+              item.type === 'ad' ? (
+                <NativeAdCard largeText={prefs.largeText} isDark={isDark} />
+              ) : (
+                <WelfareCard
+                  post={item.post}
+                  isKeywordMatch={item.isMatch}
+                  largeText={prefs.largeText}
+                  isDark={isDark}
+                  onPress={() => onSelectPost(item.post)}
+                />
+              )
+            }
+            ListEmptyComponent={
+              <View style={styles.emptyBox}>
+                <Text style={[styles.emptyText, isDark && styles.textMutedDark]}>
+                  표시할 공고가 없습니다.
+                </Text>
+              </View>
+            }
+          />
+        </View>
       )}
+
+      {/* 앱 하단 고정 면책 문구 */}
+      <View style={[styles.bottomNotice, isDark && styles.bottomNoticeDark]}>
+        <Text style={[styles.bottomNoticeText, isDark && styles.textMutedDark]}>
+          본 앱은 정부·지자체 공식 사이트가 아닌 민간 생활정보 큐레이션 서비스입니다.
+        </Text>
+      </View>
+
+      {/* 슬라이드 설정창 + 하단 약관/개인정보처리방침/이용방법 모달 */}
+      <SettingsDrawerModal
+        visible={drawerOpen}
+        prefs={prefs}
+        onClose={() => setDrawerOpen(false)}
+        onSavePrefs={onUpdatePrefs}
+      />
     </View>
   );
 }
@@ -215,118 +250,122 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff'
   },
+  containerDark: {
+    backgroundColor: '#12151b'
+  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#dadce0'
   },
-  regionBtn: {
-    paddingVertical: 4
+  topBarDark: {
+    borderBottomColor: '#2d323e'
   },
-  regionBtnText: {
-    fontSize: 19,
+  brandWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  appTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#202124'
+  },
+  regionTag: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1a73e8',
+    backgroundColor: '#e8f0fe',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10
+  },
+  regionTagDark: {
+    backgroundColor: '#1e2b42',
+    color: '#8ab4f8'
+  },
+  settingsBtn: {
+    borderWidth: 1,
+    borderColor: '#dadce0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7
+  },
+  settingsBtnDark: {
+    borderColor: '#323844',
+    backgroundColor: '#1e222a'
+  },
+  settingsBtnText: {
+    fontSize: 13,
     fontWeight: '700',
     color: '#202124'
   },
   topActions: {
     flexDirection: 'row',
-    gap: 8
-  },
-  iconBtn: {
-    borderWidth: 1,
-    borderColor: '#dadce0',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6
-  },
-  iconBtnActive: {
-    borderColor: '#1a73e8',
-    backgroundColor: '#e8f0fe'
-  },
-  iconBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#202124'
-  },
-  iconBtnTextActive: {
-    color: '#1a73e8'
-  },
-  sortBar: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f3f4'
-  },
-  sortPills: {
-    flexDirection: 'row',
     gap: 6
   },
-  sortPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 16,
-    backgroundColor: '#f1f3f4'
+  feedWrap: {
+    flex: 1
   },
-  sortPillActive: {
-    backgroundColor: '#1a73e8'
+  pullBanner: {
+    backgroundColor: '#f8fbff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#d2e3fc',
+    paddingVertical: 8,
+    alignItems: 'center'
   },
-  sortPillText: {
+  pullBannerDark: {
+    backgroundColor: '#1a2230',
+    borderBottomColor: '#2d3544'
+  },
+  pullBannerText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#5f6368'
-  },
-  sortPillTextActive: {
-    color: '#ffffff'
-  },
-  hideExpiredText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#5f6368'
-  },
-  listContent: {
-    padding: 16
+    color: '#1a73e8'
   },
   centerBox: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center'
   },
+  listContent: {
+    padding: 16,
+    paddingBottom: 24
+  },
   emptyBox: {
-    padding: 40,
+    paddingVertical: 60,
     alignItems: 'center'
   },
   emptyText: {
     fontSize: 15,
     color: '#5f6368'
   },
-  disclaimerFooter: {
-    marginTop: 12,
-    padding: 16,
+  bottomNotice: {
     borderTopWidth: 1,
-    borderTopColor: '#dadce0',
+    borderTopColor: '#eceff1',
     backgroundColor: '#f8f9fa',
-    borderRadius: 10
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    alignItems: 'center'
   },
-  disclaimerText: {
-    fontSize: 12,
+  bottomNoticeDark: {
+    borderTopColor: '#2d323e',
+    backgroundColor: '#161920'
+  },
+  bottomNoticeText: {
+    fontSize: 11,
     color: '#5f6368',
-    lineHeight: 18
+    textAlign: 'center'
   },
-  legalLinks: {
-    flexDirection: 'row',
-    gap: 16,
-    marginTop: 10
+  textDark: {
+    color: '#f1f3f4'
   },
-  legalLinkText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1a73e8'
+  textMutedDark: {
+    color: '#9aa0a6'
   }
 });

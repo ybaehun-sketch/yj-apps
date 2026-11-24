@@ -7,6 +7,8 @@ export type WelfareCategory =
 
 export type SortOrder = 'keyword_first' | 'deadline' | 'latest';
 
+export type AppTheme = 'light' | 'dark';
+
 export interface WelfarePost {
   id: string;
   region_sido: string;
@@ -34,4 +36,6 @@ export interface UserPreferences {
   sortOrder: SortOrder;
   hideExpired: boolean;
   largeText: boolean;
+  cardLimit: 20 | 40 | 60;
+  theme: AppTheme;
 }

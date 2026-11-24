@@ -21,12 +21,22 @@ export function AdSenseSlot({ slotId, position }: AdSenseSlotProps) {
   }, [client, slotId]);
 
   if (!client || !slotId) {
+    const label = position === 'top' ? '상단' : position === 'middle' ? '중간' : '하단';
     return (
       <div
-        aria-label={`광고 영역 (${position})`}
-        className="my-6 flex h-24 items-center justify-center rounded-lg border border-dashed border-[#dadce0] bg-[#f8f9fa] text-xs text-[#5f6368]"
+        aria-label={`목업 광고 영역 (${position})`}
+        className="my-5 rounded-2xl border border-[#dadce0] bg-[#f8f9fa] p-5"
       >
-        Google AdSense 광고 슬롯 ({position === 'top' ? '상단' : position === 'middle' ? '중단' : '하단'})
+        <div className="flex items-center gap-2 text-xs text-[#5f6368]">
+          <span className="rounded bg-[#e8eaed] px-2 py-0.5 font-bold text-[#3c4043]">AD</span>
+          <span>스폰서 추천 정보 · {label} 목업 광고</span>
+        </div>
+        <div className="mt-2 text-[16px] font-bold text-[#202124]">
+          우리 동네 알뜰 생활·금융 혜택 파트너 안내
+        </div>
+        <p className="mt-1 text-sm text-[#5f6368]">
+          정식 애드센스 연결 전까지 화면 배치와 비율을 확인하기 위한 테스트용 목업 광고입니다.
+        </p>
       </div>
     );
   }
