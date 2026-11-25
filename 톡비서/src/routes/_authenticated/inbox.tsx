@@ -316,7 +316,7 @@ function Inbox() {
     const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
     if (!SR) { setErr(tr("이 브라우저는 말로 입력을 지원하지 않아요. + 메뉴의 음성 녹음을 써 주세요")); return; }
     const r = new SR();
-    r.lang = locale(); r.interimResults = true; r.continuous = true;
+    r.lang = ({ ko: "ko-KR", en: "en-US", ja: "ja-JP", zh: "zh-CN", fr: "fr-FR", de: "de-DE", es: "es-ES" } as const)[lang] ?? "ko-KR"; r.interimResults = true; r.continuous = true;
     const base = text ? text.trimEnd() + " " : "";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     r.onresult = (e: any) => {
@@ -726,7 +726,7 @@ function Inbox() {
       const audioPath = `${s.session?.user.id ?? LOCAL_USER_ID}/voice-${crypto.randomUUID()}.${ext}`;
       const [up, trn] = await Promise.all([
         supabase.storage.from("shots").upload(audioPath, blob, { contentType: type }),
-        blobToBase64(blob).then((audioBase64) => transcribeVoice({ data: { audioBase64, mimeType: type, lang: getLang() } })),
+        blobToBase64(blob).then((audioBase64) => transcribeVoice({ data: { audioBase64, mimeType: type, lang } })),
       ]);
       if (up.error) {
         console.warn("voice upload failed, continuing with transcript only:", up.error);
@@ -744,7 +744,7 @@ function Inbox() {
         setErr(tr("녹음된 말이 없어요. 다시 말씀해 주세요"));
         return;
       }
-      await send({ text: said, kind: "voice", audioPath: savedAudioPath });
+      await send({ text: said, kind: "voice", ...(savedAudioPath ? { audioPath: savedAudioPath } : {}) });
     } catch (e) {
       console.error(e);
       void fetch("/api/log-client", {
