@@ -1,0 +1,4 @@
+.wrangler/
+*.keystore
+*signing-key-info*
+store-assets/*.zip
