@@ -54,3 +54,61 @@ export function blobToDataUrl(b: Blob): Promise<string> {
     r.readAsDataURL(b);
   });
 }
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function waitForVisible(): Promise<void> {
+  if (typeof document === "undefined" || document.visibilityState === "visible") return;
+  await new Promise<void>((resolve) => {
+    const done = () => {
+      document.removeEventListener("visibilitychange", onVis);
+      clearTimeout(t);
+      resolve();
+    };
+    const onVis = () => { if (document.visibilityState === "visible") done(); };
+    const t = setTimeout(done, 1500);
+    document.addEventListener("visibilitychange", onVis);
+  });
+  await wait(120);
+}
+
+/**
+ * Android TWA/WebView에서 사진 선택기 복귀 직후 content:// URI 읽기가 일시 실패할 수 있어
+ * 화면 복귀(visible)를 확인한 뒤 arrayBuffer -> FileReader -> createImageBitmap/ObjectURL 순서로 재시도합니다.
+ */
+export async function readImageFileSafely(file: File): Promise<{ blob: Blob; preview?: string }> {
+  if (file.size === 0) throw new Error("empty_file");
+  await waitForVisible();
+  const delays = [0, 300, 600, 1000, 1500, 2000];
+  let err1 = "";
+  let err2 = "";
+  let err3 = "";
+  let primaryErr: unknown;
+  const fmt = (e: unknown) => (e instanceof Error ? `${e.name}:${e.message}` : String(e));
+  for (const ms of delays) {
+    if (ms > 0) await wait(ms);
+    try {
+      const buf = await file.arrayBuffer();
+      return { blob: new Blob([buf], { type: file.type || "image/png" }) };
+    } catch (e) {
+      primaryErr = e;
+      err1 = fmt(e);
+    }
+    try {
+      const preview = await blobToDataUrl(file);
+      const blob = await (await fetch(preview)).blob();
+      return { blob, preview };
+    } catch (e) {
+      err2 = fmt(e);
+    }
+    try {
+      const blob = await compressToWebp(file);
+      return { blob };
+    } catch (e) {
+      err3 = fmt(e);
+    }
+  }
+  const out = primaryErr instanceof Error ? primaryErr : new Error("image_read_failed");
+  (out as Error & { details?: unknown }).details = { err1, err2, err3 };
+  throw out;
+}

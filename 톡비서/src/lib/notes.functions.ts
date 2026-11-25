@@ -137,7 +137,7 @@ export const analyzeAndSaveNote = createServerFn({ method: "POST" })
       .object({
         text: z.string().max(4000),
         imagePath: z.string().max(300).nullable(),
-        imageDataUrl: z.string().max(3_000_000).nullable(),
+        imageDataUrl: z.string().max(7_000_000).nullable(),
         audioPath: z.string().max(300).nullable().optional(),
         filePath: z.string().max(300).nullable().optional(),
         fileName: z.string().max(300).nullable().optional(),
@@ -197,7 +197,7 @@ export const reanalyzeNote = createServerFn({ method: "POST" })
     z
       .object({
         noteId: z.string().min(1).max(100),
-        imageDataUrl: z.string().max(3_000_000).nullable().optional(),
+        imageDataUrl: z.string().max(7_000_000).nullable().optional(),
         tzOffsetMin: z.number().int().min(-840).max(840),
         lang: z.enum(LANGS).optional(),
       })

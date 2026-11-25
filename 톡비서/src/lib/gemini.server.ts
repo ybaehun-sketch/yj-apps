@@ -23,25 +23,70 @@ export function getConfiguredModels(): string[] {
 const QUOTA_COOLDOWN_MS = 20_000;
 const modelCooldownUntil = new Map<string, number>();
 
-const DEFAULT_GEMINI_PROXY_URL = "https://tokbiseo-gemini-proxy.ybaehun.workers.dev";
-
 export function getGeminiApiKey(): string | undefined {
   return (process.env["GEMINI_API_KEY"] || process.env["GOOGLE_API_KEY"])?.trim() || undefined;
 }
 
-export function getGeminiBaseUrl(): string | undefined {
-  const custom = process.env["GEMINI_PROXY_URL"]?.trim();
-  if (custom === "direct") return undefined;
-  return custom || DEFAULT_GEMINI_PROXY_URL;
+interface ProxyBinding {
+  fetch: typeof fetch;
 }
 
-function createGeminiClient(apiKey: string): GoogleGenAI {
-  const baseUrl = getGeminiBaseUrl();
-  return new GoogleGenAI({
-    apiKey,
-    apiVersion: "v1beta",
-    ...(baseUrl ? { httpOptions: { baseUrl } } : {}),
+async function getGeminiProxyBinding(): Promise<ProxyBinding | null> {
+  try {
+    const cfMod = ["cloudflare", "workers"].join(":");
+    const mod = await import(/* @vite-ignore */ cfMod);
+    const binding = (mod as { env?: { GEMINI_PROXY?: ProxyBinding } }).env?.GEMINI_PROXY;
+    return binding && typeof binding.fetch === "function" ? binding : null;
+  } catch {
+    return null;
+  }
+}
+
+type InteractionResponse = {
+  output_text?: string;
+  outputs?: Array<{ type?: string; text?: string }>;
+  steps?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>;
+};
+
+function extractInteractionText(out: InteractionResponse | null | undefined): string | null {
+  if (!out) return null;
+  if (typeof out.output_text === "string" && out.output_text.trim()) {
+    return out.output_text;
+  }
+  const fromOutputs = (out.outputs ?? [])
+    .filter((o) => o.type === "text" && typeof o.text === "string")
+    .map((o) => o.text)
+    .join("");
+  if (fromOutputs.trim()) return fromOutputs;
+  const fromSteps = (out.steps ?? [])
+    .filter((s) => s.type === "model_output")
+    .flatMap((s) => s.content ?? [])
+    .filter((c) => c.type === "text" && typeof c.text === "string")
+    .map((c) => c.text)
+    .join("");
+  return fromSteps.trim() ? fromSteps : null;
+}
+
+async function createInteractionViaProxy(
+  proxy: ProxyBinding,
+  apiKey: string,
+  payload: Record<string, unknown>,
+): Promise<InteractionResponse> {
+  const res = await proxy.fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey,
+    },
+    body: JSON.stringify(payload),
   });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    const err = new Error(`Gemini proxy HTTP ${res.status}: ${body.slice(0, 300)}`) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
+  }
+  return (await res.json()) as InteractionResponse;
 }
 
 export function isQuotaError(error: unknown): boolean {
@@ -98,32 +143,32 @@ export async function callGemini(opts: {
   const hasMedia = Array.isArray(opts.input) && opts.input.some((p) => p.type === "image" || p.type === "audio");
   const timeoutMs = opts.timeoutMs ?? (hasMedia ? MEDIA_CALL_TIMEOUT_MS : CALL_TIMEOUT_MS);
 
-  const ai = createGeminiClient(apiKey);
+  const proxy = await getGeminiProxyBinding();
+  const ai = proxy ? null : new GoogleGenAI({ apiKey, apiVersion: "v1beta" });
   const models = getCandidateModels();
   for (const model of models) {
     try {
+      const payload = {
+        model,
+        system_instruction: opts.instructions,
+        input: opts.input,
+        store: false,
+        generation_config: {
+          max_output_tokens: Math.max(opts.maxOutputTokens ?? 2048, 2048),
+          thinking_level: "low",
+        },
+      };
       const interaction = await withTimeout(
-        ai.interactions.create({
-          model,
-          system_instruction: opts.instructions,
-          input: opts.input,
-          store: false,
-          generation_config: {
-            max_output_tokens: Math.max(opts.maxOutputTokens ?? 2048, 2048),
-            thinking_level: "low",
-          },
-        }),
+        proxy ? createInteractionViaProxy(proxy, apiKey, payload) : ai!.interactions.create(payload),
         timeoutMs,
       );
-      const out = (interaction as { output_text?: string; outputs?: Array<{ type?: string; text?: string }> });
-      if (typeof out.output_text === "string" && out.output_text.trim()) {
-        return out.output_text;
+      const out = interaction as InteractionResponse;
+      const text = extractInteractionText(out);
+      if (text) {
+        console.log("gemini ok", { viaProxy: !!proxy, model, hasMedia });
+        return text;
       }
-      const fallback = (out.outputs ?? [])
-        .filter((o) => o.type === "text" && typeof o.text === "string")
-        .map((o) => o.text)
-        .join("");
-      if (fallback.trim()) return fallback;
+      console.warn("gemini empty output", { viaProxy: !!proxy, model, keys: Object.keys(out ?? {}) });
     } catch (e) {
       if (isQuotaError(e)) {
         modelCooldownUntil.set(model, Date.now() + QUOTA_COOLDOWN_MS);
@@ -146,23 +191,22 @@ export async function checkGeminiHealth(): Promise<{
   if (!apiKey) {
     return { ok: false, activeModel: null, primaryModel, failedModels: models };
   }
-  const ai = createGeminiClient(apiKey);
+  const proxy = await getGeminiProxyBinding();
+  const ai = proxy ? null : new GoogleGenAI({ apiKey, apiVersion: "v1beta" });
   const failedModels: string[] = [];
   for (const model of models) {
     try {
+      const payload = {
+        model,
+        input: "Reply with OK",
+        store: false,
+        generation_config: { max_output_tokens: 16, thinking_level: "low" },
+      };
       const interaction = await withTimeout(
-        ai.interactions.create({
-          model,
-          input: "Reply with OK",
-          store: false,
-          generation_config: { max_output_tokens: 16, thinking_level: "low" },
-        }),
+        proxy ? createInteractionViaProxy(proxy, apiKey, payload) : ai!.interactions.create(payload),
         CALL_TIMEOUT_MS,
       );
-      const out = interaction as { output_text?: string; outputs?: Array<{ type?: string; text?: string }> };
-      const text =
-        (typeof out.output_text === "string" && out.output_text.trim()) ||
-        (out.outputs ?? []).filter((o) => o.type === "text" && typeof o.text === "string").map((o) => o.text).join("").trim();
+      const text = extractInteractionText(interaction as InteractionResponse)?.trim();
       if (text) {
         return { ok: true, activeModel: model, primaryModel, failedModels };
       }
@@ -175,8 +219,8 @@ export async function checkGeminiHealth(): Promise<{
   return { ok: false, activeModel: null, primaryModel, failedModels };
 }
 
-const CALL_TIMEOUT_MS = 12_000;
-const MEDIA_CALL_TIMEOUT_MS = 16_000;
+const CALL_TIMEOUT_MS = 15_000;
+const MEDIA_CALL_TIMEOUT_MS = 25_000;
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {

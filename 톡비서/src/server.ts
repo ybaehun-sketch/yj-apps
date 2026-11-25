@@ -190,6 +190,11 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     applyEnv(env);
     const reqUrl = new URL(request.url);
+    if (reqUrl.pathname === "/api/log-client" && request.method === "POST") {
+      const text = await request.text().catch(() => "");
+      console.warn("[client-log]", text.slice(0, 1000));
+      return new Response("ok", { status: 200 });
+    }
     if (reqUrl.pathname === "/share-target") {
       const params = new URLSearchParams();
       const pick = (k: string, v: unknown) => {

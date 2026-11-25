@@ -19,7 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { agentTurn, analyzeAndSaveNote, askNotes, editFromChat, reanalyzeNote, transcribeVoice } from "@/lib/notes.functions";
 import { OFFTOPIC_REPLY, offTopicKind, isChitchat, isEdit, isQuestion, isYes } from "@/lib/notes";
 import { isSilenceHallucination } from "@/lib/voice-guard";
-import { blobToDataUrl, compressToWebp } from "@/lib/image-compress";
+import { blobToDataUrl, compressToWebp, readImageFileSafely } from "@/lib/image-compress";
 import { blobToBase64, compressFileForStorage, extractDocText } from "@/lib/doc-text";
 import { deleteAccount } from "@/lib/account.functions";
 import { t as tr, useLang } from "@/lib/i18n";
@@ -346,16 +346,28 @@ function Inbox() {
     let safeBlob: Blob;
     let fallbackPreview: string | null = null;
     try {
-      const buf = await file.arrayBuffer();
-      safeBlob = new Blob([buf], { type: file.type || "image/png" });
-    } catch {
-      try {
-        fallbackPreview = await blobToDataUrl(file);
-        safeBlob = await (await fetch(fallbackPreview)).blob();
-      } catch {
+      const read = await readImageFileSafely(file);
+      safeBlob = read.blob;
+      fallbackPreview = read.preview ?? null;
+    } catch (e) {
+      const name = e instanceof Error ? e.name : "";
+      const msg = e instanceof Error ? e.message : "";
+      const details = (e as { details?: unknown })?.details;
+      void fetch("/api/log-client", {
+        method: "POST",
+        keepalive: true,
+        body: JSON.stringify({ kind: "attach-read-fail", name: file.name, type: file.type, size: file.size, errName: name, errMsg: msg, details }),
+      }).catch(() => {});
+      if (msg === "empty_file") {
+        setErr(tr("선택한 사진이 비어 있어 불러올 수 없어요. 다른 사진을 선택해 주세요"));
+      } else if (name === "NotReadableError" || name === "NotFoundError") {
+        setErr(tr("구글 포토 등 클라우드 사진을 내려받지 못했거나 기기가 파일 읽기를 막았어요. 잠시 후 다시 선택해 주세요"));
+      } else if (name === "SecurityError") {
+        setErr(tr("사진 접근 권한이 잠시 차단되어 읽지 못했어요. 다시 선택해 주세요"));
+      } else {
         setErr(tr("기기에서 이미지를 읽어오지 못했어요. 다시 선택해 주세요"));
-        return;
       }
+      return;
     }
     try {
       let blob: Blob;
@@ -1217,7 +1229,7 @@ function Inbox() {
               )}
             </div>
 
-            <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const el = e.currentTarget; const f = el.files?.[0]; if (f) void attach(f).finally(() => { el.value = ""; }); else el.value = ""; }} />
+            <input ref={fileRef} type="file" hidden onChange={(e) => { const el = e.currentTarget; const f = el.files?.[0]; if (f) void attach(f).finally(() => { el.value = ""; }); else el.value = ""; }} />
             <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { const el = e.currentTarget; const f = el.files?.[0]; if (f) void attach(f).finally(() => { el.value = ""; }); else el.value = ""; }} />
             <input ref={docRef} type="file" hidden onChange={(e) => { const el = e.currentTarget; const f = el.files?.[0]; if (f) void onDocFile(f).finally(() => { el.value = ""; }); else el.value = ""; }} />
 
