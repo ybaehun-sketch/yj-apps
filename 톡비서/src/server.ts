@@ -197,6 +197,8 @@ export default {
     }
     if (reqUrl.pathname === "/share-target") {
       const params = new URLSearchParams();
+      let mediaDataUrl = "";
+      let mediaMime = "image/png";
       const pick = (k: string, v: unknown) => {
         if (typeof v === "string" && v.trim()) {
           const norm = k.startsWith("shared_") ? k : `shared_${k}`;
@@ -211,7 +213,23 @@ export default {
             for (const [k, v] of sp.entries()) pick(k, v);
           } else {
             const form = await request.formData();
-            for (const [k, v] of form.entries()) pick(k, v);
+            for (const [k, v] of form.entries()) {
+              if (typeof v === "string") {
+                pick(k, v);
+              } else if (v && typeof v === "object" && "arrayBuffer" in v && (v as File).size > 0 && !mediaDataUrl) {
+                const file = v as File;
+                if (file.size <= 8_000_000) {
+                  const buf = new Uint8Array(await file.arrayBuffer());
+                  let bin = "";
+                  for (let i = 0; i < buf.length; i += 8192) {
+                    bin += String.fromCharCode(...buf.subarray(i, i + 8192));
+                  }
+                  mediaMime = file.type || "image/png";
+                  mediaDataUrl = `data:${mediaMime};base64,${btoa(bin)}`;
+                  params.set("shared_media", "1");
+                }
+              }
+            }
           }
         } catch (e) {
           console.error("[share-target] POST parse error", e);
@@ -220,8 +238,12 @@ export default {
         for (const [k, v] of reqUrl.searchParams.entries()) pick(k, v);
       }
       const q = params.toString();
-      console.log("[share-target]", request.method, q || "(empty)");
+      console.log("[share-target]", request.method, q || "(empty)", mediaDataUrl ? `media=${mediaMime}` : "no-media");
       const dest = new URL(q ? `/inbox?${q}` : "/inbox", reqUrl.origin);
+      if (mediaDataUrl) {
+        const html = `<!doctype html><html><head><meta charset="utf-8"></head><body><script>(async()=>{try{if("caches" in window){const r=await fetch(${JSON.stringify(mediaDataUrl)});const b=await r.blob();const c=await caches.open("jungbi-share-v1");await c.put("/__shared_media__",new Response(b,{headers:{"Content-Type":${JSON.stringify(mediaMime)}}}));}}catch(e){}location.replace(${JSON.stringify(dest.href)});})();</script></body></html>`;
+        return new Response(html, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
+      }
       return Response.redirect(dest.toString(), 303);
     }
     try {

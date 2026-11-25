@@ -728,17 +728,35 @@ function Inbox() {
         supabase.storage.from("shots").upload(audioPath, blob, { contentType: type }),
         blobToBase64(blob).then((audioBase64) => transcribeVoice({ data: { audioBase64, mimeType: type, lang: getLang() } })),
       ]);
-      if (up.error) throw up.error;
+      if (up.error) {
+        console.warn("voice upload failed, continuing with transcript only:", up.error);
+        void fetch("/api/log-client", {
+          method: "POST",
+          keepalive: true,
+          body: JSON.stringify({ kind: "voice-upload-fail", type, size: blob.size, err: up.error.message }),
+        }).catch(() => {});
+      }
+      const savedAudioPath = up.error ? undefined : audioPath;
       const said = trn.text?.trim() ?? "";
       const durSec = recStartRef.current ? (Date.now() - recStartRef.current) / 1000 : 99;
       if (!said || durSec < 1.5 || isSilenceHallucination(said)) {
-        await supabase.storage.from("shots").remove([audioPath]);
+        if (savedAudioPath) await supabase.storage.from("shots").remove([savedAudioPath]);
         setErr(tr("녹음된 말이 없어요. 다시 말씀해 주세요"));
         return;
       }
-      await send({ text: said, kind: "voice", audioPath });
+      await send({ text: said, kind: "voice", audioPath: savedAudioPath });
     } catch (e) {
       console.error(e);
+      void fetch("/api/log-client", {
+        method: "POST",
+        keepalive: true,
+        body: JSON.stringify({
+          kind: "voice-fail",
+          type,
+          size: blob.size,
+          err: e instanceof Error ? `${e.name}: ${e.message}` : String(e),
+        }),
+      }).catch(() => {});
       setErr(tr("음성 메모를 정리하지 못했어요. 다시 시도해 주세요"));
     } finally {
       setPending(null);
