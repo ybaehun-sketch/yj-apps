@@ -156,7 +156,6 @@ function Inbox() {
   const [rec, setRec] = useState(false);
   const [recSec, setRecSec] = useState(0);
 
-  const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const docRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -1225,10 +1224,9 @@ function Inbox() {
                   <div className="fixed inset-0 z-40" onClick={() => setMenu(false)} />
                   <div className="absolute bottom-12 left-0 z-50 w-56 overflow-hidden rounded-2xl border border-border/80 bg-card p-1.5 shadow-xl animate-in fade-in slide-in-from-bottom-2">
                     {[
-                      { icon: "image", label: tr("스샷 첨부"), act: () => { setMenu(false); fileRef.current?.click(); } },
+                      { icon: "attach_file", label: tr("문서/이미지 첨부"), act: () => { setMenu(false); docRef.current?.click(); } },
                       { icon: "photo_camera", label: tr("사진 촬영"), act: () => { setMenu(false); cameraRef.current?.click(); } },
                       { icon: "mic", label: tr("음성 녹음"), act: () => { setMenu(false); startRecording(); } },
-                      { icon: "description", label: tr("문서 · 모든 파일 첨부"), act: () => { setMenu(false); docRef.current?.click(); } },
                     ].map((o) => (
                       <button
                         key={o.label}
@@ -1247,7 +1245,6 @@ function Inbox() {
               )}
             </div>
 
-            <input ref={fileRef} type="file" hidden onChange={(e) => { const el = e.currentTarget; const f = el.files?.[0]; if (f) void attach(f).finally(() => { el.value = ""; }); else el.value = ""; }} />
             <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { const el = e.currentTarget; const f = el.files?.[0]; if (f) void attach(f).finally(() => { el.value = ""; }); else el.value = ""; }} />
             <input ref={docRef} type="file" hidden onChange={(e) => { const el = e.currentTarget; const f = el.files?.[0]; if (f) void onDocFile(f).finally(() => { el.value = ""; }); else el.value = ""; }} />
 

@@ -423,6 +423,7 @@ const D: [string, string, string, string, string, string, string][] = [
   ["저장된 메모와 캘린더 기록은 그대로 안전하게 남아요", "Saved notes and calendar events stay safe.", "保存したメモとカレンダー記録はそのまま安全に残ります", "已儲存的筆記與行事曆紀錄會安全保留", "Vos notes et événements restent en sécurité.", "Gespeicherte Notizen und Termine bleiben sicher.", "Tus notas y eventos siguen a salvo."],
   ["첨부", "Attach", "添付", "附加", "Joindre", "Anhängen", "Adjuntar"],
   ["문서 · 모든 파일 첨부", "Attach docs · all files", "文書・すべてのファイルを添付", "附加文件 · 所有檔案", "Joindre docs · tous fichiers", "Dokumente · Alle Dateien", "Adjuntar docs · todos"],
+  ["문서/이미지 첨부", "Attach docs / images", "文書・画像を添付", "附加文件 / 圖片", "Joindre docs / images", "Dokumente / Bilder", "Adjuntar docs / imágenes"],
   ["더보기", "More", "その他", "更多", "Plus", "Mehr", "Más"],
   // 출시 이벤트 무료 사용 기간 안내
   ["이용 안내", "Plan info", "ご利用案内", "使用說明", "Infos offre", "Nutzungsinfo", "Info del plan"],
