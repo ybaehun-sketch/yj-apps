@@ -158,8 +158,8 @@ export async function checkGeminiHealth(): Promise<{
   return { ok: false, activeModel: null, primaryModel, failedModels };
 }
 
-const CALL_TIMEOUT_MS = 20_000;
-const MEDIA_CALL_TIMEOUT_MS = 35_000;
+const CALL_TIMEOUT_MS = 12_000;
+const MEDIA_CALL_TIMEOUT_MS = 16_000;
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {

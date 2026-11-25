@@ -344,7 +344,14 @@ function Inbox() {
     const q = quotaErr(file.size);
     if (q) { setErr(q); return; }
     try {
-      const blob = await compressToWebp(file);
+      let blob: Blob;
+      try {
+        blob = await compressToWebp(file);
+      } catch {
+        // 모바일 WebView 등에서 압축(WebP/캔버스)이 실패하면 원본 이미지가 2.2MB 이하일 때 그대로 사용
+        if (file.size > 2_200_000) throw new Error("image_too_large");
+        blob = file;
+      }
       const preview = await blobToDataUrl(blob);
       setImg({ blob, preview });
       setErr(null);
@@ -490,10 +497,11 @@ function Inbox() {
       let imageDataUrl: string | null = null;
       if (current) {
         const { data: s } = await supabase.auth.getSession();
-        imagePath = `${s.session?.user.id ?? LOCAL_USER_ID}/${crypto.randomUUID()}.webp`;
+        const ext = current.blob.type === "image/png" ? "png" : current.blob.type === "image/jpeg" ? "jpg" : "webp";
+        imagePath = `${s.session?.user.id ?? LOCAL_USER_ID}/${crypto.randomUUID()}.${ext}`;
         uploadPromise = supabase.storage
           .from("shots")
-          .upload(imagePath, current.blob, { contentType: "image/webp" })
+          .upload(imagePath, current.blob, { contentType: current.blob.type || "image/webp" })
           .then((up) => { if (up.error) throw up.error; });
         imageDataUrl = await blobToDataUrl(current.blob);
       }
