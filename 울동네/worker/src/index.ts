@@ -4,6 +4,7 @@ import { pickPersonaStyle } from './personas';
 import { resolveRegionFromApiMetadata, type ResolvedRegion } from './regions';
 import {
   checkPostExists,
+  cleanupOldWelfarePosts,
   clearRemainingBlogCandidates,
   countTodayBlogDrafts,
   fetchBlogCandidates,
@@ -19,7 +20,9 @@ import {
   extractCleanTextFromHtml,
   extractDetailBodyText,
   fetchWithTimeout,
-  sha256Hex
+  filterFamilynetOngoingProgramsHtml,
+  sha256Hex,
+  validateBoardPageHtml
 } from './utils';
 
 interface Gov24ServiceItem {
@@ -37,7 +40,9 @@ interface Gov24ServiceItem {
 
 /**
  * 순찰 단계 저장·알림 공통 처리:
- * - 앱: AI 확신도 기준(기본 80점) 이상이면 즉시 자동 발행 + 푸시 알림
+ * - 70점 미만: 자동 탈락 (저장하지 않음)
+ * - 70~84점: 앱 검토 대기(app_status='draft')로 저장
+ * - 85점 이상: 즉시 앱 자동 발행(app_status='published') + 푸시 알림
  * - 블로그: 순찰 중에는 후보('publish_to_blog = true', 'blog_status = none')로만 모아두고,
  *           매일 새벽 5시 최후 순찰 후 최상위 최대 3건만 초안('draft')으로 작성
  */
@@ -53,15 +58,19 @@ async function saveAndNotifyPost(
     sourceUrl: string;
     regionOverride?: ResolvedRegion;
   }
-): Promise<void> {
+): Promise<boolean> {
   const { target, generated, externalId, orgName, personaId, hasAttachmentOnly, sourceUrl, regionOverride } = params;
+  if (generated.ai_confidence < 70) {
+    return false;
+  }
+
   const region = regionOverride ?? {
     region_sido: target.region_sido,
     region_sigungu: target.region_sigungu,
     region_code: target.region_code
   };
   const nowIso = new Date().toISOString();
-  const minConfidence = Number(env.APP_AUTO_PUBLISH_MIN_CONFIDENCE ?? 80);
+  const minConfidence = Number(env.APP_AUTO_PUBLISH_MIN_CONFIDENCE ?? 85);
 
   const shouldAutoPublishApp =
     env.AUTO_PUBLISH_ENABLED !== 'false' && generated.ai_confidence >= minConfidence;
@@ -101,6 +110,7 @@ async function saveAndNotifyPost(
       console.warn(`[${orgName}] 앱 자동 푸시 발송 실패 (앱 카드 등록은 완료됨):`, err);
     }
   }
+  return true;
 }
 
 /**
@@ -169,7 +179,7 @@ async function collectFromGov24Api(
       persona
     });
 
-    await saveAndNotifyPost(env, {
+    const saved = await saveAndNotifyPost(env, {
       target,
       generated,
       externalId,
@@ -180,7 +190,7 @@ async function collectFromGov24Api(
       regionOverride: resolvedRegion
     });
 
-    created++;
+    if (saved) created++;
   }
 
   return {
@@ -276,7 +286,7 @@ async function collectFromWelfareApi(
       persona
     });
 
-    await saveAndNotifyPost(env, {
+    const saved = await saveAndNotifyPost(env, {
       target,
       generated,
       externalId,
@@ -287,7 +297,7 @@ async function collectFromWelfareApi(
       regionOverride: resolvedRegion
     });
 
-    created++;
+    if (saved) created++;
   }
 
   return {
@@ -299,7 +309,7 @@ async function collectFromWelfareApi(
 /**
  * 웹 게시판 (WEB_BOARD / FAMILYNET) 수집 처리
  */
-async function collectFromWebBoard(
+export async function collectFromWebBoard(
   env: Env,
   target: CrawlTarget,
   maxNewPosts: number
@@ -310,7 +320,31 @@ async function collectFromWebBoard(
   }
 
   const html = await res.text();
-  const cleanListText = extractCleanTextFromHtml(html, target.target_url, 3000);
+  const boardCheck = validateBoardPageHtml(html, target.target_url, target.org_name);
+  if (!boardCheck.ok) {
+    throw new Error(`[주소 점검 필요] ${boardCheck.reason ?? '게시판 검증 실패'}`);
+  }
+
+  let sourceHtml = html;
+  const isFamilynetProgramPromo =
+    target.target_url.includes('familynet.or.kr') && target.target_url.includes('/receipt/list.do');
+  if (isFamilynetProgramPromo) {
+    const filtered = filterFamilynetOngoingProgramsHtml(html);
+    if (filtered.totalCards > 0 && filtered.ongoingCards === 0) {
+      const noOngoingHash = await sha256Hex('NO_ONGOING_PROGRAMS');
+      return {
+        created: 0,
+        latestTitle: target.last_item_title,
+        pageHash: noOngoingHash,
+        skippedByHash: target.last_page_hash === noOngoingHash
+      };
+    }
+    if (filtered.ongoingCards > 0) {
+      sourceHtml = filtered.filteredHtml;
+    }
+  }
+
+  const cleanListText = extractCleanTextFromHtml(sourceHtml, target.target_url, 3000);
   const pageHash = await sha256Hex(cleanListText);
 
   // 해시 기반 0원 방어: 페이지 변경 없으면 AI 호출 없이 즉시 종료
@@ -336,7 +370,13 @@ async function collectFromWebBoard(
   for (const notice of candidates) {
     if (created >= maxNewPosts) break;
 
-    const externalId = await sha256Hex(notice.detail_url);
+    const isFragmentOnlyUrl =
+      notice.detail_url === target.target_url ||
+      notice.detail_url.endsWith('#nolink') ||
+      notice.detail_url.endsWith('#');
+    const externalId = await sha256Hex(
+      isFragmentOnlyUrl ? `${notice.detail_url}::${notice.title}` : notice.detail_url
+    );
     if (await checkPostExists(env, externalId)) continue;
 
     let detailBody = notice.title;
@@ -366,7 +406,7 @@ async function collectFromWebBoard(
       persona
     });
 
-    await saveAndNotifyPost(env, {
+    const saved = await saveAndNotifyPost(env, {
       target,
       generated,
       externalId,
@@ -376,7 +416,7 @@ async function collectFromWebBoard(
       sourceUrl: notice.detail_url
     });
 
-    created++;
+    if (saved) created++;
   }
 
   return {
@@ -461,6 +501,7 @@ export interface PatrolRunOptions {
   roundStartedAt?: string;
   batchIndex?: number;
   workerBaseUrl?: string;
+  sigungu?: string;
 }
 
 /**
@@ -501,13 +542,23 @@ export async function runPatrol(
   const targets =
     mode === 'recovery'
       ? await fetchStoppedTargets(env, maxTargets, roundStartedAt)
-      : await fetchOldestActiveTargets(env, maxTargets, roundStartedAt);
+      : await fetchOldestActiveTargets(env, maxTargets, roundStartedAt, options.sigungu);
 
   let createdPosts = 0;
   let skippedByHash = 0;
   let errors = 0;
+  let lastHostname = '';
 
   for (const target of targets) {
+    try {
+      const hostname = new URL(target.target_url).hostname;
+      if (lastHostname && hostname === lastHostname) {
+        await sleep(1500);
+      }
+      lastHostname = hostname;
+    } catch {
+      lastHostname = '';
+    }
     const nowIso = new Date().toISOString();
     try {
       if (target.source_type === 'API_GOV24') {
@@ -533,9 +584,13 @@ export async function runPatrol(
         createdPosts += result.created;
         if (result.skippedByHash) skippedByHash++;
 
+        const cleanedTitle = result.latestTitle
+          ? result.latestTitle.replace(/^\[예비순찰대 (?:필요|완료)\]\s*/g, '').trim() || null
+          : null;
+
         await updateCrawlTargetState(env, target.id, {
           last_page_hash: result.pageHash,
-          last_item_title: result.latestTitle,
+          last_item_title: cleanedTitle,
           fail_count: 0,
           status: 'active',
           last_checked_at: nowIso
@@ -543,12 +598,23 @@ export async function runPatrol(
       }
     } catch (err) {
       errors++;
+      const errMessage = err instanceof Error ? err.message : String(err);
+      const isInvalidBoard = errMessage.startsWith('[주소 점검 필요]');
+      const failureLabel = isInvalidBoard
+        ? errMessage.slice(0, 120)
+        : '[예비순찰대 필요] 본순찰대 접속 실패 (보안·응답 지연)';
       const nextFailCount = (target.fail_count ?? 0) + 1;
-      const nextStatus =
-        mode === 'recovery' ? target.status : nextFailCount >= 3 ? 'error' : 'active';
+      const nextStatus = isInvalidBoard
+        ? 'error'
+        : mode === 'recovery'
+          ? target.status
+          : nextFailCount >= 3
+            ? 'error'
+            : 'active';
       console.error(`[${target.org_name}] 순찰 실패 (${nextFailCount}/3):`, err);
 
       await updateCrawlTargetState(env, target.id, {
+        last_item_title: failureLabel,
         fail_count: nextFailCount,
         status: nextStatus,
         last_checked_at: nowIso
@@ -595,6 +661,16 @@ export async function runPatrol(
 
   const shouldFinalizeNow = finalizeBlogDrafts && !relayedToNextBatch;
   const blogSummary = shouldFinalizeNow ? await finalizeDailyBlogDrafts(env) : undefined;
+  if (shouldFinalizeNow) {
+    try {
+      const cleanedCount = await cleanupOldWelfarePosts(env);
+      if (cleanedCount > 0) {
+        console.log(`[울동네 자동 청소 완료] 오래된·마감된 일반 앱 소식 ${cleanedCount}건 정리`);
+      }
+    } catch (err) {
+      console.warn('[울동네 자동 청소 실패] 다음 회차에 재시도:', err);
+    }
+  }
 
   return {
     mode,
@@ -611,16 +687,17 @@ export async function runPatrol(
 
 export default {
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    const isRecovery = event.cron === '0 9 * * 1-5';
     const isDawnFinal = event.cron === '0 20 * * 1-5';
-    const mode = isRecovery ? 'recovery' : 'active';
+    const isEvening = event.cron === '0 9 * * 1-5';
+    const slotLabel = isDawnFinal
+      ? '새벽 05:00 최종 전체 순찰·앱 반영·블로그 초안 작성'
+      : isEvening
+        ? '오후 18:00 전체 순찰·앱 즉시 반영'
+        : '낮 12:00 전체 순찰·앱 즉시 반영';
 
     ctx.waitUntil(
-      runPatrol(env, mode, isDawnFinal).then((summary) => {
-        console.log(
-          `[울동네 ${isRecovery ? '오류·정지 재점검' : isDawnFinal ? '새벽 5시 최종 순찰·초안 작성' : '낮 12:30 순찰·후보 수집'} 완료]`,
-          JSON.stringify(summary)
-        );
+      runPatrol(env, 'active', isDawnFinal).then((summary) => {
+        console.log(`[울동네 ${slotLabel} 완료]`, JSON.stringify(summary));
       })
     );
   },
@@ -645,10 +722,12 @@ export default {
       const roundStartedAt = url.searchParams.get('roundStartedAt') || undefined;
       const batchIndex = Number(url.searchParams.get('batch') || '1') || 1;
       const isAsync = url.searchParams.get('async') === 'true';
+      const sigungu = url.searchParams.get('sigungu') || undefined;
       const options: PatrolRunOptions = {
         roundStartedAt,
         batchIndex,
-        workerBaseUrl: env.WORKER_PUBLIC_URL || url.origin
+        workerBaseUrl: env.WORKER_PUBLIC_URL || url.origin,
+        sigungu
       };
 
       if (isAsync) {

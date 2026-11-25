@@ -8,7 +8,7 @@ import {
   View
 } from 'react-native';
 import { RegionDropdownSelector } from '../components/RegionDropdownSelector';
-import { RECOMMENDED_KEYWORDS, STANDARD_CATEGORIES } from '../constants/keywords';
+import { ONBOARDING_KEYWORDS } from '../constants/keywords';
 import { REGION_OPTIONS, type RegionOption } from '../constants/regions';
 import type { UserPreferences } from '../types/welfare';
 
@@ -27,7 +27,7 @@ export function OnboardingScreen({ initialPrefs, onComplete }: OnboardingScreenP
 
   const [selectedRegion, setSelectedRegion] = useState<RegionOption>(defaultRegion);
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>(
-    (initialPrefs?.keywords ?? ['방학돌봄', '난방비']).slice(0, MAX_KEYWORDS)
+    (initialPrefs?.keywords ?? []).slice(0, MAX_KEYWORDS)
   );
   const [customInput, setCustomInput] = useState('');
   const [keywordNotice, setKeywordNotice] = useState('');
@@ -103,7 +103,7 @@ export function OnboardingScreen({ initialPrefs, onComplete }: OnboardingScreenP
         {keywordNotice ? <Text style={styles.limitNotice}>{keywordNotice}</Text> : null}
 
         <View style={styles.chipWrap}>
-          {[...STANDARD_CATEGORIES, ...RECOMMENDED_KEYWORDS].map((kw) => {
+          {Array.from(new Set([...ONBOARDING_KEYWORDS, ...selectedKeywords])).map((kw) => {
             const active = selectedKeywords.includes(kw);
             return (
               <TouchableOpacity
@@ -123,7 +123,7 @@ export function OnboardingScreen({ initialPrefs, onComplete }: OnboardingScreenP
           <TextInput
             value={customInput}
             onChangeText={setCustomInput}
-            placeholder="직접 입력 (예: 산후조리, 장학금)"
+            placeholder="직접 입력 (예: 산후조리, 창업)"
             style={styles.input}
             onSubmitEditing={handleAddCustomKeyword}
           />

@@ -9,11 +9,13 @@ import {
   View
 } from 'react-native';
 import { CATEGORY_PILL_COLORS, getDdayLabel, UNIFIED_CATEGORY_PILL_COLOR } from '../components/WelfareCard';
+import { findMatchedUserKeywords } from '../constants/keywords';
 import { openWithCooldownInterstitial } from '../services/adService';
 import type { WelfarePost } from '../types/welfare';
 
 interface DetailScreenProps {
   post: WelfarePost;
+  userKeywords?: string[];
   largeText: boolean;
   isDark?: boolean;
   onBack: () => void;
@@ -67,11 +69,23 @@ function splitReadableParagraphs(raw: string): string[] {
   return paragraphs;
 }
 
-export function DetailScreen({ post, largeText, isDark = false, onBack }: DetailScreenProps) {
+export function DetailScreen({
+  post,
+  userKeywords = [],
+  largeText,
+  isDark = false,
+  onBack
+}: DetailScreenProps) {
   const dday = getDdayLabel(post.deadline_date);
   const summaryRows = parseSummaryRows(post.app_summary_3lines);
   const detailParagraphs = splitReadableParagraphs(post.app_detail_summary);
   const catStyle = CATEGORY_PILL_COLORS[post.category] ?? UNIFIED_CATEGORY_PILL_COLOR;
+  const matchedKeywords = findMatchedUserKeywords(
+    [post.category, ...(post.keywords || []), post.app_title],
+    userKeywords
+  );
+  const displayTags =
+    matchedKeywords.length > 0 ? matchedKeywords.map((kw) => `#${kw}`) : [post.category];
 
   function handleOpenSource() {
     openWithCooldownInterstitial(() => {
@@ -100,16 +114,19 @@ export function DetailScreen({ post, largeText, isDark = false, onBack }: Detail
               {post.region_code === '00000' ? '전국 공통' : post.region_sigungu}
             </Text>
           </View>
-          <View
-            style={[
-              styles.categoryPill,
-              { backgroundColor: isDark ? catStyle.bgDark : catStyle.bg }
-            ]}
-          >
-            <Text style={[styles.category, { color: isDark ? catStyle.textDark : catStyle.text }]}>
-              {post.category}
-            </Text>
-          </View>
+          {displayTags.map((tag) => (
+            <View
+              key={tag}
+              style={[
+                styles.categoryPill,
+                { backgroundColor: isDark ? catStyle.bgDark : catStyle.bg }
+              ]}
+            >
+              <Text style={[styles.category, { color: isDark ? catStyle.textDark : catStyle.text }]}>
+                {tag}
+              </Text>
+            </View>
+          ))}
           {post.deadline_date ? (
             <Text style={styles.deadline}>
               마감 {post.deadline_date}

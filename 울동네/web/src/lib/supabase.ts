@@ -139,6 +139,29 @@ export async function fetchAppPublishedPosts(): Promise<WelfarePost[]> {
 }
 
 /**
+ * 어드민: 애매한 구간(70~84점) 앱 검토 대기 목록 조회 (app_status='draft')
+ */
+export async function fetchAppPendingPosts(): Promise<WelfarePost[]> {
+  const cfg = getAdminConfig();
+  if (!cfg) return [];
+
+  const query =
+    `${cfg.url}/rest/v1/uldongne_welfare_posts` +
+    `?app_status=eq.draft&ai_confidence=gte.70&ai_confidence=lt.85&order=created_at.desc&limit=50`;
+
+  const res = await fetch(query, {
+    headers: {
+      apikey: cfg.serviceKey,
+      Authorization: `Bearer ${cfg.serviceKey}`
+    },
+    cache: 'no-store'
+  });
+
+  if (!res.ok) return [];
+  return (await res.json()) as WelfarePost[];
+}
+
+/**
  * 어드민: 공고 수정 및 상태 변경 (발행/보관)
  */
 export async function updateWelfarePostAdmin(
@@ -244,5 +267,127 @@ export async function resetCrawlTargetAdmin(id: string): Promise<void> {
 
   if (!res.ok) {
     throw new Error(`resetCrawlTargetAdmin failed: ${res.status}`);
+  }
+}
+
+/**
+ * 어드민: 기존 타겟의 지역코드 조회 (없으면 '00000')
+ */
+export async function findRegionCodeAdmin(
+  regionSido: string,
+  regionSigungu: string
+): Promise<string> {
+  const cfg = getAdminConfig();
+  if (!cfg) return '00000';
+
+  const query =
+    `${cfg.url}/rest/v1/uldongne_crawl_targets` +
+    `?select=region_code&region_sido=eq.${encodeURIComponent(regionSido)}` +
+    `&region_sigungu=eq.${encodeURIComponent(regionSigungu)}&limit=1`;
+  const res = await fetch(query, {
+    headers: {
+      apikey: cfg.serviceKey,
+      Authorization: `Bearer ${cfg.serviceKey}`
+    },
+    cache: 'no-store'
+  });
+  if (!res.ok) return '00000';
+  const rows = (await res.json()) as Array<{ region_code?: string }>;
+  return rows[0]?.region_code || '00000';
+}
+
+/**
+ * 어드민: 타겟 주소(및 이름) 수정 + 정상 상태 복구
+ */
+export async function updateCrawlTargetUrlAdmin(
+  id: string,
+  targetUrl: string,
+  orgName?: string
+): Promise<CrawlTarget> {
+  const cfg = getAdminConfig();
+  if (!cfg) throw new Error('Supabase admin config missing');
+
+  const payload: Record<string, unknown> = {
+    target_url: targetUrl,
+    status: 'active',
+    fail_count: 0,
+    last_page_hash: null,
+    last_item_title: null
+  };
+  if (orgName && orgName.trim()) {
+    payload.org_name = orgName.trim();
+  }
+
+  const res = await fetch(`${cfg.url}/rest/v1/uldongne_crawl_targets?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: {
+      apikey: cfg.serviceKey,
+      Authorization: `Bearer ${cfg.serviceKey}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation'
+    },
+    body: JSON.stringify(payload),
+    cache: 'no-store'
+  });
+
+  if (!res.ok) {
+    throw new Error(`updateCrawlTargetUrlAdmin failed: ${res.status} ${await res.text()}`);
+  }
+  const rows = (await res.json()) as CrawlTarget[];
+  return rows[0];
+}
+
+/**
+ * 어드민: 순찰 타겟 일시정지 / 재개 전환
+ */
+export async function updateCrawlTargetStatusAdmin(
+  id: string,
+  status: 'active' | 'paused'
+): Promise<CrawlTarget> {
+  const cfg = getAdminConfig();
+  if (!cfg) throw new Error('Supabase admin config missing');
+
+  const payload =
+    status === 'active'
+      ? { status: 'active', fail_count: 0 }
+      : { status: 'paused' };
+
+  const res = await fetch(`${cfg.url}/rest/v1/uldongne_crawl_targets?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: {
+      apikey: cfg.serviceKey,
+      Authorization: `Bearer ${cfg.serviceKey}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation'
+    },
+    body: JSON.stringify(payload),
+    cache: 'no-store'
+  });
+
+  if (!res.ok) {
+    throw new Error(`updateCrawlTargetStatusAdmin failed: ${res.status} ${await res.text()}`);
+  }
+  const rows = (await res.json()) as CrawlTarget[];
+  return rows[0];
+}
+
+/**
+ * 어드민: 순찰 타겟 삭제
+ */
+export async function deleteCrawlTargetAdmin(id: string): Promise<void> {
+  const cfg = getAdminConfig();
+  if (!cfg) throw new Error('Supabase admin config missing');
+
+  const res = await fetch(`${cfg.url}/rest/v1/uldongne_crawl_targets?id=eq.${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: {
+      apikey: cfg.serviceKey,
+      Authorization: `Bearer ${cfg.serviceKey}`
+    },
+    cache: 'no-store'
+  });
+
+  if (!res.ok) {
+    throw new Error(`deleteCrawlTargetAdmin failed: ${res.status}`);
   }
 }

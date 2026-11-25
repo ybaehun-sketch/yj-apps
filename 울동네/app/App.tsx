@@ -51,6 +51,7 @@ export default function App() {
       ) : selectedPost ? (
         <DetailScreen
           post={selectedPost}
+          userKeywords={prefs.keywords}
           largeText={prefs.largeText}
           isDark={isDark}
           onBack={() => setSelectedPost(null)}

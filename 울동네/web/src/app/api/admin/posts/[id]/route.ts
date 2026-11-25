@@ -14,7 +14,7 @@ export async function PATCH(
 
   const { id } = await context.params;
   const body = (await request.json()) as {
-    action: 'publish' | 'archive' | 'reject' | 'hide_app' | 'save';
+    action: 'publish' | 'publish_app' | 'archive' | 'reject' | 'hide_app' | 'save';
     updates?: Partial<
       Pick<
         WelfarePost,
@@ -39,6 +39,11 @@ export async function PATCH(
     patch.publish_to_blog = true;
     patch.status = 'published';
     patch.published_at = nowIso;
+  } else if (body.action === 'publish_app') {
+    patch.app_status = 'published';
+    patch.app_published_at = nowIso;
+    patch.status = 'published';
+    patch.published_at = nowIso;
   } else if (body.action === 'reject' || body.action === 'archive') {
     patch.blog_status = 'rejected';
     patch.publish_to_blog = false;
@@ -49,7 +54,10 @@ export async function PATCH(
   const updated = await updateWelfarePostAdmin(id, patch);
 
   let fcmResult: { sentCount: number; skipped: boolean; topics: string[] } | null = null;
-  if (body.action === 'publish' && updated.app_status !== 'published') {
+  if (
+    (body.action === 'publish' && updated.app_status !== 'published') ||
+    body.action === 'publish_app'
+  ) {
     try {
       fcmResult = await sendFcmTopicsForPost(updated);
     } catch (err) {

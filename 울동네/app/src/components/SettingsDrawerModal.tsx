@@ -237,7 +237,7 @@ export function SettingsDrawerModal({
                       <TextInput
                         value={customKeyword}
                         onChangeText={setCustomKeyword}
-                        placeholder="키워드 추가 (예: 장학금)"
+                        placeholder="키워드 추가 (예: 창업)"
                         placeholderTextColor={isDark ? '#80868b' : '#9aa0a6'}
                         style={[styles.input, isDark && styles.inputDark]}
                         onSubmitEditing={addCustomKeyword}

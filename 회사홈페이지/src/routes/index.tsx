@@ -42,12 +42,9 @@ function Index() {
       name: t.products.items.tokbiseo.name,
       to: "/tokbiseo" as const,
       url: undefined as string | undefined,
+      downloadUrl: "https://play.google.com/store/apps/details?id=app.yjstudio.tokbiseo",
+      legalSummary: t.products.legalSummary,
       desc: t.products.items.tokbiseo.desc,
-      quickLinks: [
-        { hash: "terms", label: t.products.items.tokbiseo.quickLinks.terms },
-        { hash: "privacy", label: t.products.items.tokbiseo.quickLinks.privacy },
-        { hash: "guide", label: t.products.items.tokbiseo.quickLinks.guide },
-      ],
     },
     {
       icon: GraduationCap,
@@ -55,51 +52,39 @@ function Index() {
       name: t.products.items.wrongnote?.name ?? "오답정복",
       to: "/wrongnote" as const,
       url: undefined as string | undefined,
+      downloadUrl: "https://play.google.com/store/apps/details?id=app.yjstudio.wrongnote",
+      legalSummary: t.products.legalSummary,
       desc: t.products.items.wrongnote?.desc ?? "3초 등록 · 쓱-지우개 · 가림막 복습 — 수험생을 위한 가장 단순하고 확실한 오답노트 앱.",
-      quickLinks: [
-        { hash: "terms", label: t.products.items.tokbiseo.quickLinks.terms },
-        { hash: "privacy", label: t.products.items.tokbiseo.quickLinks.privacy },
-        { hash: "guide", label: t.products.items.tokbiseo.quickLinks.guide },
-      ],
     },
     {
       icon: Coffee,
       tag: t.products.items.tarot.tag,
       name: t.products.items.tarot.name,
-      to: undefined,
+      to: "/teacuptarot/terms" as const,
       url: "https://teacuptarot.com",
+      downloadUrl: undefined as string | undefined,
+      legalSummary: t.products.legalShortSummary,
       desc: t.products.items.tarot.desc,
-      quickLinks: undefined,
-      internalLinks: [
-        { to: "/teacuptarot/terms" as const, label: t.products.items.tokbiseo.quickLinks.terms },
-        { to: "/teacuptarot/privacy" as const, label: t.products.items.tokbiseo.quickLinks.privacy },
-      ],
     },
     {
       icon: Moon,
       tag: t.products.items.dream.tag,
       name: t.products.items.dream.name,
-      to: undefined,
+      to: "/dreamsoban/terms" as const,
       url: "https://dreamsoban.app",
+      downloadUrl: undefined as string | undefined,
+      legalSummary: t.products.legalShortSummary,
       desc: t.products.items.dream.desc,
-      quickLinks: undefined,
-      internalLinks: [
-        { to: "/dreamsoban/terms" as const, label: t.products.items.tokbiseo.quickLinks.terms },
-        { to: "/dreamsoban/privacy" as const, label: t.products.items.tokbiseo.quickLinks.privacy },
-      ],
     },
     {
       icon: Trees,
       tag: t.products.items.bamboo.tag,
       name: t.products.items.bamboo.name,
-      to: undefined,
+      to: "/bambooforest/terms" as const,
       url: "https://bambooforest.app",
+      downloadUrl: undefined as string | undefined,
+      legalSummary: t.products.legalShortSummary,
       desc: t.products.items.bamboo.desc,
-      quickLinks: undefined,
-      internalLinks: [
-        { to: "/bambooforest/terms" as const, label: t.products.items.tokbiseo.quickLinks.terms },
-        { to: "/bambooforest/privacy" as const, label: t.products.items.tokbiseo.quickLinks.privacy },
-      ],
     },
   ];
 
@@ -177,42 +162,23 @@ function Index() {
                   <span className="grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-primary"><p.icon /></span>
                   <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">{p.tag}</span>
                 </div>
-                {p.to ? (
-                  <Link to={p.to} className="mt-6 block">
-                    <h3 className="text-xl font-bold group-hover:text-primary">{p.name}</h3>
-                    <p className="mt-2 text-muted-foreground">{p.desc}</p>
-                  </Link>
-                ) : (
-                  <>
-                    <h3 className="mt-6 text-xl font-bold">{p.name}</h3>
-                    <p className="mt-2 text-muted-foreground">{p.desc}</p>
-                  </>
-                )}
-                {p.to && p.quickLinks ? (
-                  <div className="mt-6 flex flex-wrap items-center gap-10">
-                    {p.quickLinks.map((ql) => (
-                      <Link
-                        key={ql.hash}
-                        to={p.to}
-                        hash={ql.hash}
-                        className="text-sm font-medium text-primary hover:underline"
-                      >
-                        {ql.label}
-                      </Link>
-                    ))}
-                  </div>
-                ) : p.url ? (
-                  <div className="mt-6 flex flex-wrap items-center gap-10">
-                    <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary hover:underline">{p.url.replace("https://", "")}</a>
-                    {p.internalLinks?.map((il) => (
-                      <Link
-                        key={il.to}
-                        to={il.to}
-                        className="text-sm font-medium text-primary hover:underline"
-                      >
-                        {il.label}
-                      </Link>
-                    ))}
+                <Link to={p.to} className="mt-6 block">
+                  <h3 className="text-xl font-bold group-hover:text-primary">{p.name}</h3>
+                  <p className="mt-2 text-muted-foreground">{p.desc}</p>
+                </Link>
+                {p.downloadUrl || p.url ? (
+                  <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+                    <a
+                      href={p.downloadUrl ?? p.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-medium text-primary hover:underline"
+                    >
+                      {p.downloadUrl ? t.products.download : p.url?.replace("https://", "")}
+                    </a>
+                    <span className="ml-auto text-right text-xs text-muted-foreground">
+                      {p.legalSummary}
+                    </span>
                   </div>
                 ) : (
                   <span className="mt-6 inline-block text-sm text-muted-foreground">Coming soon</span>

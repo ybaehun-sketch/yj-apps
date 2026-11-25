@@ -15,14 +15,18 @@ function getHeaders(env: Env): HeadersInit {
 export async function fetchOldestActiveTargets(
   env: Env,
   limit: number,
-  checkedBeforeIso?: string
+  checkedBeforeIso?: string,
+  sigungu?: string
 ): Promise<CrawlTarget[]> {
   const roundFilter = checkedBeforeIso
     ? `&or=(last_checked_at.is.null,last_checked_at.lt.${encodeURIComponent(checkedBeforeIso)})`
     : '';
+  const sigunguFilter = sigungu
+    ? `&region_sigungu=eq.${encodeURIComponent(sigungu)}`
+    : '';
   const url =
     `${env.SUPABASE_URL}/rest/v1/uldongne_crawl_targets` +
-    `?status=eq.active${roundFilter}&order=last_checked_at.asc.nullsfirst&limit=${limit}`;
+    `?status=eq.active${roundFilter}${sigunguFilter}&order=last_checked_at.asc.nullsfirst&limit=${limit}`;
 
   const res = await fetch(url, { headers: getHeaders(env) });
   if (!res.ok) {
@@ -49,6 +53,30 @@ export async function fetchStoppedTargets(
   const res = await fetch(url, { headers: getHeaders(env) });
   if (!res.ok) {
     throw new Error(`Supabase fetch stopped targets failed: ${res.status} ${await res.text()}`);
+  }
+  return (await res.json()) as CrawlTarget[];
+}
+
+/**
+ * 무료 일반 접속 예비순찰대 대상 조회
+ * - 본순찰대 접속 실패('[예비순찰대 필요]') 또는 오류/일시정지 상태인 웹 게시판 타겟
+ */
+export async function fetchReserveTargets(
+  env: Env,
+  limit: number,
+  sigungu?: string
+): Promise<CrawlTarget[]> {
+  const sigunguFilter = sigungu
+    ? `&region_sigungu=eq.${encodeURIComponent(sigungu)}`
+    : '';
+  const reserveOr = `&or=(last_item_title.like.${encodeURIComponent('[예비순찰대 필요]%')},last_item_title.like.${encodeURIComponent('[예비순찰대 접속 실패]%')},status.eq.error)`;
+  const url =
+    `${env.SUPABASE_URL}/rest/v1/uldongne_crawl_targets` +
+    `?source_type=in.(WEB_BOARD,FAMILYNET)${reserveOr}${sigunguFilter}&order=last_checked_at.asc.nullsfirst&limit=${limit}`;
+
+  const res = await fetch(url, { headers: getHeaders(env) });
+  if (!res.ok) {
+    throw new Error(`Supabase fetch reserve targets failed: ${res.status} ${await res.text()}`);
   }
   return (await res.json()) as CrawlTarget[];
 }
@@ -189,4 +217,44 @@ export async function clearRemainingBlogCandidates(env: Env, postIds: string[]):
   if (!res.ok) {
     throw new Error(`Supabase clearRemainingBlogCandidates failed: ${res.status} ${await res.text()}`);
   }
+}
+
+/**
+ * 오래된·마감된 일반 앱 소식 자동 청소 (매일 새벽 5시 1회 실행)
+ * - 블로그 글(draft/published)은 영구 보존(blog_status = 'none'만 대상)
+ * - 검토 대기(app_status = 'draft') 14일 경과, 마감일 14일 경과, 게시 60일 경과 글 정리
+ */
+export async function cleanupOldWelfarePosts(env: Env): Promise<number> {
+  const now = Date.now();
+  const iso14DaysAgo = new Date(now - 14 * 24 * 60 * 60 * 1000).toISOString();
+  const iso60DaysAgo = new Date(now - 60 * 24 * 60 * 60 * 1000).toISOString();
+  const kst14DaysAgoDate = new Date(now + 9 * 60 * 60 * 1000 - 14 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
+  const orClause =
+    `or=(` +
+    `and(app_status.eq.draft,created_at.lt.${encodeURIComponent(iso14DaysAgo)}),` +
+    `and(deadline_date.not.is.null,deadline_date.lt.${encodeURIComponent(kst14DaysAgoDate)}),` +
+    `created_at.lt.${encodeURIComponent(iso60DaysAgo)}` +
+    `)`;
+
+  const url =
+    `${env.SUPABASE_URL}/rest/v1/uldongne_welfare_posts` +
+    `?blog_status=eq.none&${orClause}&select=id`;
+
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      ...getHeaders(env),
+      Prefer: 'return=representation'
+    }
+  });
+
+  if (!res.ok) {
+    throw new Error(`Supabase cleanupOldWelfarePosts failed: ${res.status} ${await res.text()}`);
+  }
+
+  const deleted = (await res.json()) as Array<{ id: string }>;
+  return deleted.length;
 }

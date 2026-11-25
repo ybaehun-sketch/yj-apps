@@ -1,9 +1,10 @@
 export type WelfareCategory =
-  | '돌봄/육아'
+  | '돌봄/아동/청소년'
   | '어르신/건강'
   | '주거/난방비'
   | '소상공인/일자리'
-  | '생활/문화';
+  | '농림/축산/어업'
+  | '생활/문화/법률';
 
 export type SortOrder = 'region_keyword_first' | 'deadline' | 'latest';
 

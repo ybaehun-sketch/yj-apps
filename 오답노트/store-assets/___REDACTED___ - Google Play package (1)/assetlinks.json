@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.yjstudio.wrongnote",
+        "sha256_cert_fingerprints": ["7C:D7:1A:40:2E:ED:95:FD:3D:9B:D9:98:A6:28:4C:A3:54:92:B9:5A:DB:A0:63:9A:D0:B2:B8:3E:ED:7E:CA:86"]
+      }
+    }]

@@ -6,19 +6,21 @@ import { fetchPublishedBlogPosts } from '@/lib/supabase';
 
 const CATEGORIES = [
   '전체',
-  '돌봄/육아',
+  '돌봄/아동/청소년',
   '어르신/건강',
   '주거/난방비',
   '소상공인/일자리',
-  '생활/문화'
+  '농림/축산/어업',
+  '생활/문화/법률'
 ];
 
 const CATEGORY_PILL_STYLES: Record<string, string> = {
-  '돌봄/육아': 'bg-[#fff1e8] text-[#b85418]',
+  '돌봄/아동/청소년': 'bg-[#fff1e8] text-[#b85418]',
   '어르신/건강': 'bg-[#e8f7f0] text-[#167a4b]',
   '주거/난방비': 'bg-[#eaf3ff] text-[#1967d2]',
   '소상공인/일자리': 'bg-[#f3efff] text-[#653bc4]',
-  '생활/문화': 'bg-[#fef7e0] text-[#9c6500]'
+  '농림/축산/어업': 'bg-[#eef6ea] text-[#2e6f24]',
+  '생활/문화/법률': 'bg-[#fef7e0] text-[#9c6500]'
 };
 
 const PAGE_SIZE = 10;

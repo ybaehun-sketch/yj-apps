@@ -12,6 +12,9 @@ interface PatrolStatusModalProps {
   initialRegion?: string;
   targets: CrawlTarget[];
   onClose: () => void;
+  onTargetAdded?: (added: CrawlTarget[]) => void;
+  onTargetUpdated?: (updated: CrawlTarget) => void;
+  onTargetDeleted?: (id: string) => void;
 }
 
 interface RegionCellData {
@@ -58,10 +61,19 @@ export function PatrolStatusModal({
   open,
   initialTab,
   targets,
-  onClose
+  onClose,
+  onTargetAdded,
+  onTargetUpdated,
+  onTargetDeleted
 }: PatrolStatusModalProps) {
   const [tab, setTab] = useState<PatrolFilterTab>(initialTab);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [pasteUrl, setPasteUrl] = useState('');
+  const [addingUrl, setAddingUrl] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingUrl, setEditingUrl] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [modalNotice, setModalNotice] = useState('');
 
   const [lastOpen, setLastOpen] = useState(open);
   const [lastInitialTab, setLastInitialTab] = useState(initialTab);
@@ -71,6 +83,9 @@ export function PatrolStatusModal({
     if (open) {
       setTab(initialTab);
       setSelectedKey(null);
+      setPasteUrl('');
+      setEditingId(null);
+      setModalNotice('');
     }
   }
 
@@ -183,66 +198,342 @@ export function PatrolStatusModal({
   const showCommon =
     commonCell.items.length > 0 && matchesTab(commonCell, tab);
 
-  const renderDetailBox = (cell: RegionCellData, title: string) => (
-    <div className="mt-3 rounded-xl border border-[#dadce0] bg-[#fafafa] p-3.5">
-      <div className="mb-2.5 flex items-center justify-between">
-        <span className="text-xs font-bold text-[#202124]">
-          {title} 상세현황 ({cell.items.length}곳)
-        </span>
-        <button
-          type="button"
-          onClick={() => setSelectedKey(null)}
-          className="text-xs font-medium text-[#5f6368] hover:text-[#202124]"
-        >
-          접기 ▴
-        </button>
-      </div>
-      <div className="space-y-2">
-        {cell.items.map((t) => (
-          <div
-            key={t.id}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#e8eaed] bg-white px-3 py-2 text-xs"
-          >
-            <div className="flex min-w-0 items-center gap-2">
-              <span
-                className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${STATUS_DOT[t.status].dotClass}`}
-              />
-              {t.target_url ? (
+  async function handleQuickAddUrl(cell: RegionCellData) {
+    const trimmed = pasteUrl.trim();
+    if (!trimmed) return;
+    setAddingUrl(true);
+    setModalNotice('');
+    try {
+      const res = await fetch('/api/admin/targets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          region_sido: cell.sido,
+          region_sigungu: cell.sigungu,
+          target_url: trimmed
+        })
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        target?: CrawlTarget;
+        extraTarget?: CrawlTarget | null;
+        error?: string;
+      };
+      if (!res.ok || !data.target) {
+        setModalNotice(data.error || '게시판 추가에 실패했습니다.');
+        return;
+      }
+      const added = data.extraTarget ? [data.target, data.extraTarget] : [data.target];
+      onTargetAdded?.(added);
+      setPasteUrl('');
+      setModalNotice(
+        data.extraTarget
+          ? `'${data.target.org_name}' 및 프로그램홍보가 목록에 추가되었습니다.`
+          : `'${data.target.org_name}'이(가) 목록에 추가되었습니다.`
+      );
+    } catch {
+      setModalNotice('네트워크 오류로 추가하지 못했습니다.');
+    } finally {
+      setAddingUrl(false);
+    }
+  }
+
+  async function handleSaveEditUrl(id: string) {
+    const trimmed = editingUrl.trim();
+    if (!trimmed) return;
+    setSavingEdit(true);
+    setModalNotice('');
+    try {
+      const res = await fetch('/api/admin/targets', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, target_url: trimmed })
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        target?: CrawlTarget;
+        error?: string;
+      };
+      if (!res.ok || !data.target) {
+        setModalNotice(data.error || '주소 수정에 실패했습니다.');
+        return;
+      }
+      onTargetUpdated?.(data.target);
+      setEditingId(null);
+      setEditingUrl('');
+      setModalNotice(`'${data.target.org_name}' 주소가 수정되어 정상 상태로 복구되었습니다.`);
+    } catch {
+      setModalNotice('네트워크 오류로 수정하지 못했습니다.');
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function handleDeleteTarget(t: CrawlTarget) {
+    if (!window.confirm(`'${t.org_name}'을(를) 순찰 목록에서 삭제할까요?`)) return;
+    setModalNotice('');
+    try {
+      const res = await fetch('/api/admin/targets', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: t.id })
+      });
+      if (!res.ok) {
+        setModalNotice('삭제에 실패했습니다.');
+        return;
+      }
+      onTargetDeleted?.(t.id);
+      setModalNotice(`'${t.org_name}'이(가) 삭제되었습니다.`);
+    } catch {
+      setModalNotice('네트워크 오류로 삭제하지 못했습니다.');
+    }
+  }
+
+  async function handleTogglePauseTarget(t: CrawlTarget) {
+    const nextStatus = t.status === 'paused' ? 'active' : 'paused';
+    setModalNotice('');
+    try {
+      const res = await fetch('/api/admin/targets', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: t.id, status: nextStatus })
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        target?: CrawlTarget;
+        error?: string;
+      };
+      if (!res.ok || !data.target) {
+        setModalNotice(data.error || '상태 변경에 실패했습니다.');
+        return;
+      }
+      onTargetUpdated?.(data.target);
+      setModalNotice(
+        nextStatus === 'paused'
+          ? `'${t.org_name}' 순찰이 일시정지되었습니다.`
+          : `'${t.org_name}' 순찰이 다시 시작됩니다.`
+      );
+    } catch {
+      setModalNotice('네트워크 오류로 상태를 변경하지 못했습니다.');
+    }
+  }
+
+  const getRegionHomeLinks = (cell: RegionCellData) => {
+    const cityItem = cell.items.find(
+      (t) => t.source_type === 'WEB_BOARD' && t.target_url && !t.target_url.includes('familynet.or.kr')
+    );
+    const familyItem = cell.items.find(
+      (t) => t.source_type === 'FAMILYNET' || t.target_url?.includes('familynet.or.kr')
+    );
+
+    let cityHome = `https://search.naver.com/search.naver?query=${encodeURIComponent(`${cell.sigungu}청 홈페이지`)}`;
+    if (cityItem?.target_url) {
+      try {
+        cityHome = new URL(cityItem.target_url).origin;
+      } catch {}
+    }
+
+    let familyHome = `https://search.naver.com/search.naver?query=${encodeURIComponent(`${cell.sigungu} 가족센터`)}`;
+    if (familyItem?.target_url) {
+      try {
+        familyHome = new URL(familyItem.target_url).origin;
+      } catch {}
+    }
+
+    return { cityHome, familyHome };
+  };
+
+  const renderDetailBox = (cell: RegionCellData, title: string) => {
+    const isCommon = cell.sigungu === '전체';
+    const { cityHome, familyHome } = getRegionHomeLinks(cell);
+
+    return (
+      <div className="mt-3 rounded-xl border border-[#dadce0] bg-[#fafafa] p-3.5">
+        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-[#202124]">
+              {title} 상세현황 ({cell.items.length}곳)
+            </span>
+            {!isCommon ? (
+              <>
                 <a
-                  href={t.target_url}
+                  href={cityHome}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="truncate font-semibold text-[#1a73e8] hover:underline"
-                  title={t.target_url}
+                  className="rounded border border-[#d2e3fc] bg-white px-2 py-0.5 text-[11px] font-medium text-[#1a73e8] hover:bg-[#e8f0fe]"
                 >
-                  {t.org_name}
+                  시군구청 홈 ↗
                 </a>
-              ) : (
-                <span className="truncate font-semibold text-[#202124]">
-                  {t.org_name}
-                </span>
-              )}
-              <span className="shrink-0 text-[#5f6368]">
-                ({STATUS_DOT[t.status].label})
-              </span>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {t.target_url ? (
                 <a
-                  href={t.target_url}
+                  href={familyHome}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded border border-[#dadce0] bg-[#f8f9fa] px-2.5 py-1 font-medium text-[#3c4043] hover:bg-[#e8f0fe] hover:text-[#1a73e8]"
+                  className="rounded border border-[#ceead6] bg-white px-2 py-0.5 text-[11px] font-medium text-[#137333] hover:bg-[#e6f4ea]"
                 >
-                  바로가기 ↗
+                  가족센터 홈 ↗
                 </a>
-              ) : null}
-            </div>
+              </>
+            ) : null}
           </div>
-        ))}
+          <button
+            type="button"
+            onClick={() => setSelectedKey(null)}
+            className="text-xs font-medium text-[#5f6368] hover:text-[#202124]"
+          >
+            접기 ▴
+          </button>
+        </div>
+
+        {modalNotice ? (
+          <div className="mb-2.5 rounded-lg border border-[#d2e3fc] bg-[#e8f0fe] px-3 py-1.5 text-xs font-medium text-[#1967d2]">
+            {modalNotice}
+          </div>
+        ) : null}
+
+        <div className="space-y-2">
+          {cell.items.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-[#dadce0] bg-white px-3 py-3 text-center text-xs text-[#5f6368]">
+              아직 등록된 게시판이 없습니다. 위 <strong>시군구청 홈 / 가족센터 홈</strong>에서 알짜 게시판 주소를 복사해 아래에 붙여넣어 주세요.
+            </div>
+          ) : (
+            cell.items.map((t) => (
+              <div
+                key={t.id}
+                className="rounded-lg border border-[#e8eaed] bg-white px-3 py-2 text-xs"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span
+                      className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${STATUS_DOT[t.status].dotClass}`}
+                    />
+                    {t.target_url ? (
+                      <a
+                        href={t.target_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="truncate font-semibold text-[#1a73e8] hover:underline"
+                        title={t.target_url}
+                      >
+                        {t.org_name}
+                      </a>
+                    ) : (
+                      <span className="truncate font-semibold text-[#202124]">
+                        {t.org_name}
+                      </span>
+                    )}
+                    <span className="shrink-0 text-[#5f6368]">
+                      ({STATUS_DOT[t.status].label})
+                    </span>
+                    {t.last_item_title?.startsWith('[예비순찰대 필요]') ? (
+                      <span
+                        className="shrink-0 rounded bg-[#f3e8fd] px-1.5 py-0.5 text-[10px] font-semibold text-[#7627bb]"
+                        title="본순찰대 접속이 막혀 예비순찰대 활동이 필요한 곳입니다."
+                      >
+                        예비순찰대 필요
+                      </span>
+                    ) : t.last_item_title?.startsWith('[예비순찰대 완료]') ? (
+                      <span
+                        className="shrink-0 rounded bg-[#e8f0fe] px-1.5 py-0.5 text-[10px] font-semibold text-[#1967d2]"
+                        title={t.last_item_title}
+                      >
+                        예비순찰대 완료
+                      </span>
+                    ) : t.last_item_title?.startsWith('[주소 점검 필요]') ? (
+                      <span
+                        className="shrink-0 rounded bg-[#fce8e6] px-1.5 py-0.5 text-[10px] font-semibold text-[#c5221f]"
+                        title={t.last_item_title}
+                      >
+                        주소 점검 필요
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (editingId === t.id) {
+                          setEditingId(null);
+                          setEditingUrl('');
+                        } else {
+                          setEditingId(t.id);
+                          setEditingUrl(t.target_url || '');
+                        }
+                      }}
+                      className="rounded border border-[#dadce0] bg-white px-2 py-1 font-medium text-[#5f6368] hover:bg-[#f8f9fa] hover:text-[#202124]"
+                    >
+                      {editingId === t.id ? '취소' : '주소 수정'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleTogglePauseTarget(t)}
+                      className={`rounded border px-2 py-1 font-medium ${
+                        t.status === 'paused'
+                          ? 'border-[#ceead6] bg-[#e6f4ea] text-[#137333] hover:bg-[#d2e3fc]'
+                          : 'border-[#feefc3] bg-[#fef7e0] text-[#b06000] hover:bg-[#feefc3]'
+                      }`}
+                    >
+                      {t.status === 'paused' ? '재개' : '일시정지'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteTarget(t)}
+                      className="rounded border border-[#fad2cf] bg-white px-2 py-1 font-medium text-[#c5221f] hover:bg-[#fce8e6]"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                </div>
+
+                {editingId === t.id ? (
+                  <div className="mt-2 flex flex-wrap gap-1.5 border-t border-[#f1f3f4] pt-2">
+                    <input
+                      value={editingUrl}
+                      onChange={(e) => setEditingUrl(e.target.value)}
+                      placeholder="새 게시판 주소를 붙여넣으세요"
+                      className="min-w-[200px] flex-1 rounded border border-[#dadce0] px-2.5 py-1 text-xs"
+                    />
+                    <button
+                      type="button"
+                      disabled={savingEdit}
+                      onClick={() => handleSaveEditUrl(t.id)}
+                      className="rounded bg-[#1a73e8] px-3 py-1 text-xs font-semibold text-white hover:bg-[#1557b0] disabled:opacity-50"
+                    >
+                      {savingEdit ? '저장 중...' : '저장 및 복구'}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ))
+          )}
+        </div>
+
+        {!isCommon ? (
+          <div className="mt-3 flex flex-wrap gap-2 border-t border-[#e8eaed] pt-3">
+            <input
+              value={pasteUrl}
+              onChange={(e) => setPasteUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleQuickAddUrl(cell);
+                }
+              }}
+              placeholder="여기에 알짜 게시판 주소를 복사해 붙여넣으세요 (지역·이름 자동 판별)"
+              className="min-w-[240px] flex-1 rounded-lg border border-[#dadce0] bg-white px-3 py-1.5 text-xs"
+            />
+            <button
+              type="button"
+              disabled={addingUrl}
+              onClick={() => handleQuickAddUrl(cell)}
+              className="rounded-lg bg-[#1a73e8] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#1557b0] disabled:opacity-50"
+            >
+              {addingUrl ? '판별 및 추가 중...' : '+ 목록에 추가'}
+            </button>
+          </div>
+        ) : null}
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -374,12 +665,23 @@ export function PatrolStatusModal({
 
                         if (!isActive) {
                           return (
-                            <div
+                            <button
                               key={cell.key}
-                              className="flex items-center justify-center rounded-lg border border-[#e8eaed] bg-[#f1f3f4] px-2 py-2 text-center text-xs font-medium text-[#9aa0a6]"
+                              type="button"
+                              onClick={() => {
+                                setModalNotice('');
+                                setSelectedKey((prev) =>
+                                  prev === cell.key ? null : cell.key
+                                );
+                              }}
+                              className={`flex items-center justify-center rounded-lg border px-2 py-2 text-center text-xs font-medium transition ${
+                                isSelected
+                                  ? 'border-[#1a73e8] bg-[#e8f0fe] text-[#1a73e8] ring-2 ring-[#1a73e8]'
+                                  : 'border-[#e8eaed] bg-[#f1f3f4] text-[#9aa0a6] hover:border-[#dadce0] hover:bg-[#e8eaed] hover:text-[#5f6368]'
+                              }`}
                             >
                               {cell.sigungu}
-                            </div>
+                            </button>
                           );
                         }
 

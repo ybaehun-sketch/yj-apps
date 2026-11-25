@@ -26,6 +26,9 @@ export interface TranslationBundle {
     title: string;
     showMore: string;
     showLess: string;
+    download: string;
+    legalSummary: string;
+    legalShortSummary: string;
     items: {
       tokbiseo: {
         tag: string;
@@ -117,6 +120,23 @@ export interface TranslationBundle {
     termsArticles: { title: string; body: string }[];
     privacyHeading: string;
     privacyServiceName: string;
+    privacyContent: {
+      introPrefix: string;
+      introStrong: string;
+      introSuffix: string;
+      s1Title: string;
+      s1Highlight: string;
+      s1Items: { label: string; body: string }[];
+      s2Title: string;
+      s2Body: string;
+      s3Title: string;
+      s3Body: string;
+      s4Title: string;
+      s4Body: string;
+      s4ManagerLabel: string;
+      s4ManagerValue: string;
+      s4EmailLabel: string;
+    };
   };
   privacy: {
     generalServiceName: string;
@@ -203,6 +223,9 @@ export const translations: Record<Language, TranslationBundle> = {
       title: "프로덕트 라인업",
       showMore: "더보기",
       showLess: "접기",
+      download: "다운로드",
+      legalSummary: "약관/개인정보처리방침/이용방법",
+      legalShortSummary: "약관/개인정보처리방침",
       items: {
         tokbiseo: {
           tag: "Utility",
@@ -445,6 +468,36 @@ export const translations: Record<Language, TranslationBundle> = {
       ],
       privacyHeading: "개인정보처리방침",
       privacyServiceName: "오답정복 서비스",
+      privacyContent: {
+        introPrefix: '와이제이스튜디오(이하 "회사")는 「개인정보 보호법」 등 관련 법령을 철저히 준수하며, ',
+        introStrong: "오답정복",
+        introSuffix: " 이용자의 프라이버시를 최우선으로 보호합니다.",
+        s1Title: "1. 개인정보 수집 여부 및 기기 내 로컬 저장 원칙",
+        s1Highlight: "오답정복은 별도의 회원가입이나 계정 생성 없이 전 기능을 바로 이용하실 수 있습니다.",
+        s1Items: [
+          {
+            label: "학습 데이터 로컬 보관:",
+            body: "이용자가 앱에 등록하는 오답 문제 사진, 정답 사진, 메모, 과목 분류 및 복습 기록은 회사의 외부 서버로 전송되지 않으며, 오직 이용자의 기기(로컬 브라우저 저장소)에만 안전하게 암호화 보관됩니다.",
+          },
+          {
+            label: "회원 정보 미수집:",
+            body: "이름, 전화번호, 주민등록번호 등 식별 가능한 개인정보를 일체 수집하거나 요구하지 않습니다.",
+          },
+          {
+            label: "기기 정보:",
+            body: "서비스 안정성 개선 및 화면 비율 최적화를 위해 브라우저 종류 및 화면 해상도 등의 비식별 기술 정보가 일시적으로 참조될 수 있으나 영구 저장되지 않습니다.",
+          },
+        ],
+        s2Title: "2. 개인정보의 제3자 제공 및 위탁",
+        s2Body: "회사는 이용자의 개인정보나 학습 사진 데이터를 외부에 제공하거나 위탁하지 않습니다. 모든 오답 데이터는 이용자의 기기 내부에서만 처리됩니다.",
+        s3Title: "3. 데이터의 파기 및 이용자 권리",
+        s3Body: "이용자는 앱 내에서 언제든지 개별 오답 문제를 삭제하거나 과목을 비울 수 있으며, 앱 또는 브라우저 데이터를 초기화할 경우 모든 학습 기록은 기기에서 즉시 영구 삭제됩니다.",
+        s4Title: "4. 개인정보 보호책임자 및 문의처",
+        s4Body: "서비스 이용 및 개인정보 보호와 관련된 모든 문의는 아래 전용 창구로 접수해 주시면 성심껏 안내해 드립니다.",
+        s4ManagerLabel: "책임자:",
+        s4ManagerValue: "와이제이스튜디오 개인정보 보호팀",
+        s4EmailLabel: "문의 이메일:",
+      },
     },
     privacy: {
       generalServiceName: "와이제이스튜디오가 제공하는 웹·앱 서비스",
@@ -551,11 +604,24 @@ export const translations: Record<Language, TranslationBundle> = {
       title: "Product Lineup",
       showMore: "Show more",
       showLess: "Show less",
+      download: "Download",
+      legalSummary: "Terms/Privacy Policy/How to Use",
+      legalShortSummary: "Terms/Privacy Policy",
       items: {
         tokbiseo: {
           tag: "Utility",
           name: "TalkSecretary - AI Memo",
           desc: "AI Memory Assistant — Drop in text, screenshots, or voice memos, and AI organizes everything automatically.",
+          quickLinks: {
+            terms: "Terms",
+            privacy: "Privacy Policy",
+            guide: "How to Use",
+          },
+        },
+        wrongnote: {
+          tag: "Education",
+          name: "WrongNote",
+          desc: "3-Sec Capture · Swipe Eraser · Cover-Mask Review — The simplest, most effective error notebook app for test-takers.",
           quickLinks: {
             terms: "Terms",
             privacy: "Privacy Policy",
@@ -722,6 +788,98 @@ export const translations: Record<Language, TranslationBundle> = {
       privacyHeading: "Privacy Policy",
       privacyServiceName: "TalkSecretary - AI Memo (TalkSecretary)",
     },
+    wrongnote: {
+      pageTitle: "WrongNote (3-Sec Capture · Swipe Eraser · Cover-Mask Review)",
+      introPrefix: "Welcome to the user guide, Terms of Service, and Privacy Policy for ",
+      introStrong: "WrongNote",
+      introSuffix: " — the exam-prep error notebook where you upload missed questions, wipe away your handwriting, and master them through quick review.",
+      navAria: "WrongNote quick navigation",
+      tabs: {
+        guide: "How to Use",
+        terms: "Terms of Service",
+        privacy: "Privacy Policy",
+      },
+      guideHeading: "How to Use",
+      guideIntro:
+        "WrongNote is a lightweight error notebook that saves directly to your phone—no sign-up or login required. Snap missed questions, erase your pen marks, and drill them with a cover mask. Because all study data stays strictly on your device, saved questions cannot be transferred if you switch devices or uninstall the app.",
+      guideSteps: [
+        {
+          title: "Step 1 — 3-Second Question Capture:",
+          body: "Take a photo of a missed question or pick one from your gallery, assign a subject, and save it right away. It automatically remembers your last-used subject for ultra-fast batch adding.",
+        },
+        {
+          title: "Step 2 — Clean Slate with Swipe Eraser:",
+          body: "Simply swipe your finger over your pen checkmarks, underlines, or grading marks—it blends seamlessly with the surrounding paper color so the question looks freshly printed and ready to solve again.",
+        },
+        {
+          title: "Step 3 — 10-Second Cover-Mask Review & Mastery:",
+          body: "Keep the answer and explanation hidden behind a semi-transparent cover mask, tap once to reveal, and mark 'Got It' or 'Missed Again.' Hit your target streak of correct answers to mark the question as 'Mastered.'",
+        },
+      ],
+      termsHeading: "Terms of Service",
+      termsArticles: [
+        {
+          title: "Article 1 (Purpose)",
+          body: 'These Terms govern the conditions of use, procedures, rights, obligations, and responsibilities between YJ Studio ("Company") and users regarding the WrongNote service ("Service").',
+        },
+        {
+          title: "Article 2 (Effectiveness & Amendments)",
+          body: "These Terms take effect upon posting within the Service or on our website. The Company may amend these Terms within applicable legal bounds and will provide notice at least 7 days prior to the effective date for material changes.",
+        },
+        {
+          title: "Article 3 (Service Description)",
+          body: "The Company provides error-notebook utility features that allow learners preparing for exams or studies to capture missed questions as photos, erase handwriting marks, and review using a cover mask.",
+        },
+        {
+          title: "Article 4 (On-Device Storage & Non-Transferability)",
+          body: "WrongNote operates without user accounts or sign-in, storing your question photos and study records exclusively in your device's local storage. Consequently, saved data cannot be migrated to a new device, and uninstalling the app or clearing device storage will permanently erase all data. The Company is not responsible for data recovery or loss resulting from device changes, loss, or deletion.",
+        },
+        {
+          title: "Article 5 (Service Usage & Pricing)",
+          body: "All core features of the Service are currently offered free of charge as part of a special limited-time launch event. Should the event conclude or paid plans or billing models be introduced in the future, the Company will clearly announce pricing and payment terms on the Service screen in advance.",
+        },
+        {
+          title: "Article 6 (Limitation of Liability)",
+          body: "The Company is not liable for service interruptions or data loss caused by force majeure events such as natural disasters, device malfunctions, or network failures.",
+        },
+        {
+          title: "Article 7 (Governing Law, Disputes & Contact)",
+          body: "These Terms are governed by the laws of the Republic of Korea, and any disputes shall be submitted to the competent court under the Civil Procedure Act. For inquiries regarding the Service, please contact contact@yjstudio.app.",
+        },
+      ],
+      privacyHeading: "Privacy Policy",
+      privacyServiceName: "WrongNote",
+      privacyContent: {
+        introPrefix: 'YJ Studio ("Company") strictly complies with the Personal Information Protection Act (PIPA) and applicable privacy laws, and places the highest priority on protecting the privacy of ',
+        introStrong: "WrongNote",
+        introSuffix: " users.",
+        s1Title: "1. Zero Personal Data Collection & On-Device Local Storage Principle",
+        s1Highlight: "WrongNote lets you use every feature immediately without creating an account or signing up.",
+        s1Items: [
+          {
+            label: "Local Storage of Study Data:",
+            body: "Question photos, answer photos, notes, subject tags, and review logs you add to the app are never transmitted to any external Company server; they are stored securely and encrypted solely on your own device (local browser storage).",
+          },
+          {
+            label: "No Account Information Collected:",
+            body: "We do not collect or request any personally identifiable information such as your name, phone number, or national ID number.",
+          },
+          {
+            label: "Device Information:",
+            body: "Non-identifying technical details such as browser type and screen resolution may be referenced temporarily to improve stability and screen layout, but are never permanently stored.",
+          },
+        ],
+        s2Title: "2. Third-Party Sharing & Outsourcing",
+        s2Body: "The Company never shares, sells, or outsources your personal information or study photo data to third parties. All error-note data is processed exclusively inside your device.",
+        s3Title: "3. Data Deletion & User Rights",
+        s3Body: "You can delete individual missed questions or clear subjects at any time within the app, and resetting the app or browser data immediately and permanently erases all study records from your device.",
+        s4Title: "4. Privacy Officer & Contact",
+        s4Body: "For any questions regarding the Service or privacy protection, please reach out through our dedicated contact channel below.",
+        s4ManagerLabel: "Privacy Officer:",
+        s4ManagerValue: "YJ Studio Privacy Protection Team",
+        s4EmailLabel: "Contact Email:",
+      },
+    },
     privacy: {
       generalServiceName: "web and mobile services provided by YJ Studio",
       introPrefix: "YJ Studio (\"Company\") complies with the Personal Information Protection Act (PIPA) and applicable data protection regulations, and is committed to protecting the personal data of users of ",
@@ -825,11 +983,24 @@ export const translations: Record<Language, TranslationBundle> = {
       title: "プロダクトラインアップ",
       showMore: "もっと見る",
       showLess: "閉じる",
+      download: "ダウンロード",
+      legalSummary: "利用規約/プライバシーポリシー/ご利用方法",
+      legalShortSummary: "利用規約/プライバシーポリシー",
       items: {
         tokbiseo: {
           tag: "Utility",
           name: "トーク秘書 - AIメモ",
           desc: "AI記憶アシスタント — テキストやスクリーンショット、音声まで投げるだけでAIが自動で整理します。",
+          quickLinks: {
+            terms: "利用規約",
+            privacy: "プライバシーポリシー",
+            guide: "ご利用方法",
+          },
+        },
+        wrongnote: {
+          tag: "Education",
+          name: "誤答征服",
+          desc: "3秒登録・なぞり消しゴム・目隠し復習 — 受験生のための最もシンプルで確実な間違いノートアプリ。",
           quickLinks: {
             terms: "利用規約",
             privacy: "プライバシーポリシー",
@@ -995,6 +1166,98 @@ export const translations: Record<Language, TranslationBundle> = {
       ],
       privacyHeading: "プライバシーポリシー",
       privacyServiceName: "トーク秘書 - AIメモ（トーク秘書）",
+    },
+    wrongnote: {
+      pageTitle: "誤答征服（3秒登録・なぞり消しゴム・目隠し復習）",
+      introPrefix: "間違えた問題だけをサッと登録し、書き込みを消して解き直せる受験生向け間違いノート、",
+      introStrong: "誤答征服",
+      introSuffix: "のご利用方法・利用規約・プライバシーポリシーをご案内します。",
+      navAria: "誤答征服ページ内メニュー",
+      tabs: {
+        guide: "ご利用方法",
+        terms: "利用規約",
+        privacy: "プライバシーポリシー",
+      },
+      guideHeading: "ご利用方法",
+      guideIntro:
+        "誤答征服は、会員登録やログインなしですぐにスマホ内へ保存して使える手軽な間違いノートです。間違えた問題を素早く登録して書き込みを消し、目隠しシートで復習できます。すべての問題データはご利用中の端末内部にのみ保存されるため、機種変更やアプリ削除を行うと別の端末へデータを引き継ぐことはできません。",
+      guideSteps: [
+        {
+          title: "ステップ1 — 3秒で間違い問題を登録：",
+          body: "間違えた問題の写真を撮るかアルバムから選び、科目を指定してすぐに保存できます。直前に選んだ科目を自動で記憶するため、連続登録がとてもスピーディーです。",
+        },
+        {
+          title: "ステップ2 — なぞり消しゴムで新品の問題に：",
+          body: "問題写真に書き込んだボールペンのチェックや下線・採点跡の上を指でサッとなぞるだけで、周囲の紙の色になじませて自然に消去し、印刷したてのように解き直せます。",
+        },
+        {
+          title: "ステップ3 — 10秒の目隠し復習＆完全習得：",
+          body: "解答や解説は半透明の目隠しシートで隠しておき、タップ1回で確認しながら「正解した／また間違えた」を記録します。設定した回数だけ連続で正解すると「征服完了」としてスッキリ整理されます。",
+        },
+      ],
+      termsHeading: "利用規約",
+      termsArticles: [
+        {
+          title: "第1条（目的）",
+          body: "本規約は、YJ Studio（以下「当社」）が提供する「誤答征服」サービス（以下「本サービス」）の利用条件および手続き、当社と利用者の権利・義務および責任事項を定めることを目的とします。",
+        },
+        {
+          title: "第2条（規約の効力および改定）",
+          body: "本規約は、本サービス画面またはウェブサイトに掲示することにより効力を生じます。当社は関連法令に違反しない範囲で本規約を改定できるものとし、重要な変更がある場合は施行日の少なくとも7日前までに告知します。",
+        },
+        {
+          title: "第3条（サービスの内容）",
+          body: "当社は、試験や学習に取り組む利用者が間違えた問題を写真で登録し、書き込みの消去および目隠し復習を行える間違いノート機能を提供します。",
+        },
+        {
+          title: "第4条（端末内保存およびデータ移行不可）",
+          body: "誤答征服は会員登録やログイン機能を持たず、利用者の端末内部ストレージにのみ問題写真や学習データを直接保存します。そのため、機種変更時に保存済みデータを新しい端末へ移行することはできず、アプリの削除または端末データの初期化を行うとすべてのデータが完全に消去されます。当社は端末の機種変更・紛失・削除等によるデータ損失について復旧や責任を負いません。",
+        },
+        {
+          title: "第5条（サービスの利用および料金）",
+          body: "現在、本サービスのすべての主要機能はリリース記念の期間限定キャンペーンとして無料で提供されています。キャンペーン終了後、将来的に有料プランや課金モデルが導入される場合は、事前に料金および決済条件をサービス画面に明確に告知します。",
+        },
+        {
+          title: "第6条（責任の制限）",
+          body: "当社は、天災地変、端末の不具合、通信障害などの不可抗力によるサービスの中断やデータ損失について責任を負いません。",
+        },
+        {
+          title: "第7条（準拠法、紛争解決およびお問い合わせ）",
+          body: "本規約は大韓民国法を準拠法とし、紛争が生じた場合は民事訴訟法上の管轄裁判所を管轄裁判所とします。本サービスに関するお問い合わせは contact@yjstudio.app までご連絡ください。",
+        },
+      ],
+      privacyHeading: "プライバシーポリシー",
+      privacyServiceName: "誤答征服",
+      privacyContent: {
+        introPrefix: "YJ Studio（以下「当社」）は、大韓民国「個人情報保護法」および関連法令を厳格に遵守し、",
+        introStrong: "誤答征服",
+        introSuffix: "をご利用いただく皆様のプライバシーを最優先で保護します。",
+        s1Title: "1. 個人情報の収集有無および端末内ローカル保存の原則",
+        s1Highlight: "誤答征服は、別途の会員登録やアカウント作成なしで全機能をすぐにご利用いただけます。",
+        s1Items: [
+          {
+            label: "学習データのローカル保存：",
+            body: "利用者がアプリに登録する間違い問題の写真、解答写真、メモ、科目分類および復習記録は当社の外部サーバーへ送信されず、利用者ご自身の端末（ローカルブラウザストレージ）にのみ暗号化して安全に保存されます。",
+          },
+          {
+            label: "会員情報の非収集：",
+            body: "氏名、電話番号、住民登録番号など個人を特定できる情報は一切収集・要求いたしません。",
+          },
+          {
+            label: "端末情報：",
+            body: "サービスの安定性向上および画面比率の最適化のため、ブラウザの種類や画面解像度などの非識別技術情報を一時的に参照する場合がありますが、永続的に保存されることはありません。",
+          },
+        ],
+        s2Title: "2. 個人情報の第三者提供および委託",
+        s2Body: "当社は、利用者の個人情報や学習写真データを外部に提供または委託いたしません。すべての間違いノートデータは利用者の端末内部でのみ処理されます。",
+        s3Title: "3. データの破棄および利用者の権利",
+        s3Body: "利用者はアプリ内でいつでも個別の問題を削除したり科目を空にすることができ、アプリまたはブラウザのデータを初期化するとすべての学習記録が端末から直ちに完全削除されます。",
+        s4Title: "4. 個人情報保護責任者およびお問い合わせ窓口",
+        s4Body: "サービスのご利用および個人情報保護に関するすべてのお問い合わせは、以下の専用窓口までご連絡いただければ丁寧にご案内いたします。",
+        s4ManagerLabel: "責任者：",
+        s4ManagerValue: "YJ Studio 個人情報保護チーム",
+        s4EmailLabel: "お問い合わせメール：",
+      },
     },
     privacy: {
       generalServiceName: "YJ Studioが提供するウェブ・アプリサービス",

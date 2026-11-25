@@ -27,11 +27,24 @@ export const extraTranslations: Record<"zh-TW" | "fr" | "de" | "es", Translation
       title: "產品陣容",
       showMore: "查看更多",
       showLess: "收起",
+      download: "下載應用程式",
+      legalSummary: "服務條款/隱私權政策/使用方式",
+      legalShortSummary: "服務條款/隱私權政策",
       items: {
         tokbiseo: {
           tag: "Utility",
           name: "對話秘書 - AI 筆記",
           desc: "AI 智慧秘書 — 隨手丟進文字、螢幕截圖或語音錄音，AI 就會自動為您整理歸檔。",
+          quickLinks: {
+            terms: "服務條款",
+            privacy: "隱私權政策",
+            guide: "使用方式",
+          },
+        },
+        wrongnote: {
+          tag: "Education",
+          name: "錯題征服",
+          desc: "3 秒登錄・滑動橡皮擦・遮罩複習 — 專為考生打造的極簡高效錯題本 App。",
           quickLinks: {
             terms: "服務條款",
             privacy: "隱私權政策",
@@ -194,6 +207,98 @@ export const extraTranslations: Record<"zh-TW" | "fr" | "de" | "es", Translation
       privacyHeading: "隱私權政策",
       privacyServiceName: "對話秘書 - AI 筆記（對話秘書）",
     },
+    wrongnote: {
+      pageTitle: "錯題征服（3 秒登錄・滑動橡皮擦・遮罩複習）",
+      introPrefix: "輕鬆上傳做錯的題目、擦掉手寫筆記重做並徹底掌握的考生專用錯題本，歡迎查看",
+      introStrong: "錯題征服",
+      introSuffix: "的使用方式、服務條款與隱私權政策。",
+      navAria: "錯題征服文件快速導覽",
+      tabs: {
+        guide: "使用方式",
+        terms: "服務條款",
+        privacy: "隱私權政策",
+      },
+      guideHeading: "使用方式",
+      guideIntro:
+        "錯題征服是一款無需註冊或登入、直接保存在手機中的輕巧錯題本。您可以快速登錄錯題、擦除手寫痕跡並搭配遮罩複習；所有題目資料僅儲存於您目前使用的裝置內部，因此更換裝置或刪除應用程式時，已儲存的題目無法轉移至其他裝置。",
+      guideSteps: [
+        {
+          title: "步驟 1 — 3 秒登錄錯題：",
+          body: "拍下做錯的題目或從相簿挑選照片，指定科目後即可輕鬆收藏。系統會自動記住上一次選擇的科目，連續登錄非常快速。",
+        },
+        {
+          title: "步驟 2 — 滑動橡皮擦還原空白新題：",
+          body: "用手指輕輕滑過題目照片上的原子筆勾選、底線或批改痕跡，畫面會自動融合周圍紙張底色自然擦除，就像剛印出來的新題目一樣能重新作答。",
+        },
+        {
+          title: "步驟 3 — 10 秒遮罩複習與征服：",
+          body: "使用半透明遮罩蓋住解答與詳解，輕點一下即可查看並選擇「答對了／又錯了」。連續答對達到設定次數後，系統便會將該題標記為「已征服」。",
+        },
+      ],
+      termsHeading: "服務條款",
+      termsArticles: [
+        {
+          title: "第 1 條（目的）",
+          body: "本條款旨在規範 YJ Studio（以下簡稱「本公司」）所提供之「錯題征服」服務（以下簡稱「本服務」）的使用條件與程序，以及本公司與使用者之間的權利、義務與責任事項。",
+        },
+        {
+          title: "第 2 條（條款之效力與修訂）",
+          body: "本條款於公布在本服務畫面或官方網站時即生效。本公司得於不違反相關法令之範圍內修訂本條款，若有重大變更，將於生效日前至少 7 天提前公告。",
+        },
+        {
+          title: "第 3 條（服務內容）",
+          body: "本公司為準備考試與學習的使用者提供錯題本實用工具功能，支援將錯題以照片方式登錄、擦除手寫筆記痕跡以及進行遮罩複習。",
+        },
+        {
+          title: "第 4 條（裝置本地儲存與無法跨裝置轉移）",
+          body: "錯題征服不設會員註冊或登入機制，所有錯題照片與學習紀錄僅直接儲存在使用者的裝置本地空間中。因此更換裝置時無法將已儲存的題目移轉至新裝置，刪除應用程式或清除裝置儲存空間亦會導致資料永久刪除。本公司對因更換、遺失或刪除裝置資料所造成之資料遺失不負復原或賠償責任。",
+        },
+        {
+          title: "第 5 條（服務使用與費用）",
+          body: "目前本服務的所有核心功能均於上市紀念限定活動期間免費提供。未來活動結束或推出付費方案、計費模式時，本公司將於服務畫面事前明確公告價格與付款條件。",
+        },
+        {
+          title: "第 6 條（責任限制）",
+          body: "因天災、裝置異常、通訊障礙等不可抗力因素所導致之服務中斷或資料遺失，本公司不負相關責任。",
+        },
+        {
+          title: "第 7 條（準據法、爭議解決與聯絡方式）",
+          body: "本條款以大韓民國法律為準據法，若發生爭議應以民事訴訟法規定之管轄法院為管轄法院。服務使用相關問題請來信至 contact@yjstudio.app。",
+        },
+      ],
+      privacyHeading: "隱私權政策",
+      privacyServiceName: "錯題征服",
+      privacyContent: {
+        introPrefix: "YJ Studio（以下簡稱「本公司」）嚴格遵守《個人資料保護法》等相關法令，並將保護",
+        introStrong: "錯題征服",
+        introSuffix: "使用者的隱私權視為首要原則。",
+        s1Title: "1. 是否蒐集個人資料與裝置本地儲存原則",
+        s1Highlight: "錯題征服無需另外註冊會員或建立帳號，即可立即使用所有功能。",
+        s1Items: [
+          {
+            label: "學習資料本地保存：",
+            body: "使用者登錄於應用程式中的錯題照片、解答照片、筆記、科目分類及複習紀錄均不會傳送至本公司外部伺服器，僅會安全加密儲存於使用者本人的裝置（本地瀏覽器儲存空間）中。",
+          },
+          {
+            label: "不蒐集會員資訊：",
+            body: "不會蒐集或要求姓名、電話號碼、身分證字號等任何可識別個人身分的資料。",
+          },
+          {
+            label: "裝置資訊：",
+            body: "為提升服務穩定性並最佳化畫面比例，可能會暫時參照瀏覽器類型與螢幕解析度等非識別性技術資訊，但不會永久儲存。",
+          },
+        ],
+        s2Title: "2. 個人資料之第三方提供與委託",
+        s2Body: "本公司不會將使用者的個人資料或學習照片資料提供或委託予任何第三方。所有錯題資料僅於使用者裝置內部進行處理。",
+        s3Title: "3. 資料銷毀與使用者權利",
+        s3Body: "使用者隨時可在應用程式內刪除個別錯題或清空科目；若重置應用程式或瀏覽器資料，所有學習紀錄將立即從裝置中永久刪除。",
+        s4Title: "4. 個人資料保護負責人與聯絡窗口",
+        s4Body: "若有任何關於服務使用及隱私保護的疑問，歡迎透過以下專用窗口與我們聯繫，我們將竭誠為您說明。",
+        s4ManagerLabel: "負責人：",
+        s4ManagerValue: "YJ Studio 個人資料保護團隊",
+        s4EmailLabel: "聯絡信箱：",
+      },
+    },
     privacy: {
       generalServiceName: "YJ Studio 所提供之網頁與行動服務",
       introPrefix: "YJ Studio（以下簡稱「本公司」）遵守《個人資料保護法》及相關法令，致力於妥善保護 ",
@@ -296,11 +401,24 @@ export const extraTranslations: Record<"zh-TW" | "fr" | "de" | "es", Translation
       title: "Gamme de produits",
       showMore: "Voir plus",
       showLess: "Réduire",
+      download: "Télécharger",
+      legalSummary: "Conditions/Confidentialité/Mode d'emploi",
+      legalShortSummary: "Conditions/Confidentialité",
       items: {
         tokbiseo: {
           tag: "Utility",
           name: "TalkSecretary - Mémo IA",
           desc: "Assistant mémoire IA — Déposez textes, captures d'écran ou mémos vocaux, l'IA les classe et les organise automatiquement.",
+          quickLinks: {
+            terms: "Conditions",
+            privacy: "Confidentialité",
+            guide: "Mode d'emploi",
+          },
+        },
+        wrongnote: {
+          tag: "Education",
+          name: "WrongNote",
+          desc: "Capture en 3 s · Gomme tactile · Révision par masque — Le carnet d'erreurs le plus simple et efficace pour réussir vos examens.",
           quickLinks: {
             terms: "Conditions",
             privacy: "Confidentialité",
@@ -463,6 +581,98 @@ export const extraTranslations: Record<"zh-TW" | "fr" | "de" | "es", Translation
       privacyHeading: "Politique de confidentialité",
       privacyServiceName: "TalkSecretary - Mémo IA (TalkSecretary)",
     },
+    wrongnote: {
+      pageTitle: "WrongNote (Capture en 3 s · Gomme tactile · Révision par masque)",
+      introPrefix: "Découvrez le mode d'emploi, les conditions d'utilisation et la politique de confidentialité de ",
+      introStrong: "WrongNote",
+      introSuffix: " — le carnet d'erreurs pensé pour les étudiants : ajoutez vos questions manquées, effacez vos annotations et révisez jusqu'à les maîtriser.",
+      navAria: "Navigation rapide WrongNote",
+      tabs: {
+        guide: "Mode d'emploi",
+        terms: "Conditions d'utilisation",
+        privacy: "Politique de confidentialité",
+      },
+      guideHeading: "Mode d'emploi",
+      guideIntro:
+        "WrongNote est un carnet d'erreurs simple qui enregistre tout directement sur votre téléphone, sans inscription ni connexion. Ajoutez vite vos questions ratées, effacez vos notes et révisez avec le masque. Comme toutes vos données restent uniquement sur votre appareil, elles ne peuvent pas être transférées si vous changez de téléphone ou supprimez l'application.",
+      guideSteps: [
+        {
+          title: "Étape 1 — Ajout d'erreur en 3 secondes :",
+          body: "Prenez en photo une question manquée ou choisissez-la dans votre galerie, associez une matière et enregistrez-la. L'application mémorise automatiquement la dernière matière sélectionnée pour un ajout en série ultra-rapide.",
+        },
+        {
+          title: "Étape 2 — Gomme tactile pour un sujet neuf :",
+          body: "Passez simplement le doigt sur vos coches au stylo, soulignements ou corrections : la gomme se fond dans la couleur du papier environnant pour vous permettre de refaire l'exercice comme sur une feuille neuve.",
+        },
+        {
+          title: "Étape 3 — Révision en 10 s par masque & maîtrise :",
+          body: "Gardez la réponse et le corrigé cachés sous un masque semi-transparent, touchez une fois pour vérifier et indiquez « Réussi » ou « Encore raté ». Atteignez votre série de bonnes réponses pour marquer la question comme « Maîtrisée ».",
+        },
+      ],
+      termsHeading: "Conditions d'utilisation",
+      termsArticles: [
+        {
+          title: "Article 1 (Objet)",
+          body: "Les présentes Conditions régissent les modalités d'utilisation, les procédures ainsi que les droits, obligations et responsabilités entre YJ Studio (« la Société ») et les utilisateurs concernant le service WrongNote (« le Service »).",
+        },
+        {
+          title: "Article 2 (Effet et modification)",
+          body: "Les présentes Conditions prennent effet dès leur publication dans le Service ou sur le site web. La Société peut les modifier dans le respect des lois applicables et informera les utilisateurs au moins 7 jours avant l'entrée en vigueur de tout changement important.",
+        },
+        {
+          title: "Article 3 (Description du Service)",
+          body: "La Société fournit des fonctionnalités utilitaires de carnet d'erreurs permettant aux étudiants et candidats de sauvegarder des photos de questions manquées, d'effacer leurs annotations manuscrites et de réviser à l'aide d'un masque.",
+        },
+        {
+          title: "Article 4 (Stockage local sur l'appareil et non-transférabilité)",
+          body: "WrongNote fonctionne sans création de compte ni connexion et stocke vos photos et données d'étude exclusivement dans la mémoire locale de votre appareil. Par conséquent, les données ne peuvent pas être transférées vers un nouvel appareil, et la suppression de l'application ou la réinitialisation du stockage efface définitivement toutes les données. La Société décline toute responsabilité en cas de perte liée à un changement, une perte ou une suppression d'appareil.",
+        },
+        {
+          title: "Article 5 (Utilisation du Service et tarification)",
+          body: "Toutes les fonctionnalités principales du Service sont actuellement proposées gratuitement dans le cadre d'une offre spéciale de lancement à durée limitée. Si cette période prend fin ou si des formules payantes sont introduites ultérieurement, la Société affichera clairement les tarifs et conditions de paiement à l'avance.",
+        },
+        {
+          title: "Article 6 (Limitation de responsabilité)",
+          body: "La Société ne saurait être tenue responsable des interruptions de service ou pertes de données résultant de cas de force majeure tels que catastrophes naturelles, pannes matérielles ou coupures réseau.",
+        },
+        {
+          title: "Article 7 (Droit applicable, litiges et contact)",
+          body: "Les présentes Conditions sont régies par le droit de la République de Corée et tout litige relève des tribunaux compétents conformément au Code de procédure civile. Pour toute question, veuillez écrire à contact@yjstudio.app.",
+        },
+      ],
+      privacyHeading: "Politique de confidentialité",
+      privacyServiceName: "WrongNote",
+      privacyContent: {
+        introPrefix: "YJ Studio (« la Société ») respecte strictement la loi sur la protection des données personnelles (PIPA) et les réglementations applicables, et accorde la plus haute priorité à la confidentialité des utilisateurs de ",
+        introStrong: "WrongNote",
+        introSuffix: ".",
+        s1Title: "1. Absence de collecte de données personnelles et stockage local",
+        s1Highlight: "WrongNote vous permet d'utiliser toutes les fonctionnalités immédiatement, sans inscription ni création de compte.",
+        s1Items: [
+          {
+            label: "Stockage local des données d'étude :",
+            body: "Les photos de questions, photos de corrigés, notes, matières et historiques de révision que vous ajoutez ne sont jamais envoyés vers un serveur externe de la Société ; ils restent stockés et chiffrés uniquement sur votre appareil (stockage local du navigateur).",
+          },
+          {
+            label: "Aucune donnée de compte collectée :",
+            body: "Nous ne collectons ni ne demandons aucune donnée permettant de vous identifier directement (nom, numéro de téléphone, numéro d'identité, etc.).",
+          },
+          {
+            label: "Informations techniques de l'appareil :",
+            body: "Des informations techniques non identifiantes (type de navigateur, résolution d'écran) peuvent être consultées temporairement pour optimiser la stabilité et l'affichage, sans jamais être conservées durablement.",
+          },
+        ],
+        s2Title: "2. Partage et sous-traitance à des tiers",
+        s2Body: "La Société ne partage, ne vend et ne confie jamais vos données personnelles ni vos photos d'étude à des tiers. Toutes vos données d'erreurs sont traitées exclusivement en local sur votre appareil.",
+        s3Title: "3. Suppression des données et droits des utilisateurs",
+        s3Body: "Vous pouvez supprimer à tout moment une question ou vider une matière dans l'application. La réinitialisation de l'application ou des données du navigateur efface immédiatement et définitivement tout votre historique d'étude.",
+        s4Title: "4. Responsable de la protection des données et contact",
+        s4Body: "Pour toute question relative au Service ou à la protection de votre vie privée, veuillez contacter notre équipe dédiée ci-dessous.",
+        s4ManagerLabel: "Responsable :",
+        s4ManagerValue: "Équipe de protection des données de YJ Studio",
+        s4EmailLabel: "E-mail de contact :",
+      },
+    },
     privacy: {
       generalServiceName: "services web et mobiles fournis par YJ Studio",
       introPrefix: "YJ Studio (« la Société ») respecte la loi sud-coréenne sur la protection des données personnelles (PIPA) ainsi que les réglementations applicables, et s'engage à protéger les données des utilisateurs de ",
@@ -565,11 +775,24 @@ export const extraTranslations: Record<"zh-TW" | "fr" | "de" | "es", Translation
       title: "Produktportfolio",
       showMore: "Mehr anzeigen",
       showLess: "Weniger",
+      download: "Herunterladen",
+      legalSummary: "Nutzungsbedingungen/Datenschutz/Anleitung",
+      legalShortSummary: "Nutzungsbedingungen/Datenschutz",
       items: {
         tokbiseo: {
           tag: "Utility",
           name: "TalkSecretary - KI-Notizen",
           desc: "KI-Gedächtnisassistent — Texte, Screenshots oder Sprachnotizen eingeben, und die KI sortiert und organisiert alles automatisch.",
+          quickLinks: {
+            terms: "Nutzungsbedingungen",
+            privacy: "Datenschutz",
+            guide: "Anleitung",
+          },
+        },
+        wrongnote: {
+          tag: "Education",
+          name: "WrongNote",
+          desc: "In 3 Sek. erfasst · Wisch-Radierer · Abdeck-Wiederholung — Das einfachste und effektivste Fehlerheft für Prüfungsvorbereitungen.",
           quickLinks: {
             terms: "Nutzungsbedingungen",
             privacy: "Datenschutz",
@@ -732,6 +955,98 @@ export const extraTranslations: Record<"zh-TW" | "fr" | "de" | "es", Translation
       privacyHeading: "Datenschutzerklärung",
       privacyServiceName: "TalkSecretary - KI-Notizen (TalkSecretary)",
     },
+    wrongnote: {
+      pageTitle: "WrongNote (In 3 Sek. erfasst · Wisch-Radierer · Abdeck-Wiederholung)",
+      introPrefix: "Hier finden Sie die Anleitung, Nutzungsbedingungen und Datenschutzerklärung für ",
+      introStrong: "WrongNote",
+      introSuffix: " — das clevere Fehlerheft für Lernende: Aufgaben blitzschnell ablegen, eigene Notizen wegwischen und gezielt wiederholen.",
+      navAria: "WrongNote Schnellnavigation",
+      tabs: {
+        guide: "Anleitung",
+        terms: "Nutzungsbedingungen",
+        privacy: "Datenschutz",
+      },
+      guideHeading: "Anleitung",
+      guideIntro:
+        "WrongNote ist ein schlankes Fehlerheft, das ohne Registrierung oder Login direkt auf Ihrem Smartphone speichert. Legen Sie verpasste Aufgaben schnell ab, wischen Sie Ihre Notizen weg und üben Sie mit der Abdeckfolie. Da alle Lerndaten ausschließlich lokal auf Ihrem Gerät gespeichert bleiben, können gespeicherte Aufgaben bei einem Gerätewechsel oder nach dem Löschen der App nicht übertragen werden.",
+      guideSteps: [
+        {
+          title: "Schritt 1 — Aufgabe in 3 Sekunden erfassen:",
+          body: "Fotografieren Sie eine falsch gelöste Aufgabe oder wählen Sie ein Bild aus der Galerie, ordnen Sie ein Fach zu und speichern Sie sie sofort. Das zuletzt gewählte Fach wird automatisch gemerkt, sodass Sie mehrere Aufgaben rasend schnell nacheinander ablegen können.",
+        },
+        {
+          title: "Schritt 2 — Sauber wie neu mit dem Wisch-Radierer:",
+          body: "Wischen Sie mit dem Finger einfach über Kugelschreiberhäkchen, Unterstreichungen oder Korrekturen – der Radierer passt sich der umliegenden Papierfarbe an, sodass die Aufgabe wie frisch gedruckt aussieht und neu gelöst werden kann.",
+        },
+        {
+          title: "Schritt 3 — 10-Sekunden-Abdeck-Wiederholung & Meistern:",
+          body: "Halten Sie Lösung und Erklärung unter einer halbtransparenten Abdeckfolie verborgen, tippen Sie zum Prüfen einmal darauf und wählen Sie „Gewusst“ oder „Noch unsicher“. Nach der festgelegten Serie richtiger Antworten wird die Aufgabe als „Gemeistert“ abgehakt.",
+        },
+      ],
+      termsHeading: "Nutzungsbedingungen",
+      termsArticles: [
+        {
+          title: "Artikel 1 (Zweck)",
+          body: "Diese Nutzungsbedingungen regeln die Bedingungen, Verfahren sowie die Rechte, Pflichten und Verantwortlichkeiten zwischen YJ Studio („Unternehmen“) und den Nutzern in Bezug auf den Dienst WrongNote („Dienst“).",
+        },
+        {
+          title: "Artikel 2 (Wirksamkeit und Änderungen)",
+          body: "Diese Bedingungen treten mit ihrer Veröffentlichung im Dienst oder auf unserer Website in Kraft. Das Unternehmen kann diese Bedingungen im Rahmen geltender Gesetze ändern und wird wesentliche Änderungen mindestens 7 Tage vor Inkrafttreten ankündigen.",
+        },
+        {
+          title: "Artikel 3 (Leistungsbeschreibung)",
+          body: "Das Unternehmen stellt nützliche Fehlerheft-Funktionen bereit, mit denen Lernende und Prüfungskandidaten verpasste Aufgaben als Foto speichern, handschriftliche Markierungen entfernen und mit einer Abdeckfolie wiederholen können.",
+        },
+        {
+          title: "Artikel 4 (Lokale Gerätespeicherung und fehlende Übertragbarkeit)",
+          body: "WrongNote funktioniert ohne Registrierung oder Anmeldung und speichert Aufgabenfotos sowie Lernstände ausschließlich im lokalen Speicher Ihres Geräts. Bei einem Gerätewechsel können gespeicherte Daten daher nicht auf ein neues Gerät übertragen werden, und eine Deinstallation der App oder das Löschen des Gerätespeichers führt zum endgültigen Datenverlust. Das Unternehmen übernimmt keine Haftung oder Wiederherstellungspflicht bei Gerätewechsel, Verlust oder Löschung.",
+        },
+        {
+          title: "Artikel 5 (Nutzung und Preise)",
+          body: "Alle Kernfunktionen des Dienstes werden derzeit im Rahmen einer zeitlich begrenzten Launch-Aktion kostenlos angeboten. Sollte die Aktion enden oder künftig kostenpflichtige Tarife bzw. Bezahlmodelle eingeführt werden, informiert das Unternehmen vorab deutlich auf dem Dienstbildschirm über Preise und Zahlungsbedingungen.",
+        },
+        {
+          title: "Artikel 6 (Haftungsbeschränkung)",
+          body: "Das Unternehmen haftet nicht für Dienstunterbrechungen oder Datenverluste, die durch höhere Gewalt wie Naturkatastrophen, Gerätefehler oder Netzwerkstörungen verursacht werden.",
+        },
+        {
+          title: "Artikel 7 (Anwendbares Recht, Streitbeilegung und Kontakt)",
+          body: "Diese Bedingungen unterliegen dem Recht der Republik Korea; für Streitigkeiten sind die nach der Zivilprozessordnung zuständigen Gerichte verantwortlich. Bei Fragen zum Dienst wenden Sie sich bitte an contact@yjstudio.app.",
+        },
+      ],
+      privacyHeading: "Datenschutzerklärung",
+      privacyServiceName: "WrongNote",
+      privacyContent: {
+        introPrefix: "YJ Studio („Unternehmen“) hält sich strikt an das südkoreanische Datenschutzgesetz (PIPA) sowie geltende Datenschutzvorschriften und misst dem Schutz der Privatsphäre der Nutzer von ",
+        introStrong: "WrongNote",
+        introSuffix: " höchste Bedeutung bei.",
+        s1Title: "1. Keine Erhebung personenbezogener Daten & Prinzip der lokalen Speicherung",
+        s1Highlight: "Bei WrongNote können Sie alle Funktionen sofort nutzen, ohne ein Konto anzulegen oder sich zu registrieren.",
+        s1Items: [
+          {
+            label: "Lokale Speicherung der Lerndaten:",
+            body: "Aufgabenfotos, Lösungsfotos, Notizen, Fächer und Wiederholungsprotokolle, die Sie in der App speichern, werden niemals an externe Server des Unternehmens übertragen, sondern ausschließlich verschlüsselt auf Ihrem eigenen Gerät (lokaler Browserspeicher) abgelegt.",
+          },
+          {
+            label: "Keine Erhebung von Kontodaten:",
+            body: "Wir erheben oder verlangen keinerlei personenbezogene Identifikationsdaten wie Name, Telefonnummer oder Ausweisnummer.",
+          },
+          {
+            label: "Geräteinformationen:",
+            body: "Nicht identifizierende technische Angaben wie Browsertyp oder Bildschirmauflösung können vorübergehend zur Stabilitäts- und Darstellungsoptimierung abgerufen werden, werden jedoch nicht dauerhaft gespeichert.",
+          },
+        ],
+        s2Title: "2. Weitergabe und Auftragsverarbeitung an Dritte",
+        s2Body: "Das Unternehmen gibt Ihre personenbezogenen Daten oder Lernfotos niemals an Dritte weiter und beauftragt keine Dritten damit. Sämtliche Fehlerheft-Daten werden ausschließlich lokal auf Ihrem Gerät verarbeitet.",
+        s3Title: "3. Datenlöschung und Nutzerrechte",
+        s3Body: "Sie können in der App jederzeit einzelne Aufgaben löschen oder ganze Fächer leeren. Beim Zurücksetzen der App- oder Browserdaten werden sämtliche Lernaufzeichnungen sofort und endgültig von Ihrem Gerät entfernt.",
+        s4Title: "4. Datenschutzbeauftragter und Kontakt",
+        s4Body: "Bei Fragen zur Nutzung des Dienstes oder zum Datenschutz wenden Sie sich bitte an unseren untenstehenden Kontakt.",
+        s4ManagerLabel: "Verantwortlich:",
+        s4ManagerValue: "YJ Studio Datenschutzteam",
+        s4EmailLabel: "Kontakt-E-Mail:",
+      },
+    },
     privacy: {
       generalServiceName: "Web- und App-Diensten von YJ Studio",
       introPrefix: "YJ Studio („Unternehmen“) hält sich an das südkoreanische Datenschutzgesetz (PIPA) sowie geltende Datenschutzvorschriften und schützt die personenbezogenen Daten der Nutzer von ",
@@ -834,11 +1149,24 @@ export const extraTranslations: Record<"zh-TW" | "fr" | "de" | "es", Translation
       title: "Línea de productos",
       showMore: "Ver más",
       showLess: "Mostrar menos",
+      download: "Descargar",
+      legalSummary: "Términos/Privacidad/Cómo usar",
+      legalShortSummary: "Términos/Privacidad",
       items: {
         tokbiseo: {
           tag: "Utility",
           name: "TalkSecretary - Notas IA",
           desc: "Asistente de memoria con IA — Anota textos, sube capturas de pantalla o notas de voz y la IA lo organiza automáticamente.",
+          quickLinks: {
+            terms: "Términos",
+            privacy: "Privacidad",
+            guide: "Cómo usar",
+          },
+        },
+        wrongnote: {
+          tag: "Education",
+          name: "WrongNote",
+          desc: "Registro en 3 s · Borrador táctil · Repaso con máscara — El cuaderno de errores más simple y eficaz para estudiantes.",
           quickLinks: {
             terms: "Términos",
             privacy: "Privacidad",
@@ -1000,6 +1328,98 @@ export const extraTranslations: Record<"zh-TW" | "fr" | "de" | "es", Translation
       ],
       privacyHeading: "Política de Privacidad",
       privacyServiceName: "TalkSecretary - Notas IA (TalkSecretary)",
+    },
+    wrongnote: {
+      pageTitle: "WrongNote (Registro en 3 s · Borrador táctil · Repaso con máscara)",
+      introPrefix: "Consulta la guía de uso, los Términos de Servicio y la Política de Privacidad de ",
+      introStrong: "WrongNote",
+      introSuffix: " — el cuaderno de errores para estudiantes donde guardas preguntas falladas, borras tus apuntes y repasas hasta dominarlas.",
+      navAria: "Navegación rápida de WrongNote",
+      tabs: {
+        guide: "Cómo usar",
+        terms: "Términos de Servicio",
+        privacy: "Política de Privacidad",
+      },
+      guideHeading: "Cómo usar",
+      guideIntro:
+        "WrongNote es un cuaderno de errores práctico que guarda todo directamente en tu teléfono, sin registro ni inicio de sesión. Añade preguntas falladas rápidamente, borra tus marcas y repasa con la máscara. Como todos los datos se almacenan únicamente en tu dispositivo, no se pueden transferir si cambias de equipo o desinstalas la app.",
+      guideSteps: [
+        {
+          title: "Paso 1 — Guarda un error en 3 segundos:",
+          body: "Haz una foto de la pregunta fallada o elígela de tu galería, asigna una asignatura y guárdala al instante. Recuerda automáticamente la última asignatura usada para añadir varias preguntas muy rápido.",
+        },
+        {
+          title: "Paso 2 — Pregunta limpia con el borrador táctil:",
+          body: "Desliza el dedo sobre tus marcas de bolígrafo, subrayados o correcciones: el borrador se funde con el color del papel de alrededor para que la pregunta quede como recién impresa y puedas volver a resolverla.",
+        },
+        {
+          title: "Paso 3 — Repaso en 10 s con máscara y dominio:",
+          body: "Mantén la respuesta y la explicación ocultas bajo una máscara semitransparente, toca una vez para comprobar y marca «Acerté» o «Volví a fallar». Al alcanzar tu racha de aciertos, la pregunta pasa a «Dominada».",
+        },
+      ],
+      termsHeading: "Términos de Servicio",
+      termsArticles: [
+        {
+          title: "Artículo 1 (Objeto)",
+          body: "Estos Términos regulan las condiciones de uso, procedimientos, derechos, obligaciones y responsabilidades entre YJ Studio («la Empresa») y los usuarios respecto al servicio WrongNote («Servicio»).",
+        },
+        {
+          title: "Artículo 2 (Vigencia y modificaciones)",
+          body: "Estos Términos entran en vigor al publicarse en el Servicio o en nuestro sitio web. La Empresa podrá modificarlos conforme a la ley aplicable y notificará los cambios relevantes con al menos 7 días de antelación a su entrada en vigor.",
+        },
+        {
+          title: "Artículo 3 (Descripción del Servicio)",
+          body: "La Empresa ofrece funciones de cuaderno de errores para que estudiantes y opositores guarden fotos de preguntas falladas, borren marcas manuscritas y repasen mediante una máscara.",
+        },
+        {
+          title: "Artículo 4 (Almacenamiento local y no transferibilidad)",
+          body: "WrongNote funciona sin registro ni inicio de sesión, guardando tus fotos y registros de estudio exclusivamente en el almacenamiento local de tu dispositivo. Por ello, los datos guardados no pueden transferirse a un dispositivo nuevo, y desinstalar la app o borrar el almacenamiento eliminará todos los datos de forma permanente. La Empresa no se responsabiliza de la recuperación o pérdida de datos por cambio, extravío o borrado del dispositivo.",
+        },
+        {
+          title: "Artículo 5 (Uso del Servicio y tarifas)",
+          body: "Actualmente todas las funciones principales del Servicio se ofrecen de forma gratuita durante una promoción especial de lanzamiento por tiempo limitado. Si la promoción finaliza o se introducen planes de pago en el futuro, la Empresa informará con claridad y antelación sobre precios y condiciones de pago en la pantalla del Servicio.",
+        },
+        {
+          title: "Artículo 6 (Limitación de responsabilidad)",
+          body: "La Empresa no será responsable de interrupciones del Servicio ni pérdidas de datos causadas por fuerza mayor, fallos del dispositivo o cortes de red.",
+        },
+        {
+          title: "Artículo 7 (Ley aplicable, disputas y contacto)",
+          body: "Estos Términos se rigen por las leyes de la República de Corea y las disputas se someterán a los tribunales competentes conforme a la Ley de Enjuiciamiento Civil. Para consultas, escribe a contact@yjstudio.app.",
+        },
+      ],
+      privacyHeading: "Política de Privacidad",
+      privacyServiceName: "WrongNote",
+      privacyContent: {
+        introPrefix: "YJ Studio («la Empresa») cumple estrictamente con la Ley de Protección de Datos Personales de Corea (PIPA) y la normativa vigente, otorgando la máxima prioridad a la privacidad de los usuarios de ",
+        introStrong: "WrongNote",
+        introSuffix: ".",
+        s1Title: "1. Cero recopilación de datos personales y almacenamiento local",
+        s1Highlight: "WrongNote te permite usar todas las funciones de inmediato sin registrarte ni crear una cuenta.",
+        s1Items: [
+          {
+            label: "Almacenamiento local de datos de estudio:",
+            body: "Las fotos de preguntas, fotos de respuestas, notas, asignaturas e historiales de repaso que añades nunca se envían a servidores externos de la Empresa; permanecen guardados y cifrados exclusivamente en tu propio dispositivo (almacenamiento local del navegador).",
+          },
+          {
+            label: "Sin recopilación de datos de cuenta:",
+            body: "No recopilamos ni solicitamos ningún dato personal identificable como nombre, número de teléfono o documento de identidad.",
+          },
+          {
+            label: "Información del dispositivo:",
+            body: "Datos técnicos no identificativos como el tipo de navegador o la resolución de pantalla pueden consultarse temporalmente para mejorar la estabilidad y la visualización, pero nunca se almacenan de forma permanente.",
+          },
+        ],
+        s2Title: "2. Cesión y encargo a terceros",
+        s2Body: "La Empresa nunca comparte, vende ni cede tus datos personales ni tus fotos de estudio a terceros. Todos los datos del cuaderno de errores se procesan exclusivamente dentro de tu dispositivo.",
+        s3Title: "3. Eliminación de datos y derechos del usuario",
+        s3Body: "Puedes eliminar preguntas individuales o vaciar asignaturas en cualquier momento desde la app, y al restablecer los datos de la app o del navegador se borra todo tu historial de forma inmediata y permanente.",
+        s4Title: "4. Responsable de privacidad y contacto",
+        s4Body: "Para cualquier duda sobre el Servicio o la protección de tu privacidad, escríbenos a través del siguiente canal de contacto.",
+        s4ManagerLabel: "Responsable:",
+        s4ManagerValue: "Equipo de Protección de Privacidad de YJ Studio",
+        s4EmailLabel: "Correo de contacto:",
+      },
     },
     privacy: {
       generalServiceName: "los servicios web y móviles ofrecidos por YJ Studio",

@@ -3,17 +3,17 @@ main = "src/index.ts"
 compatibility_date = "2025-02-14"
 
 [triggers]
-# 한국시간(KST) 기준:
-# - 화~토 새벽 05:00 (UTC 월~금 20:00): 정기 순찰 (토요일 새벽 5시까지 금요일 데이터 처리)
-# - 월~금 낮 12:30 (UTC 월~금 03:30): 정기 순찰 (토·일 휴무 후 월요일 점심 12:30 재개)
-# - 월~금 오후 18:00 (UTC 월~금 09:00): 오류·정지 기관 재점검
-crons = ["0 20 * * 1-5", "30 3 * * 1-5", "0 9 * * 1-5"]
+# 한국시간(KST) 기준 (하루 3회 전체 순찰 → 앱 즉시 자동 업데이트):
+# - 화~토 새벽 05:00 (UTC 월~금 20:00): 최종 전체 순찰 + 완료 직후 블로그 초안 작성
+# - 월~금 낮 12:00 (UTC 월~금 03:00): 전체 순찰 + 앱 즉시 반영 + 블로그 후보 수집
+# - 월~금 오후 18:00 (UTC 월~금 09:00): 전체 순찰 + 앱 즉시 반영 + 블로그 후보 수집
+crons = ["0 20 * * 1-5", "0 3 * * 1-5", "0 9 * * 1-5"]
 
 [vars]
 GEMINI_SCAN_MODEL = "gemini-3.5-flash-lite"
 GEMINI_WRITE_MODEL = "gemini-3.8-flash"
 AUTO_PUBLISH_ENABLED = "true"
-APP_AUTO_PUBLISH_MIN_CONFIDENCE = "80"
+APP_AUTO_PUBLISH_MIN_CONFIDENCE = "85"
 MAX_BLOG_DRAFTS_PER_DAY = "3"
 MAX_TARGETS_PER_RUN = "50"
 MAX_NEW_POSTS_PER_TARGET = "5"

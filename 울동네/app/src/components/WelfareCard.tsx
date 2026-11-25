@@ -5,6 +5,7 @@ import type { WelfarePost } from '../types/welfare';
 
 interface WelfareCardProps {
   post: WelfarePost;
+  matchedKeywords?: string[];
   largeText: boolean;
   isDark?: boolean;
   onPress: () => void;
@@ -35,21 +36,27 @@ export const UNIFIED_CATEGORY_PILL_COLOR = {
 };
 
 export const CATEGORY_PILL_COLORS: Record<string, { bg: string; text: string; bgDark: string; textDark: string }> = {
-  '돌봄/육아': UNIFIED_CATEGORY_PILL_COLOR,
+  '돌봄/아동/청소년': UNIFIED_CATEGORY_PILL_COLOR,
   '어르신/건강': UNIFIED_CATEGORY_PILL_COLOR,
   '주거/난방비': UNIFIED_CATEGORY_PILL_COLOR,
   '소상공인/일자리': UNIFIED_CATEGORY_PILL_COLOR,
-  '생활/문화': UNIFIED_CATEGORY_PILL_COLOR
+  '농림/축산/어업': UNIFIED_CATEGORY_PILL_COLOR,
+  '생활/문화/법률': UNIFIED_CATEGORY_PILL_COLOR
 };
 
 export function WelfareCard({
   post,
+  matchedKeywords,
   largeText,
   isDark = false,
   onPress
 }: WelfareCardProps) {
   const dday = getDdayLabel(post.deadline_date);
   const catStyle = CATEGORY_PILL_COLORS[post.category] ?? UNIFIED_CATEGORY_PILL_COLOR;
+  const displayTags =
+    matchedKeywords && matchedKeywords.length > 0
+      ? matchedKeywords.map((kw) => `#${kw}`)
+      : [post.category];
   const summaryRows = parseSummaryRows(post.app_summary_3lines);
   const keepAllStyle = Platform.OS === 'web' ? ({ wordBreak: 'keep-all' } as any) : undefined;
 
@@ -65,21 +72,24 @@ export function WelfareCard({
             {post.region_code === '00000' ? '전국 공통' : post.region_sigungu}
           </Text>
         </View>
-        <View
-          style={[
-            styles.categoryPill,
-            { backgroundColor: isDark ? catStyle.bgDark : catStyle.bg }
-          ]}
-        >
-          <Text
+        {displayTags.map((tag) => (
+          <View
+            key={tag}
             style={[
-              styles.categoryText,
-              { color: isDark ? catStyle.textDark : catStyle.text }
+              styles.categoryPill,
+              { backgroundColor: isDark ? catStyle.bgDark : catStyle.bg }
             ]}
           >
-            {post.category}
-          </Text>
-        </View>
+            <Text
+              style={[
+                styles.categoryText,
+                { color: isDark ? catStyle.textDark : catStyle.text }
+              ]}
+            >
+              {tag}
+            </Text>
+          </View>
+        ))}
         {dday ? (
           <View style={[styles.ddayBadge, dday.isUrgent && styles.ddayUrgent]}>
             <Text style={[styles.ddayText, dday.isUrgent && styles.ddayUrgentText]}>

@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS public.uldongne_welfare_posts (
   region_code VARCHAR(10) NOT NULL,               -- 인덱싱 필수 ('51720', '00000' 등)
   org_name TEXT NOT NULL,                         -- 출처 기관명 (스토어 심사 투명성 고지용)
   category VARCHAR(30) NOT NULL CHECK (
-    category IN ('돌봄/육아', '어르신/건강', '주거/난방비', '소상공인/일자리', '생활/문화')
+    category IN ('돌봄/아동/청소년', '어르신/건강', '주거/난방비', '소상공인/일자리', '농림/축산/어업', '생활/문화/법률')
   ),
   keywords TEXT[] NOT NULL DEFAULT '{}',          -- 동의어 포함 확장 키워드 배열
   app_title TEXT NOT NULL,                        -- 앱 카드용 직관적 제목 (30자 이내 권장)
@@ -155,29 +155,36 @@ INSERT INTO public.uldongne_crawl_targets (
     '강원특별자치도', '홍천군', '51720',
     '홍천군청 공지사항',
     'WEB_BOARD',
-    'https://www.hongcheon.go.kr/www/selectBbsNttList.do?bbsNo=84&key=397',
+    'https://www.hongcheon.go.kr/www/selectBbsNttList.do?bbsNo=1&key=255',
     'active'
   ),
   (
     '강원특별자치도', '홍천군', '51720',
     '홍천군청 고시공고',
     'WEB_BOARD',
-    'https://www.hongcheon.go.kr/www/selectBbsNttList.do?bbsNo=85&key=398',
+    'https://www.hongcheon.go.kr/www/selectEminwonList.do?key=278',
     'active'
   ),
   (
     '강원특별자치도', '홍천군', '51720',
     '홍천군가족센터 공지사항',
     'FAMILYNET',
-    'https://hongcheon.familynet.or.kr/center/lay1/bbs/S295T414C427/A/20/list.do',
+    'https://hongcheon.familynet.or.kr/center/lay1/bbs/S295T311C312/A/6/list.do',
+    'active'
+  ),
+  (
+    '강원특별자치도', '홍천군', '51720',
+    '홍천군가족센터 프로그램홍보',
+    'FAMILYNET',
+    'https://hongcheon.familynet.or.kr/center/lay1/program/S295T322C449/receipt/list.do',
     'active'
   ),
   (
     '강원특별자치도', '홍천군', '51720',
     '강원특별자치도홍천교육지원청 알림마당',
     'WEB_BOARD',
-    'https://gwhce.gwe.go.kr/main.do',
-    'paused' -- 상세 공지사항 게시판 URL 확정 후 active 전환
+    'https://gwhce.gwe.go.kr/boardCnts/list.do?boardID=1515&m=040101&s=gwhce',
+    'active'
   )
 ON CONFLICT (target_url) DO NOTHING;
 

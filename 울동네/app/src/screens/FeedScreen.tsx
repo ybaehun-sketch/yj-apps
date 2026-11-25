@@ -13,7 +13,7 @@ import {
 import { NativeAdCard } from '../components/NativeAdCard';
 import { SettingsDrawerModal } from '../components/SettingsDrawerModal';
 import { getDdayLabel, WelfareCard } from '../components/WelfareCard';
-import { expandKeywordsWithSynonyms } from '../constants/keywords';
+import { findMatchedUserKeywords } from '../constants/keywords';
 import { fetchFeedPosts } from '../services/supabaseService';
 import type { UserPreferences, WelfarePost } from '../types/welfare';
 
@@ -25,7 +25,7 @@ interface FeedScreenProps {
 }
 
 type FeedRow =
-  | { type: 'post'; post: WelfarePost; isMatch: boolean }
+  | { type: 'post'; post: WelfarePost; isMatch: boolean; matchedKeywords: string[] }
   | { type: 'ad'; key: string };
 
 export function FeedScreen({
@@ -93,11 +93,6 @@ export function FeedScreen({
     [refreshing, prefs.regionCode, cardLimit]
   );
 
-  const expandedUserKeywords = useMemo(
-    () => expandKeywordsWithSynonyms(prefs.keywords),
-    [prefs.keywords]
-  );
-
   const feedRows = useMemo<FeedRow[]>(() => {
     const withMatch = posts
       .filter((post) => {
@@ -110,12 +105,11 @@ export function FeedScreen({
           post.category,
           ...(post.keywords || []),
           post.app_title
-        ].map((t) => t.toLowerCase());
+        ];
 
-        const isMatch = expandedUserKeywords.some((uk) =>
-          postTerms.some((pt) => pt.includes(uk.toLowerCase()) || uk.toLowerCase().includes(pt))
-        );
-        return { post, isMatch };
+        const matchedKeywords = findMatchedUserKeywords(postTerms, prefs.keywords);
+        const isMatch = matchedKeywords.length > 0;
+        return { post, isMatch, matchedKeywords };
       })
       .filter((item) => (prefs.keywords.length > 0 ? item.isMatch : true));
 
@@ -144,13 +138,18 @@ export function FeedScreen({
     // 심사 전 앱 형태 구성용 목업 AD 카드를 3개당 1개 비율로 자연스럽게 배치
     const rows: FeedRow[] = [];
     limited.forEach((item, index) => {
-      rows.push({ type: 'post', post: item.post, isMatch: item.isMatch });
+      rows.push({
+        type: 'post',
+        post: item.post,
+        isMatch: item.isMatch,
+        matchedKeywords: item.matchedKeywords
+      });
       if ((index + 1) % 3 === 0) {
         rows.push({ type: 'ad', key: `ad-${index}` });
       }
     });
     return rows;
-  }, [posts, prefs.hideExpired, prefs.sortOrder, prefs.regionCode, prefs.keywords.length, expandedUserKeywords, cardLimit]);
+  }, [posts, prefs.hideExpired, prefs.sortOrder, prefs.regionCode, prefs.keywords, cardLimit]);
 
   return (
     <View style={[styles.container, isDark && styles.containerDark]}>
@@ -266,6 +265,7 @@ export function FeedScreen({
               ) : (
                 <WelfareCard
                   post={item.post}
+                  matchedKeywords={item.matchedKeywords}
                   largeText={prefs.largeText}
                   isDark={isDark}
                   onPress={() => onSelectPost(item.post)}

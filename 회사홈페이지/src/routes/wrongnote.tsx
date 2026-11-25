@@ -76,36 +76,41 @@ function WrongNotePage() {
       <section id="privacy" className="scroll-mt-20 space-y-4 border-t border-border pt-8">
         <h2>{wn.privacyHeading}</h2>
         <p>
-          와이제이스튜디오(이하 "회사")는 「개인정보 보호법」 등 관련 법령을 철저히 준수하며, <strong>오답정복</strong> 이용자의 프라이버시를 최우선으로 보호합니다.
+          {wn.privacyContent.introPrefix}
+          <strong>{wn.privacyContent.introStrong}</strong>
+          {wn.privacyContent.introSuffix}
         </p>
-        
-        <h3>1. 개인정보 수집 여부 및 기기 내 로컬 저장 원칙</h3>
+
+        <h3>{wn.privacyContent.s1Title}</h3>
         <p>
-          <strong>오답정복은 별도의 회원가입이나 계정 생성 없이 전 기능을 바로 이용하실 수 있습니다.</strong>
+          <strong>{wn.privacyContent.s1Highlight}</strong>
         </p>
         <ul>
-          <li><strong>학습 데이터 로컬 보관:</strong> 이용자가 앱에 등록하는 오답 문제 사진, 정답 사진, 메모, 과목 분류 및 복습 기록은 회사의 외부 서버로 전송되지 않으며, 오직 이용자의 기기(로컬 브라우저 저장소)에만 안전하게 암호화 보관됩니다.</li>
-          <li><strong>회원 정보 미수집:</strong> 이름, 전화번호, 주민등록번호 등 식별 가능한 개인정보를 일체 수집하거나 요구하지 않습니다.</li>
-          <li><strong>기기 정보:</strong> 서비스 안정성 개선 및 화면 비율 최적화를 위해 브라우저 종류 및 화면 해상도 등의 비식별 기술 정보가 일시적으로 참조될 수 있으나 영구 저장되지 않습니다.</li>
+          {wn.privacyContent.s1Items.map((item) => (
+            <li key={item.label}>
+              <strong>{item.label}</strong> {item.body}
+            </li>
+          ))}
         </ul>
 
-        <h3>2. 개인정보의 제3자 제공 및 위탁</h3>
-        <p>
-          회사는 이용자의 개인정보나 학습 사진 데이터를 외부에 제공하거나 위탁하지 않습니다. 모든 오답 데이터는 이용자의 기기 내부에서만 처리됩니다.
-        </p>
+        <h3>{wn.privacyContent.s2Title}</h3>
+        <p>{wn.privacyContent.s2Body}</p>
 
-        <h3>3. 데이터의 파기 및 이용자 권리</h3>
-        <p>
-          이용자는 앱 내에서 언제든지 개별 오답 문제를 삭제하거나 과목을 비울 수 있으며, 앱 또는 브라우저 데이터를 초기화할 경우 모든 학습 기록은 기기에서 즉시 영구 삭제됩니다.
-        </p>
+        <h3>{wn.privacyContent.s3Title}</h3>
+        <p>{wn.privacyContent.s3Body}</p>
 
-        <h3>4. 개인정보 보호책임자 및 문의처</h3>
-        <p>
-          서비스 이용 및 개인정보 보호와 관련된 모든 문의는 아래 전용 창구로 접수해 주시면 성심껏 안내해 드립니다.
-        </p>
+        <h3>{wn.privacyContent.s4Title}</h3>
+        <p>{wn.privacyContent.s4Body}</p>
         <ul>
-          <li><strong>책임자:</strong> 와이제이스튜디오 개인정보 보호팀</li>
-          <li><strong>문의 이메일:</strong> <a className="text-primary underline" href="mailto:contact@yjstudio.app">contact@yjstudio.app</a></li>
+          <li>
+            <strong>{wn.privacyContent.s4ManagerLabel}</strong> {wn.privacyContent.s4ManagerValue}
+          </li>
+          <li>
+            <strong>{wn.privacyContent.s4EmailLabel}</strong>{" "}
+            <a className="text-primary underline" href="mailto:contact@yjstudio.app">
+              contact@yjstudio.app
+            </a>
+          </li>
         </ul>
       </section>
     </LegalPage>
