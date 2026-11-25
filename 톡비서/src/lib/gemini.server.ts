@@ -23,8 +23,25 @@ export function getConfiguredModels(): string[] {
 const QUOTA_COOLDOWN_MS = 20_000;
 const modelCooldownUntil = new Map<string, number>();
 
+const DEFAULT_GEMINI_PROXY_URL = "https://tokbiseo-gemini-proxy.ybaehun.workers.dev";
+
 export function getGeminiApiKey(): string | undefined {
   return (process.env["GEMINI_API_KEY"] || process.env["GOOGLE_API_KEY"])?.trim() || undefined;
+}
+
+export function getGeminiBaseUrl(): string | undefined {
+  const custom = process.env["GEMINI_PROXY_URL"]?.trim();
+  if (custom === "direct") return undefined;
+  return custom || DEFAULT_GEMINI_PROXY_URL;
+}
+
+function createGeminiClient(apiKey: string): GoogleGenAI {
+  const baseUrl = getGeminiBaseUrl();
+  return new GoogleGenAI({
+    apiKey,
+    apiVersion: "v1beta",
+    ...(baseUrl ? { httpOptions: { baseUrl } } : {}),
+  });
 }
 
 export function isQuotaError(error: unknown): boolean {
@@ -81,7 +98,7 @@ export async function callGemini(opts: {
   const hasMedia = Array.isArray(opts.input) && opts.input.some((p) => p.type === "image" || p.type === "audio");
   const timeoutMs = opts.timeoutMs ?? (hasMedia ? MEDIA_CALL_TIMEOUT_MS : CALL_TIMEOUT_MS);
 
-  const ai = new GoogleGenAI({ apiKey, apiVersion: "v1beta" });
+  const ai = createGeminiClient(apiKey);
   const models = getCandidateModels();
   for (const model of models) {
     try {
@@ -129,7 +146,7 @@ export async function checkGeminiHealth(): Promise<{
   if (!apiKey) {
     return { ok: false, activeModel: null, primaryModel, failedModels: models };
   }
-  const ai = new GoogleGenAI({ apiKey, apiVersion: "v1beta" });
+  const ai = createGeminiClient(apiKey);
   const failedModels: string[] = [];
   for (const model of models) {
     try {

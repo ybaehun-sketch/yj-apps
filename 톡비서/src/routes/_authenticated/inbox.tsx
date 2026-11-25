@@ -343,18 +343,33 @@ function Inbox() {
   const attach = async (file: File) => {
     const q = quotaErr(file.size);
     if (q) { setErr(q); return; }
+    let safeBlob: Blob;
+    let fallbackPreview: string | null = null;
     try {
       const buf = await file.arrayBuffer();
-      const safeBlob = new Blob([buf], { type: file.type || "image/png" });
+      safeBlob = new Blob([buf], { type: file.type || "image/png" });
+    } catch {
+      try {
+        fallbackPreview = await blobToDataUrl(file);
+        safeBlob = await (await fetch(fallbackPreview)).blob();
+      } catch {
+        setErr(tr("기기에서 이미지를 읽어오지 못했어요. 다시 선택해 주세요"));
+        return;
+      }
+    }
+    try {
       let blob: Blob;
       try {
         blob = await compressToWebp(safeBlob);
       } catch {
-        // 모바일 WebView 등에서 압축(WebP/캔버스)이 실패하면 원본 이미지가 2.2MB 이하일 때 그대로 사용
-        if (safeBlob.size > 2_200_000) throw new Error("image_too_large");
+        // 모바일 WebView 등에서 압축(WebP/캔버스)이 실패하면 원본 이미지가 4.5MB 이하일 때 그대로 사용
+        if (safeBlob.size > 4_500_000) {
+          setErr(tr("이미지 용량이 너무 커서 불러오지 못했어요"));
+          return;
+        }
         blob = safeBlob;
       }
-      const preview = await blobToDataUrl(blob);
+      const preview = blob === safeBlob && fallbackPreview ? fallbackPreview : await blobToDataUrl(blob);
       setImg({ blob, preview });
       setErr(null);
     } catch {
