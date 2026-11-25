@@ -12,12 +12,15 @@ import {
   View
 } from 'react-native';
 import { RECOMMENDED_KEYWORDS } from '../constants/keywords';
-import type { AppTheme, SortOrder, UserPreferences } from '../types/welfare';
+import type { AppTheme, SortOrder, UserPreferences, WelfarePost } from '../types/welfare';
 import { RegionDropdownSelector } from './RegionDropdownSelector';
 
 interface SettingsDrawerModalProps {
   visible: boolean;
   prefs: UserPreferences;
+  favoritePosts?: WelfarePost[];
+  onRemoveFavorite?: (postId: string) => void;
+  onSelectFavorite?: (post: WelfarePost) => void;
   onClose: () => void;
   onSavePrefs: (next: UserPreferences) => void;
 }
@@ -58,11 +61,14 @@ const FRAME_WIDTH =
   Platform.OS === 'web' ? Math.min(Dimensions.get('window').width, 420) : Dimensions.get('window').width;
 const DRAWER_WIDTH = Math.min(340, FRAME_WIDTH * 0.84);
 
-type AccordionSection = 'region' | 'keywords' | 'sort' | 'limit' | 'theme';
+type AccordionSection = 'favorites' | 'region' | 'keywords' | 'sort' | 'limit' | 'theme';
 
 export function SettingsDrawerModal({
   visible,
   prefs,
+  favoritePosts = [],
+  onRemoveFavorite,
+  onSelectFavorite,
   onClose,
   onSavePrefs
 }: SettingsDrawerModalProps) {
@@ -153,6 +159,65 @@ export function SettingsDrawerModal({
             </View>
 
             <ScrollView contentContainerStyle={styles.drawerBody}>
+              {/* 0. 내 즐겨찾기 목록 */}
+              <View style={[styles.accordionGroup, isDark && styles.borderDark]}>
+                <TouchableOpacity
+                  onPress={() => toggleSection('favorites')}
+                  style={styles.accordionHeader}
+                >
+                  <Text style={[styles.sectionLabel, isDark && styles.textDark]}>
+                    내 즐겨찾기
+                  </Text>
+                  <View style={styles.accordionRight}>
+                    <Text style={[styles.accordionSummary, isDark && styles.textMutedDark]}>
+                      {favoritePosts.length}/5
+                    </Text>
+                    <Text style={[styles.accordionArrow, isDark && styles.textMutedDark]}>
+                      {openSection === 'favorites' ? '▴' : '▾'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                {openSection === 'favorites' ? (
+                  <View style={styles.accordionContent}>
+                    {favoritePosts.length === 0 ? (
+                      <Text style={[styles.favoriteEmptyText, isDark && styles.textMutedDark]}>
+                        아직 즐겨찾기한 소식이 없어요.{'\n'}카드 오른쪽 위 ⋮ 버튼에서 최대 5개까지 저장할 수 있어요.
+                      </Text>
+                    ) : (
+                      <View style={styles.favoriteList}>
+                        {favoritePosts.map((item) => (
+                          <View
+                            key={item.id}
+                            style={[styles.favoriteItem, isDark && styles.favoriteItemDark]}
+                          >
+                            <TouchableOpacity
+                              onPress={() => onSelectFavorite?.(item)}
+                              style={styles.favoriteTitleWrap}
+                            >
+                              <Text style={[styles.favoriteMeta, isDark && styles.textMutedDark]}>
+                                {item.region_code === '00000' ? '전국 공통' : item.region_sigungu} · {item.org_name}
+                              </Text>
+                              <Text
+                                style={[styles.favoriteTitle, isDark && styles.textDark]}
+                                numberOfLines={2}
+                              >
+                                {item.app_title}
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => onRemoveFavorite?.(item.id)}
+                              style={[styles.favoriteRemoveBtn, isDark && styles.favoriteRemoveBtnDark]}
+                            >
+                              <Text style={styles.favoriteRemoveText}>해제</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ) : null}
+              </View>
+
               {/* 1. 관심 지역 (시·도 → 시·군·구 2단 드롭다운) */}
               <View style={[styles.accordionGroup, isDark && styles.borderDark]}>
                 <TouchableOpacity
@@ -754,5 +819,57 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#d93025',
     marginBottom: 8
+  },
+  favoriteEmptyText: {
+    fontSize: 13,
+    color: '#5f6368',
+    lineHeight: 20
+  },
+  favoriteList: {
+    gap: 8
+  },
+  favoriteItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e3e7ed',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 9
+  },
+  favoriteItemDark: {
+    backgroundColor: '#1e2430',
+    borderColor: '#323a4a'
+  },
+  favoriteTitleWrap: {
+    flex: 1
+  },
+  favoriteMeta: {
+    fontSize: 11,
+    color: '#5f6368',
+    marginBottom: 2
+  },
+  favoriteTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#202124',
+    lineHeight: 18
+  },
+  favoriteRemoveBtn: {
+    backgroundColor: '#fce8e6',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6
+  },
+  favoriteRemoveBtnDark: {
+    backgroundColor: '#3d2224'
+  },
+  favoriteRemoveText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#c5221f'
   }
 });

@@ -12,8 +12,15 @@ import {
 } from 'react-native';
 import { NativeAdCard } from '../components/NativeAdCard';
 import { SettingsDrawerModal } from '../components/SettingsDrawerModal';
+import { ShareCardModal } from '../components/ShareCardModal';
 import { getDdayLabel, WelfareCard } from '../components/WelfareCard';
 import { findMatchedUserKeywords } from '../constants/keywords';
+import {
+  loadFavoritePosts,
+  loadHiddenPostIds,
+  saveFavoritePosts,
+  saveHiddenPostIds
+} from '../services/storageService';
 import { fetchFeedPosts } from '../services/supabaseService';
 import type { UserPreferences, WelfarePost } from '../types/welfare';
 
@@ -38,7 +45,33 @@ export function FeedScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [favoritePosts, setFavoritePosts] = useState<WelfarePost[]>([]);
+  const [hiddenPostIds, setHiddenPostIds] = useState<string[]>([]);
+  const [openMenuPostId, setOpenMenuPostId] = useState<string | null>(null);
+  const [shareTargetPost, setShareTargetPost] = useState<WelfarePost | null>(null);
+  const [actionToast, setActionToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollOffsetY = useRef(0);
+
+  function showToast(msg: string) {
+    setActionToast(msg);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => {
+      setActionToast(null);
+    }, 2000);
+  }
+
+  const MAX_FAVORITES = 5;
+
+  useEffect(() => {
+    Promise.all([loadFavoritePosts(), loadHiddenPostIds()]).then(([favs, hidden]) => {
+      setFavoritePosts(favs.slice(0, MAX_FAVORITES));
+      setHiddenPostIds(hidden);
+    });
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const isDark = prefs.theme === 'dark';
   const cardLimit =
@@ -93,8 +126,48 @@ export function FeedScreen({
     [refreshing, prefs.regionCode, cardLimit]
   );
 
+  const favoriteIdSet = useMemo(() => new Set(favoritePosts.map((p) => p.id)), [favoritePosts]);
+  const hiddenIdSet = useMemo(() => new Set(hiddenPostIds), [hiddenPostIds]);
+
+  function handleSharePost(post: WelfarePost) {
+    setOpenMenuPostId(null);
+    setShareTargetPost(post);
+  }
+
+  async function handleToggleFavorite(post: WelfarePost) {
+    setOpenMenuPostId(null);
+    const exists = favoritePosts.some((p) => p.id === post.id);
+    if (!exists && favoritePosts.length >= MAX_FAVORITES) {
+      showToast(`즐겨찾기는 최대 ${MAX_FAVORITES}개까지 저장할 수 있어요.`);
+      return;
+    }
+    const next = exists
+      ? favoritePosts.filter((p) => p.id !== post.id)
+      : [post, ...favoritePosts];
+    setFavoritePosts(next);
+    await saveFavoritePosts(next);
+    showToast(exists ? '즐겨찾기에서 해제했어요.' : '즐겨찾기에 추가했어요.');
+  }
+
+  async function handleRemoveFavoriteById(postId: string) {
+    const next = favoritePosts.filter((p) => p.id !== postId);
+    setFavoritePosts(next);
+    await saveFavoritePosts(next);
+    showToast('즐겨찾기에서 해제했어요.');
+  }
+
+  async function handleDeletePost(post: WelfarePost) {
+    setOpenMenuPostId(null);
+    if (hiddenIdSet.has(post.id)) return;
+    const next = [post.id, ...hiddenPostIds];
+    setHiddenPostIds(next);
+    await saveHiddenPostIds(next);
+    showToast('카드를 목록에서 삭제했어요.');
+  }
+
   const feedRows = useMemo<FeedRow[]>(() => {
     const withMatch = posts
+      .filter((post) => !hiddenIdSet.has(post.id))
       .filter((post) => {
         if (!prefs.hideExpired) return true;
         const dday = getDdayLabel(post.deadline_date);
@@ -149,7 +222,7 @@ export function FeedScreen({
       }
     });
     return rows;
-  }, [posts, prefs.hideExpired, prefs.sortOrder, prefs.regionCode, prefs.keywords, cardLimit]);
+  }, [posts, hiddenIdSet, prefs.hideExpired, prefs.sortOrder, prefs.regionCode, prefs.keywords, cardLimit]);
 
   return (
     <View style={[styles.container, isDark && styles.containerDark]}>
@@ -196,6 +269,14 @@ export function FeedScreen({
             data={feedRows}
             keyExtractor={(item) => (item.type === 'post' ? item.post.id : item.key)}
             contentContainerStyle={styles.listContent}
+            CellRendererComponent={({ item, index, children, style, ...rest }) => {
+              const isActive = item?.type === 'post' && item.post.id === openMenuPostId;
+              return (
+                <View {...rest} style={[style, { zIndex: isActive ? 100 : 1 }]}>
+                  {children}
+                </View>
+              );
+            }}
             ListHeaderComponent={
               <TouchableOpacity
                 activeOpacity={0.8}
@@ -254,6 +335,7 @@ export function FeedScreen({
             }
             onScroll={(e) => {
               scrollOffsetY.current = e.nativeEvent.contentOffset.y;
+              if (openMenuPostId) setOpenMenuPostId(null);
             }}
             scrollEventThrottle={16}
             refreshControl={
@@ -268,7 +350,21 @@ export function FeedScreen({
                   matchedKeywords={item.matchedKeywords}
                   largeText={prefs.largeText}
                   isDark={isDark}
-                  onPress={() => onSelectPost(item.post)}
+                  isFavorite={favoriteIdSet.has(item.post.id)}
+                  isMenuOpen={openMenuPostId === item.post.id}
+                  onPress={() => {
+                    if (openMenuPostId) {
+                      setOpenMenuPostId(null);
+                      return;
+                    }
+                    onSelectPost(item.post);
+                  }}
+                  onToggleMenu={() =>
+                    setOpenMenuPostId((prev) => (prev === item.post.id ? null : item.post.id))
+                  }
+                  onShare={() => handleSharePost(item.post)}
+                  onToggleFavorite={() => void handleToggleFavorite(item.post)}
+                  onDelete={() => void handleDeletePost(item.post)}
                 />
               )
             }
@@ -285,6 +381,12 @@ export function FeedScreen({
         </View>
       )}
 
+      {actionToast ? (
+        <View style={styles.toastBox}>
+          <Text style={styles.toastText}>{actionToast}</Text>
+        </View>
+      ) : null}
+
       {/* 앱 하단 고정 면책 문구 */}
       <View style={[styles.bottomNotice, isDark && styles.bottomNoticeDark]}>
         <Text style={[styles.bottomNoticeText, isDark && styles.textMutedDark]}>
@@ -296,8 +398,23 @@ export function FeedScreen({
       <SettingsDrawerModal
         visible={drawerOpen}
         prefs={prefs}
+        favoritePosts={favoritePosts}
+        onRemoveFavorite={(postId) => void handleRemoveFavoriteById(postId)}
+        onSelectFavorite={(post) => {
+          setDrawerOpen(false);
+          onSelectPost(post);
+        }}
         onClose={() => setDrawerOpen(false)}
         onSavePrefs={onUpdatePrefs}
+      />
+
+      {/* 카드 캡처 + 앱 소개/다운로드 배너 공유 모달 */}
+      <ShareCardModal
+        visible={Boolean(shareTargetPost)}
+        post={shareTargetPost}
+        isDark={isDark}
+        onClose={() => setShareTargetPost(null)}
+        onComplete={(msg) => showToast(msg)}
       />
     </View>
   );
@@ -509,5 +626,20 @@ const styles = StyleSheet.create({
   },
   textMutedDark: {
     color: '#9aa0a6'
+  },
+  toastBox: {
+    position: 'absolute',
+    bottom: 52,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(32, 33, 36, 0.9)',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 20,
+    zIndex: 120
+  },
+  toastText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '600'
   }
 });

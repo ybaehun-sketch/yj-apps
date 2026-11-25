@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AppInstallBanner } from '@/components/AppInstallBanner';
 import { DeadlineBadge } from '@/components/DeadlineBadge';
+import { ShareButton } from '@/components/ShareButton';
 import { SourceLinkWithInterstitial } from '@/components/SourceLinkWithInterstitial';
 import { fetchPublishedPostById } from '@/lib/supabase';
 
@@ -88,6 +89,8 @@ export default async function PostDetailPage({
     notFound();
   }
 
+  const displayTitle = post.blog_title || post.app_title;
+
   return (
     <article className="mx-auto max-w-3xl rounded-2xl border border-[#dfe3ea] bg-[#fcfbf8] p-6 shadow-sm sm:p-8">
       <div className="mb-4">
@@ -111,9 +114,9 @@ export default async function PostDetailPage({
           {post.blog_title || post.app_title}
         </h1>
 
-        <div className="mt-3 flex flex-wrap gap-4 text-sm text-[#5f6368]">
+        <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-[#5f6368]">
           <span>공식 출처: {post.org_name}</span>
-          {post.contact_phone ? <span>문의처: {post.contact_phone}</span> : null}
+          <ShareButton title={displayTitle} variant="inline" />
         </div>
       </header>
 
@@ -139,14 +142,7 @@ export default async function PostDetailPage({
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
           <SourceLinkWithInterstitial sourceUrl={post.source_url} />
-          {post.contact_phone ? (
-            <a
-              href={`tel:${post.contact_phone}`}
-              className="inline-flex items-center rounded-lg border border-[#dadce0] bg-white px-4 py-2.5 text-sm font-semibold text-[#202124] hover:bg-[#f8f9fa]"
-            >
-              문의 전화: {post.contact_phone}
-            </a>
-          ) : null}
+          <ShareButton title={displayTitle} variant="button" />
         </div>
       </section>
 

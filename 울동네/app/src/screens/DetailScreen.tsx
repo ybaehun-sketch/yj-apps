@@ -1,7 +1,8 @@
 import * as WebBrowser from 'expo-web-browser';
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -31,8 +32,11 @@ export function parseSummaryRows(raw: string): SummaryRow[] {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
+    .slice(0, 5)
     .map((line) => {
-      const m = line.match(/^(대상|혜택|신청방법|지원대상|지원내용|문의)\s*[:：]\s*(.+)$/);
+      const m = line.match(
+        /^(대상|대상자|지원대상|혜택|지원내용|신청방법|일정|기간|신청기간|접수기간|장소|문의|준비물|참고|유의사항)\s*[:：]\s*(.+)$/
+      );
       if (m) {
         return { label: m[1], value: m[2].trim() };
       }
@@ -44,27 +48,23 @@ function splitReadableParagraphs(raw: string): string[] {
   const normalized = (raw || '').trim();
   if (!normalized) return [];
 
-  const explicitParagraphs = normalized
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
+  const rawLines = normalized
+    .split(/\r?\n+/)
+    .map((line) => line.trim())
     .filter(Boolean);
-
-  if (explicitParagraphs.length > 1) {
-    return explicitParagraphs;
-  }
-
-  const sentences = normalized
-    .split(/(?<=[.!?])\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  if (sentences.length <= 2) {
-    return [normalized];
-  }
 
   const paragraphs: string[] = [];
-  for (let i = 0; i < sentences.length; i += 2) {
-    paragraphs.push(sentences.slice(i, i + 2).join(' '));
+  for (const line of rawLines) {
+    const sentences = line
+      .split(/(?<=[.!?])\s+(?=[가-힣A-Za-z0-9"'(\[•※-])/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (sentences.length > 0) {
+      paragraphs.push(...sentences);
+    } else {
+      paragraphs.push(line);
+    }
   }
   return paragraphs;
 }
@@ -80,6 +80,7 @@ export function DetailScreen({
   const summaryRows = parseSummaryRows(post.app_summary_3lines);
   const detailParagraphs = splitReadableParagraphs(post.app_detail_summary);
   const catStyle = CATEGORY_PILL_COLORS[post.category] ?? UNIFIED_CATEGORY_PILL_COLOR;
+  const keepAllStyle = Platform.OS === 'web' ? ({ wordBreak: 'keep-all' } as any) : undefined;
   const matchedKeywords = findMatchedUserKeywords(
     [post.category, ...(post.keywords || []), post.app_title],
     userKeywords
@@ -87,15 +88,36 @@ export function DetailScreen({
   const displayTags =
     matchedKeywords.length > 0 ? matchedKeywords.map((kw) => `#${kw}`) : [post.category];
 
-  function handleOpenSource() {
-    openWithCooldownInterstitial(() => {
-      WebBrowser.openBrowserAsync(post.source_url);
-    });
+  const [isOpeningSource, setIsOpeningSource] = useState(false);
+
+  async function openTargetUrl(rawUrl: string) {
+    const trimmed = (rawUrl || '').trim();
+    if (!trimmed) return;
+    const normalizedUrl = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+    try {
+      await WebBrowser.openBrowserAsync(normalizedUrl);
+    } catch {
+      try {
+        await Linking.openURL(normalizedUrl);
+      } catch {
+        // 외부 브라우저 열기까지 모두 실패한 경우 앱 크래시 방지
+      }
+    }
   }
 
-  function handleCallPhone() {
-    if (!post.contact_phone) return;
-    Linking.openURL(`tel:${post.contact_phone}`);
+  function handleOpenSource() {
+    if (isOpeningSource || !post.source_url?.trim()) return;
+    setIsOpeningSource(true);
+    openWithCooldownInterstitial(() => {
+      void openTargetUrl(post.source_url).finally(() => {
+        setIsOpeningSource(false);
+      });
+    }).catch(() => {
+      void openTargetUrl(post.source_url).finally(() => {
+        setIsOpeningSource(false);
+      });
+    });
   }
 
   return (
@@ -175,7 +197,8 @@ export function DetailScreen({
                 styles.detailText,
                 largeText && styles.textLarge,
                 isDark && styles.detailTextDark,
-                idx === detailParagraphs.length - 1 && styles.detailTextLast
+                idx === detailParagraphs.length - 1 && styles.detailTextLast,
+                keepAllStyle
               ]}
             >
               {paragraph}
@@ -191,14 +214,6 @@ export function DetailScreen({
                 : '공고 원문 / 신청 바로가기 ↗'}
             </Text>
           </TouchableOpacity>
-
-          {post.contact_phone ? (
-            <TouchableOpacity onPress={handleCallPhone} style={styles.secondaryBtn}>
-              <Text style={styles.secondaryBtnText}>
-                문의처 전화 연결 ({post.contact_phone})
-              </Text>
-            </TouchableOpacity>
-          ) : null}
         </View>
 
         <View style={styles.disclaimerBox}>
@@ -376,10 +391,10 @@ const styles = StyleSheet.create({
     borderColor: '#323844'
   },
   detailText: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#3c4043',
-    lineHeight: 27,
-    marginBottom: 14
+    lineHeight: 25,
+    marginBottom: 12
   },
   detailTextDark: {
     color: '#e8eaed'
@@ -389,7 +404,7 @@ const styles = StyleSheet.create({
   },
   textLarge: {
     fontSize: 18,
-    lineHeight: 30
+    lineHeight: 29
   },
   textDark: {
     color: '#f1f3f4'
@@ -411,19 +426,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '700'
-  },
-  secondaryBtn: {
-    borderWidth: 1,
-    borderColor: '#dadce0',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center'
-  },
-  secondaryBtnText: {
-    color: '#202124',
-    fontSize: 14,
-    fontWeight: '600'
   },
   disclaimerBox: {
     borderTopWidth: 1,
