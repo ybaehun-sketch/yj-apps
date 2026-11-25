@@ -1,6 +1,5 @@
 import { showAlert } from './dialog.js';
 import { t, detectDeviceLang } from './i18n.js';
-import { SAMPLE_MATH_IMG, SAMPLE_ENG_IMG } from './sampleImages.js?v=20261121a';
 
 const STORAGE_KEY = 'yj_wrong_note_v1';
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024; // 15MB
@@ -12,128 +11,100 @@ export function isSafeImageDataUrl(src) {
   );
 }
 
-const DEFAULT_DATA = {
-  subjects: ['국어', '영어', '수학'],
-  lastSubject: '수학',
-  settings: {
-    masteryTarget: 2, // 연속 몇 번 맞히면 완전 정복인지 (1~19)
-    wrongFilterMode: 'unmastered', // 'unmastered' (정복 전 모두) | 'repeated' (일정 횟수 이상 틀린 문제만)
-    wrongMinCount: 2, // 몇 번 이상 틀린 문제를 약점으로 볼지 (1~19)
-    themeMode: 'light', // 'light' | 'dark'
-    themeColor: 'indigo' // 'indigo' | 'blue' | 'emerald' | 'amber' | 'gold'
-  },
-  masteredProblems: [],
-  problems: [
-    {
-      id: 'sample-1',
-      subject: '수학',
-      problemText: '이차방정식 x² - 5x + 6 = 0 의 두 근의 합과 곱을 구하시오.',
-      problemImg: SAMPLE_MATH_IMG,
-      answerText: '두 근: 2, 3 → 합 = 5, 곱 = 6 (근과 계수의 관계: -b/a, c/a)',
-      answerImg: '',
-      wrongCount: 2,
-      correctStreak: 0,
-      mastered: false,
-      createdAt: Date.now() - 3600000
-    },
-    {
-      id: 'sample-2',
-      subject: '영어',
-      problemText: '다음 빈칸에 알맞은 것은?\n"She has been living in Seoul ___ 2020."\n① for  ② since  ③ during  ④ while',
-      problemImg: SAMPLE_ENG_IMG,
-      answerText: '정답: ② since (특정 시점인 2020년 이후로 계속 ~해왔다)',
-      answerImg: '',
-      wrongCount: 1,
-      correctStreak: 0,
-      mastered: false,
-      createdAt: Date.now() - 1800000
-    }
-  ]
-};
+/**
+ * 언어별 앱 사용법 퀴즈 예시 문제(미분류)를 생성한다.
+ */
+function buildSampleProblems(lang = 'ko') {
+  const now = Date.now();
+  const contentByLang = {
+    ko: [
+      {
+        id: 'sample-1',
+        problemText: '오답정복은 과목을 내 맘대로 추가하고 수정할 수 있다.\n( O  /  X )',
+        answerText: "정답: O\n위쪽 과목 줄의 '과목 관리'에서 최대 13과목까지 자유롭게 추가하고 이름을 바꿀 수 있어요!"
+      },
+      {
+        id: 'sample-2',
+        problemText: '복습할 때 문제를 맞혔으면 화면을 어느 쪽으로 밀면 정답 처리될까요?\n( 왼쪽  /  오른쪽 )',
+        answerText: "정답: 오른쪽\n오른쪽으로 밀면 '맞힘(정복 진행)', 왼쪽으로 밀면 '다시 틀림'으로 기록돼요!"
+      },
+      {
+        id: 'sample-3',
+        problemText: "시험지에 낙서나 답이 적혀 있어도, 사진을 찍은 뒤 '쓱-지우개'로 지워서 깔끔한 오답노트로 만들 수 있다.\n( O  /  X )",
+        answerText: "정답: O\n문제를 등록할 때 사진을 올리고 '쓱-지우개'로 필기나 정답 표시를 문지르면 감쪽같이 지워져요!"
+      }
+    ],
+    en: [
+      {
+        id: 'sample-1',
+        problemText: 'You can add and edit subjects freely in WrongNote.\n( O  /  X )',
+        answerText: 'Answer: O\nTap "Manage Subjects" in the top bar to add or rename up to 13 subjects!'
+      },
+      {
+        id: 'sample-2',
+        problemText: 'When reviewing, which way should you swipe if you got the problem right?\n( Left  /  Right )',
+        answerText: 'Answer: Right\nSwipe right for "Got it" (closer to mastery), or swipe left for "Missed again"!'
+      },
+      {
+        id: 'sample-3',
+        problemText: 'Even if your test paper has scribbles or answers written on it, you can take a photo and erase them with the Magic Eraser.\n( O  /  X )',
+        answerText: 'Answer: O\nUpload a photo when adding a question and rub over pen marks or answers with the Magic Eraser to make a clean note!'
+      }
+    ],
+    ja: [
+      {
+        id: 'sample-1',
+        problemText: '誤答ノートでは、科目を自由に追加・編集できる。\n( O  /  X )',
+        answerText: '正解: O\n上部の「科目管理」から最大13科目まで自由に追加したり名前を変更したりできます！'
+      },
+      {
+        id: 'sample-2',
+        problemText: '復習するとき、問題に正解したら画面をどちらにスワイプすれば正解になりますか？\n( 左  /  右 )',
+        answerText: '正解: 右\n右にスワイプすると「正解（攻略へ前進）」、左にスワイプすると「もう一度間違い」として記録されます！'
+      },
+      {
+        id: 'sample-3',
+        problemText: 'テスト用紙に落書きや答えが書いてあっても、写真を撮って「サッと消しゴム」で消せばきれいな誤答ノートが作れる。\n( O  /  X )',
+        answerText: '正解: O\n問題登録時に写真をアップし、「サッと消しゴム」で書き込みをなぞるだけできれいに消せます！'
+      }
+    ]
+  };
+
+  const items = contentByLang[lang] || contentByLang.ko;
+  return items.map((item, idx) => ({
+    id: item.id,
+    subject: '미분류',
+    problemText: item.problemText,
+    problemImg: '',
+    answerText: item.answerText,
+    answerImg: '',
+    wrongCount: idx === 0 ? 2 : 1,
+    correctStreak: 0,
+    mastered: false,
+    createdAt: now - (items.length - idx) * 1800000
+  }));
+}
 
 function createLocalizedDefaultData() {
   const lang = detectDeviceLang();
-  if (lang === 'en') {
-    return {
-      subjects: ['Reading', 'English', 'Math'],
-      lastSubject: 'Math',
-      settings: {
-        masteryTarget: 2,
-        wrongFilterMode: 'unmastered',
-        wrongMinCount: 2,
-        themeMode: 'light',
-        themeColor: 'indigo'
-      },
-      masteredProblems: [],
-      problems: [
-        {
-          id: 'sample-1',
-          subject: 'Math',
-          problemText: 'Find the sum and product of the two roots of x² - 5x + 6 = 0.',
-          problemImg: SAMPLE_MATH_IMG,
-          answerText: 'Roots: 2, 3 → Sum = 5, Product = 6 (Vieta’s formulas: -b/a, c/a)',
-          answerImg: '',
-          wrongCount: 2,
-          correctStreak: 0,
-          mastered: false,
-          createdAt: Date.now() - 3600000
-        },
-        {
-          id: 'sample-2',
-          subject: 'English',
-          problemText: 'Choose the best word for the blank:\n"She has been living in New York ___ 2020."\n① for  ② since  ③ during  ④ while',
-          problemImg: SAMPLE_ENG_IMG,
-          answerText: 'Answer: ② since (used with a specific starting point in time)',
-          answerImg: '',
-          wrongCount: 1,
-          correctStreak: 0,
-          mastered: false,
-          createdAt: Date.now() - 1800000
-        }
-      ]
-    };
-  }
-  if (lang === 'ja') {
-    return {
-      subjects: ['国語', '英語', '数学'],
-      lastSubject: '数学',
-      settings: {
-        masteryTarget: 2,
-        wrongFilterMode: 'unmastered',
-        wrongMinCount: 2,
-        themeMode: 'light',
-        themeColor: 'indigo'
-      },
-      masteredProblems: [],
-      problems: [
-        {
-          id: 'sample-1',
-          subject: '数学',
-          problemText: '二次方程式 x² - 5x + 6 = 0 の2つの解の和と積を求めなさい。',
-          problemImg: SAMPLE_MATH_IMG,
-          answerText: '解: 2, 3 → 和 = 5, 積 = 6（解と係数の関係: -b/a, c/a）',
-          answerImg: '',
-          wrongCount: 2,
-          correctStreak: 0,
-          mastered: false,
-          createdAt: Date.now() - 3600000
-        },
-        {
-          id: 'sample-2',
-          subject: '英語',
-          problemText: '空欄に入る最も適切なものを選びなさい。\n"She has been living in Tokyo ___ 2020."\n① for  ② since  ③ during  ④ while',
-          problemImg: SAMPLE_ENG_IMG,
-          answerText: '正解: ② since（特定の起点「2020年からずっと」を表す）',
-          answerImg: '',
-          wrongCount: 1,
-          correctStreak: 0,
-          mastered: false,
-          createdAt: Date.now() - 1800000
-        }
-      ]
-    };
-  }
-  return structuredClone(DEFAULT_DATA);
+  const subjectsByLang = {
+    ko: ['국어', '영어', '수학'],
+    en: ['Reading', 'English', 'Math'],
+    ja: ['国語', '英語', '数学']
+  };
+  return {
+    subjects: subjectsByLang[lang] || subjectsByLang.ko,
+    lastSubject: '전체',
+    settings: {
+      masteryTarget: 2, // 연속 몇 번 맞히면 완전 정복인지 (1~19)
+      wrongFilterMode: 'unmastered', // 'unmastered' (정복 전 모두) | 'repeated' (일정 횟수 이상 틀린 문제만)
+      wrongMinCount: 2, // 몇 번 이상 틀린 문제를 약점으로 볼지 (1~19)
+      themeMode: 'light', // 'light' | 'dark'
+      themeColor: 'indigo' // 'indigo' | 'blue' | 'emerald' | 'amber' | 'gold'
+    },
+    masteredProblems: [],
+    problems: buildSampleProblems(lang)
+  };
 }
 
 export function loadState() {
@@ -145,24 +116,25 @@ export function loadState() {
       return initial;
     }
     const parsed = JSON.parse(raw);
-    // 체험용 사진 예시 문제 1회 자동 채우기 (기존 예시 문제에 사진이 비어 있을 때만)
-    const SAMPLE_IMG_KEY = 'yj_sample_img_seed_20261121';
-    if (!localStorage.getItem(SAMPLE_IMG_KEY) && Array.isArray(parsed.problems)) {
-      let updated = false;
-      parsed.problems.forEach((p) => {
-        if (p.id === 'sample-1' && !p.problemImg) {
-          p.problemImg = SAMPLE_MATH_IMG;
-          updated = true;
+    // 기존 수학·영어 예시가 남아있는 기기에서도 사용법 퀴즈(3문항)로 1회 자동 교체
+    const SAMPLE_QUIZ_KEY = 'yj_sample_quiz_seed_20261125';
+    if (!localStorage.getItem(SAMPLE_QUIZ_KEY) && Array.isArray(parsed.problems)) {
+      const hasLegacySample = parsed.problems.some((p) => p.id === 'sample-1' || p.id === 'sample-2');
+      if (hasLegacySample) {
+        const localizedSamples = buildSampleProblems(detectDeviceLang());
+        const sampleMap = new Map(localizedSamples.map((s) => [s.id, s]));
+        let hasSample3 = false;
+        parsed.problems = parsed.problems.map((p) => {
+          if (p.id === 'sample-3') hasSample3 = true;
+          return sampleMap.has(p.id) ? sampleMap.get(p.id) : p;
+        });
+        if (!hasSample3) {
+          const sample3 = sampleMap.get('sample-3');
+          if (sample3) parsed.problems.push(sample3);
         }
-        if (p.id === 'sample-2' && !p.problemImg) {
-          p.problemImg = SAMPLE_ENG_IMG;
-          updated = true;
-        }
-      });
-      if (updated) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
       }
-      localStorage.setItem(SAMPLE_IMG_KEY, '1');
+      localStorage.setItem(SAMPLE_QUIZ_KEY, '1');
     }
     return {
       subjects: Array.isArray(parsed.subjects) ? parsed.subjects : ['국어', '영어', '수학'],

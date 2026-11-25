@@ -1,9 +1,9 @@
-const CACHE_NAME = "odabnote-shell-v20261121";
+const CACHE_NAME = "odabnote-shell-v20261125quiz";
 const PRECACHE_URLS = [
   "/",
   "/index.html",
   "/styles.css?v=20261121ring",
-  "/app.js?v=20261121pwa",
+  "/app.js?v=20261125quiz",
   "/manifest.webmanifest",
   "/icon-192.png",
   "/icon-512.png",
