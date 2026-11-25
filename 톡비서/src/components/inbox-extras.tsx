@@ -398,7 +398,7 @@ function SummaryCard({ title, notes }: { title: string; notes: Note[] }) {
   );
 }
 
-import { purchaseMonthlyWithPlayBilling } from "@/lib/play-billing";
+import { purchaseWithPlayBilling, type BillingCycle } from "@/lib/play-billing";
 
 export type Plan = "free" | "premium";
 export const PLAN_LABEL: Record<Plan, string> = { free: "무료 사용자", premium: "프리미엄" };
@@ -416,7 +416,7 @@ export function PlanBadge({ plan, size = "sm" }: { plan: Plan; size?: "sm" | "md
   );
 }
 const COMPARE: { label: string; v: [string, string] }[] = [
-  { label: "가격", v: ["7일 무료", "월 4,900원"] },
+  { label: "가격", v: ["7일 무료", "월 3,900원\n연 39,000원"] },
   { label: "AI 자동 정리", v: ["하루 20회", "하루 50회*"] },
   { label: "카테고리", v: ["기본 8개", "+ 나만의 10개"] },
   { label: "보관함", v: ["100MB", "20GB"] },
@@ -688,18 +688,20 @@ export function CustomCategories({ plan, onUpgrade }: { plan: Plan; onUpgrade: (
 export type Prefs = { alarm: boolean; mode: "light" | "dark"; accent: "sky" | "lavender" | "mint" | "pink"; plan: Plan };
 const DEFAULT: Prefs = { alarm: true, mode: "light", accent: "sky", plan: "free" };
 
-const PAY_PLANS = [
-  { key: "monthly", plan: "premium" as Plan, name: "월간 구독", price: "4,900원", unit: "/월" },
+const PAY_PLANS: { key: BillingCycle; plan: Plan; name: string; price: string; unit: string; badge?: string }[] = [
+  { key: "monthly", plan: "premium", name: "월간 구독", price: "3,900원", unit: "/월" },
+  { key: "yearly", plan: "premium", name: "연간 구독", price: "39,000원", unit: "/년", badge: "2개월 무료" },
 ];
 
 export function PaymentModal({ onClose, onPaid }: { onClose: () => void; onPaid: (p: Plan) => void }) {
-  const chosen = PAY_PLANS[0]!;
+  const [selectedKey, setSelectedKey] = useState<BillingCycle>("yearly");
+  const chosen = PAY_PLANS.find((p) => p.key === selectedKey) ?? PAY_PLANS[0]!;
   const [step, setStep] = useState<"form" | "paying" | "done">("form");
   const [payErr, setPayErr] = useState<string | null>(null);
   const pay = async () => {
     setPayErr(null);
     setStep("paying");
-    const res = await purchaseMonthlyWithPlayBilling();
+    const res = await purchaseWithPlayBilling(chosen.key);
     if (res.ok) {
       setStep("done");
       onPaid(chosen.plan);
@@ -724,9 +726,26 @@ export function PaymentModal({ onClose, onPaid }: { onClose: () => void; onPaid:
           </div>
         ) : (
           <>
-            <div className="flex w-full items-center justify-between rounded-xl border border-primary bg-primary/10 px-3.5 py-3 text-left">
-              <span className="text-sm font-semibold text-foreground">{tr(chosen.name)}</span>
-              <span className="text-sm text-foreground"><b>{tr(chosen.price)}</b><span className="text-xs text-muted-foreground">{tr(chosen.unit)}</span></span>
+            <div className="space-y-2">
+              {PAY_PLANS.map((p) => {
+                const active = p.key === chosen.key;
+                return (
+                  <button
+                    key={p.key}
+                    type="button"
+                    onClick={() => setSelectedKey(p.key)}
+                    className={`flex w-full items-center justify-between rounded-xl border px-3.5 py-3 text-left transition-colors ${active ? "border-primary bg-primary/10" : "border-border bg-card hover:bg-muted/60"}`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-foreground">{tr(p.name)}</span>
+                      {p.badge && (
+                        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">{tr(p.badge)}</span>
+                      )}
+                    </span>
+                    <span className="text-sm text-foreground"><b>{tr(p.price)}</b><span className="text-xs text-muted-foreground">{tr(p.unit)}</span></span>
+                  </button>
+                );
+              })}
             </div>
             <details className="mt-3"><summary className="cursor-pointer text-xs font-semibold text-foreground">{tr("플랜별 차이 보기")}</summary><div className="mt-2"><PlanCompare /></div></details>
             {payErr && <p className="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">{tr(payErr)}</p>}

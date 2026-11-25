@@ -2,6 +2,13 @@
 
 export const PLAY_BILLING_METHOD = "https://play.google.com/billing";
 export const MONTHLY_PRODUCT_ID = "tokbiseo_premium_monthly";
+export const YEARLY_PRODUCT_ID = "tokbiseo_premium_yearly";
+export type BillingCycle = "monthly" | "yearly";
+
+const PRODUCT_META: Record<BillingCycle, { id: string; label: string; amount: string }> = {
+  monthly: { id: MONTHLY_PRODUCT_ID, label: "톡비서 프리미엄 월간 구독", amount: "3900" },
+  yearly: { id: YEARLY_PRODUCT_ID, label: "톡비서 프리미엄 연간 구독", amount: "39000" },
+};
 
 type DigitalGoodsItem = {
   itemId: string;
@@ -35,7 +42,7 @@ export async function isPlayBillingAvailable(): Promise<boolean> {
   }
 }
 
-export async function purchaseMonthlyWithPlayBilling(): Promise<
+export async function purchaseWithPlayBilling(cycle: BillingCycle): Promise<
   { ok: true; purchaseToken: string } | { ok: false; reason: string }
 > {
   if (typeof window === "undefined") {
@@ -45,15 +52,16 @@ export async function purchaseMonthlyWithPlayBilling(): Promise<
   if (!w.getDigitalGoodsService || typeof PaymentRequest === "undefined") {
     return { ok: false, reason: "구글 플레이스토어 앱에서 결제할 수 있어요" };
   }
+  const meta = PRODUCT_META[cycle];
   try {
     const service = await w.getDigitalGoodsService(PLAY_BILLING_METHOD);
-    const details = await service.getDetails([MONTHLY_PRODUCT_ID]);
+    const details = await service.getDetails([meta.id]);
     if (!details || details.length === 0) {
       return { ok: false, reason: "스토어 상품 정보를 아직 불러올 수 없어요" };
     }
     const request = new PaymentRequest(
-      [{ supportedMethods: PLAY_BILLING_METHOD, data: { sku: MONTHLY_PRODUCT_ID } }],
-      { total: { label: "톡비서 프리미엄 월간 구독", amount: { currency: "KRW", value: "4900" } } },
+      [{ supportedMethods: PLAY_BILLING_METHOD, data: { sku: meta.id } }],
+      { total: { label: meta.label, amount: { currency: "KRW", value: meta.amount } } },
     );
     const response = await request.show();
     const token =
@@ -67,4 +75,8 @@ export async function purchaseMonthlyWithPlayBilling(): Promise<
     }
     return { ok: false, reason: "구글 플레이 결제를 진행하지 못했어요. 잠시 후 다시 시도해 주세요" };
   }
+}
+
+export async function purchaseMonthlyWithPlayBilling() {
+  return purchaseWithPlayBilling("monthly");
 }

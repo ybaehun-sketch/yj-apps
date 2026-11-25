@@ -13,7 +13,8 @@ export const CATEGORIES: Record<Category, { label: string; emoji: string; dot: s
 
 export const PLANS = [
   { id: "trial", name: "7일 무료 체험", price: "0원", note: "현재 이용 중", active: true },
-  { id: "monthly", name: "월간 구독", price: "4,900원/월", note: "언제든 해지 가능" },
+  { id: "monthly", name: "월간 구독", price: "3,900원/월", note: "언제든 해지 가능" },
+  { id: "yearly", name: "연간 구독", price: "39,000원/년", note: "2개월 무료 혜택" },
 ] as const;
 
 export type Item = {
