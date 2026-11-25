@@ -344,13 +344,15 @@ function Inbox() {
     const q = quotaErr(file.size);
     if (q) { setErr(q); return; }
     try {
+      const buf = await file.arrayBuffer();
+      const safeBlob = new Blob([buf], { type: file.type || "image/png" });
       let blob: Blob;
       try {
-        blob = await compressToWebp(file);
+        blob = await compressToWebp(safeBlob);
       } catch {
         // 모바일 WebView 등에서 압축(WebP/캔버스)이 실패하면 원본 이미지가 2.2MB 이하일 때 그대로 사용
-        if (file.size > 2_200_000) throw new Error("image_too_large");
-        blob = file;
+        if (safeBlob.size > 2_200_000) throw new Error("image_too_large");
+        blob = safeBlob;
       }
       const preview = await blobToDataUrl(blob);
       setImg({ blob, preview });
@@ -1200,9 +1202,9 @@ function Inbox() {
               )}
             </div>
 
-            <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void attach(f); e.target.value = ""; }} />
-            <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void attach(f); e.target.value = ""; }} />
-            <input ref={docRef} type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void onDocFile(f); e.target.value = ""; }} />
+            <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const el = e.currentTarget; const f = el.files?.[0]; if (f) void attach(f).finally(() => { el.value = ""; }); else el.value = ""; }} />
+            <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { const el = e.currentTarget; const f = el.files?.[0]; if (f) void attach(f).finally(() => { el.value = ""; }); else el.value = ""; }} />
+            <input ref={docRef} type="file" hidden onChange={(e) => { const el = e.currentTarget; const f = el.files?.[0]; if (f) void onDocFile(f).finally(() => { el.value = ""; }); else el.value = ""; }} />
 
             {/* 중앙: 텍스트 입력창 */}
             <textarea
