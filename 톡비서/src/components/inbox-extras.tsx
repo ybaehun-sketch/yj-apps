@@ -810,7 +810,7 @@ const GUIDE_URL = "https://yjstudio.app/tokbiseo#guide";
 const PRIVACY_URL = "https://yjstudio.app/tokbiseo#privacy";
 const TERMS_URL = "https://yjstudio.app/tokbiseo#terms";
 /** 1차 스토어 심사용 결제 모달 비활성화 (2차 구글 인앱 결제 연동 시 true로 전환). */
-export const BILLING_ENABLED = false;
+export const BILLING_ENABLED = true;
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return <section className="rounded-2xl bg-card p-4 shadow-sm"><p className="mb-2 text-xs font-semibold text-muted-foreground">{title}</p>{children}</section>;
