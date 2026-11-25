@@ -190,20 +190,34 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     applyEnv(env);
     const reqUrl = new URL(request.url);
-    if (request.method === "POST" && reqUrl.pathname === "/share-target") {
-      try {
-        const form = await request.formData();
-        const params = new URLSearchParams();
-        for (const k of ["shared_title", "shared_text", "shared_url"]) {
-          const v = form.get(k);
-          if (typeof v === "string" && v.trim()) params.set(k, v.trim());
+    if (reqUrl.pathname === "/share-target") {
+      const params = new URLSearchParams();
+      const pick = (k: string, v: unknown) => {
+        if (typeof v === "string" && v.trim()) {
+          const norm = k.startsWith("shared_") ? k : `shared_${k}`;
+          if (!params.has(norm)) params.set(norm, v.trim());
         }
-        const q = params.toString();
-        const dest = new URL(q ? `/inbox?${q}` : "/inbox", reqUrl.origin);
-        return Response.redirect(dest.toString(), 303);
-      } catch {
-        return Response.redirect(new URL("/inbox", reqUrl.origin).toString(), 303);
+      };
+      if (request.method === "POST") {
+        try {
+          const ct = request.headers.get("content-type") ?? "";
+          if (ct.includes("application/x-www-form-urlencoded")) {
+            const sp = new URLSearchParams(await request.text());
+            for (const [k, v] of sp.entries()) pick(k, v);
+          } else {
+            const form = await request.formData();
+            for (const [k, v] of form.entries()) pick(k, v);
+          }
+        } catch (e) {
+          console.error("[share-target] POST parse error", e);
+        }
+      } else {
+        for (const [k, v] of reqUrl.searchParams.entries()) pick(k, v);
       }
+      const q = params.toString();
+      console.log("[share-target]", request.method, q || "(empty)");
+      const dest = new URL(q ? `/inbox?${q}` : "/inbox", reqUrl.origin);
+      return Response.redirect(dest.toString(), 303);
     }
     try {
       const handler = await getServerEntry();
