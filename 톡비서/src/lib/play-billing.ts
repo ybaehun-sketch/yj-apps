@@ -10,10 +10,13 @@ const PRODUCT_META: Record<BillingCycle, { id: string; label: string; amount: st
   yearly: { id: YEARLY_PRODUCT_ID, label: "톡비서 프리미엄 연간 구독", amount: "39000" },
 };
 
+export type StorePrice = { currency: string; value: string };
+export type StorePrices = Partial<Record<BillingCycle, StorePrice>>;
+
 type DigitalGoodsItem = {
   itemId: string;
   title?: string;
-  price?: { currency: string; value: string };
+  price?: StorePrice;
 };
 
 type DigitalGoodsPurchase = {
@@ -29,6 +32,52 @@ type DigitalGoodsService = {
 type WindowWithDgs = Window & {
   getDigitalGoodsService?: (paymentMethod: string) => Promise<DigitalGoodsService>;
 };
+
+let cachedStorePrices: StorePrices | null = null;
+let inflightStorePrices: Promise<StorePrices> | null = null;
+
+/** Format a Google Play store price using the active locale. */
+export function formatStorePrice(price: StorePrice, loc: string): string {
+  const num = Number(price.value);
+  if (!Number.isFinite(num)) return `${price.currency} ${price.value}`;
+  try {
+    return new Intl.NumberFormat(loc, { style: "currency", currency: price.currency }).format(num);
+  } catch {
+    return `${price.currency} ${price.value}`;
+  }
+}
+
+/** Fetch localized subscription prices from Google Play Digital Goods API (cached per session). */
+export async function fetchPlayStorePrices(): Promise<StorePrices> {
+  if (cachedStorePrices) return cachedStorePrices;
+  if (inflightStorePrices) return inflightStorePrices;
+  if (typeof window === "undefined") return {};
+  const w = window as WindowWithDgs;
+  const getDgs = w.getDigitalGoodsService;
+  if (!getDgs) return {};
+
+  inflightStorePrices = (async () => {
+    try {
+      const service = await getDgs(PLAY_BILLING_METHOD);
+      if (!service) return {};
+      const details = await service.getDetails([MONTHLY_PRODUCT_ID, YEARLY_PRODUCT_ID]);
+      const out: StorePrices = {};
+      for (const item of details ?? []) {
+        if (!item.price?.currency || !item.price?.value) continue;
+        if (item.itemId === MONTHLY_PRODUCT_ID) out.monthly = item.price;
+        else if (item.itemId === YEARLY_PRODUCT_ID) out.yearly = item.price;
+      }
+      if (Object.keys(out).length > 0) cachedStorePrices = out;
+      return out;
+    } catch {
+      return {};
+    } finally {
+      inflightStorePrices = null;
+    }
+  })();
+
+  return inflightStorePrices;
+}
 
 export async function isPlayBillingAvailable(): Promise<boolean> {
   if (typeof window === "undefined") return false;

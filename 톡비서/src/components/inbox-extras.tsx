@@ -29,7 +29,7 @@ import { CUSTOM_ICON_CHOICES, CategoryIcon, CustomIcon } from "@/components/cate
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { t as tr, locale, useLang, setLang, LANGS, LANG_LABEL } from "@/lib/i18n";
+import { t as tr, locale, useLang, setLang, LANGS, LANG_LABEL, LOCALE } from "@/lib/i18n";
 import { downloadFile } from "@/lib/doc-text";
 
 type Note = Tables<"notes">;
@@ -398,7 +398,35 @@ function SummaryCard({ title, notes }: { title: string; notes: Note[] }) {
   );
 }
 
-import { checkPlaySubscription, purchaseWithPlayBilling, type BillingCycle } from "@/lib/play-billing";
+import {
+  checkPlaySubscription,
+  fetchPlayStorePrices,
+  formatStorePrice,
+  purchaseWithPlayBilling,
+  type BillingCycle,
+  type StorePrices,
+} from "@/lib/play-billing";
+
+function usePlayStorePrices(): Partial<Record<BillingCycle, string>> {
+  const lang = useLang();
+  const [raw, setRaw] = useState<StorePrices>({});
+  useEffect(() => {
+    let alive = true;
+    void fetchPlayStorePrices().then((res) => {
+      if (alive && Object.keys(res).length > 0) setRaw(res);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return useMemo(() => {
+    const loc = LOCALE[lang];
+    const out: Partial<Record<BillingCycle, string>> = {};
+    if (raw.monthly) out.monthly = formatStorePrice(raw.monthly, loc);
+    if (raw.yearly) out.yearly = formatStorePrice(raw.yearly, loc);
+    return out;
+  }, [raw, lang]);
+}
 
 export type Plan = "free" | "premium";
 export const PLAN_LABEL: Record<Plan, string> = { free: "무료 사용자", premium: "프리미엄" };
@@ -427,6 +455,7 @@ const COMPARE: { label: string; v: [string, string] }[] = [
 
 export function PlanCompare({ current }: { current?: Plan }) {
   const plans: Plan[] = ["free", "premium"];
+  const storePrices = usePlayStorePrices();
   return (
     <div className="overflow-hidden rounded-xl border border-border">
       <div className="grid grid-cols-[1fr_repeat(2,minmax(0,1fr))] bg-muted text-center text-xs font-bold text-foreground">
@@ -443,7 +472,13 @@ export function PlanCompare({ current }: { current?: Plan }) {
       {COMPARE.map((r) => (
         <div key={r.label} className="grid grid-cols-[1fr_repeat(2,minmax(0,1fr))] border-t border-border text-center text-xs">
           <span className="py-2 pl-2 text-left font-semibold text-muted-foreground">{tr(r.label)}</span>
-          {r.v.map((v, i) => <span key={i} className="whitespace-pre-line py-2 text-foreground">{tr(v)}</span>)}
+          {r.v.map((v, i) => {
+            const text =
+              r.label === "가격" && i === 1 && storePrices.monthly && storePrices.yearly
+                ? `${storePrices.monthly}${tr("/월")}\n${storePrices.yearly}${tr("/년")}`
+                : tr(v);
+            return <span key={i} className="whitespace-pre-line py-2 text-foreground">{text}</span>;
+          })}
         </div>
       ))}
       <p className="border-t border-border px-2 py-1.5 text-[0.7rem] text-muted-foreground">{tr("* 공정 사용 기준 (하루 최대 50회)")}</p>
@@ -696,6 +731,8 @@ const PAY_PLANS: { key: BillingCycle; plan: Plan; name: string; price: string; u
 export function PaymentModal({ currentPlan = "free", onClose, onPaid }: { currentPlan?: Plan; onClose: () => void; onPaid: (p: Plan) => void }) {
   const [selectedKey, setSelectedKey] = useState<BillingCycle>("yearly");
   const chosen = PAY_PLANS.find((p) => p.key === selectedKey) ?? PAY_PLANS[0]!;
+  const storePrices = usePlayStorePrices();
+  const chosenPriceText = storePrices[chosen.key] ?? tr(chosen.price);
   const [step, setStep] = useState<"form" | "paying" | "done">("form");
   const [payErr, setPayErr] = useState<string | null>(null);
   const pay = async () => {
@@ -759,7 +796,7 @@ export function PaymentModal({ currentPlan = "free", onClose, onPaid }: { curren
                         <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">{tr(p.badge)}</span>
                       )}
                     </span>
-                    <span className="text-sm text-foreground"><b>{tr(p.price)}</b><span className="text-xs text-muted-foreground">{tr(p.unit)}</span></span>
+                    <span className="text-sm text-foreground"><b>{storePrices[p.key] ?? tr(p.price)}</b><span className="text-xs text-muted-foreground">{tr(p.unit)}</span></span>
                   </button>
                 );
               })}
@@ -767,7 +804,7 @@ export function PaymentModal({ currentPlan = "free", onClose, onPaid }: { curren
             <details className="mt-3"><summary className="cursor-pointer text-xs font-semibold text-foreground">{tr("플랜별 차이 보기")}</summary><div className="mt-2"><PlanCompare /></div></details>
             {payErr && <p className="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">{tr(payErr)}</p>}
             <button disabled={step === "paying"} onClick={() => void pay()} className="mt-5 w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground disabled:opacity-60">
-              {step === "paying" ? tr("결제 진행 중...") : tr("{0} 구독 시작하기", tr(chosen.price))}
+              {step === "paying" ? tr("결제 진행 중...") : tr("{0} 구독 시작하기", chosenPriceText)}
             </button>
             <p className="mt-2 text-center text-xs text-muted-foreground">{tr("Google Play 안전 결제로 진행되며 언제든 해지할 수 있어요.")}</p>
           </>
