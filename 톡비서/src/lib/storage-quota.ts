@@ -1,13 +1,13 @@
 // 플랜별 저장 용량 정책 (순수 함수 — 테스트 가능)
-export type QuotaPlan = "free" | "premium" | "lifetime";
+export type QuotaPlan = "free" | "premium";
 
 const MB = 1024 * 1024;
 const GB = 1024 * MB;
 
-export const QUOTA_BYTES: Record<QuotaPlan, number> = { free: 100 * MB, premium: 20 * GB, lifetime: 20 * GB };
-export const DAILY_AI_LIMIT: Record<QuotaPlan, number> = { free: 20, premium: 50, lifetime: 50 };
+export const QUOTA_BYTES: Record<QuotaPlan, number> = { free: 100 * MB, premium: 20 * GB };
+export const DAILY_AI_LIMIT: Record<QuotaPlan, number> = { free: 20, premium: 50 };
 export const FREE_TRIAL_DAYS = 7;
-export const MAX_FILE_BYTES: Record<QuotaPlan, number> = { free: 20 * MB, premium: 50 * MB, lifetime: 50 * MB };
+export const MAX_FILE_BYTES: Record<QuotaPlan, number> = { free: 20 * MB, premium: 50 * MB };
 
 export function trialDaysLeft(joinedAt: string | null, now = new Date()): number {
   if (!joinedAt) return FREE_TRIAL_DAYS;

@@ -398,12 +398,13 @@ function SummaryCard({ title, notes }: { title: string; notes: Note[] }) {
   );
 }
 
-export type Plan = "free" | "premium" | "lifetime";
-export const PLAN_LABEL: Record<Plan, string> = { free: "무료 사용자", premium: "프리미엄", lifetime: "평생 소장" };
+import { purchaseMonthlyWithPlayBilling } from "@/lib/play-billing";
+
+export type Plan = "free" | "premium";
+export const PLAN_LABEL: Record<Plan, string> = { free: "무료 사용자", premium: "프리미엄" };
 export const PLAN_META: Record<Plan, { Icon: typeof Crown; badge: string; perks: string[] }> = {
   free: { Icon: Sparkles, badge: "border border-border bg-background text-muted-foreground", perks: ["하루 AI 자동 정리 20회", "기본 카테고리 8개", "7일 무료 체험 · 보관함 100MB"] },
   premium: { Icon: Crown, badge: "border border-primary bg-primary/20 text-foreground", perks: ["하루 AI 자동 정리 50회 (공정 사용)", "스샷·문서 정밀 분석", "나만의 카테고리 10개", "선제적 일정 알림", "보관함 20GB · 원본 파일 보관"] },
-  lifetime: { Icon: Crown, badge: "border border-primary bg-primary/20 text-foreground", perks: ["하루 AI 자동 정리 50회 (공정 사용)", "스샷·문서 정밀 분석", "나만의 카테고리 10개", "선제적 일정 알림", "보관함 20GB · 원본 파일 보관"] },
 };
 
 export function PlanBadge({ plan, size = "sm" }: { plan: Plan; size?: "sm" | "md" }) {
@@ -690,19 +691,28 @@ const DEFAULT: Prefs = { alarm: true, mode: "light", accent: "sky", plan: "free"
 const PAY_PLANS = [
   { key: "monthly", plan: "premium" as Plan, name: "월간 구독", price: "4,900원", unit: "/월" },
 ];
-const METHODS = ["카카오페이", "토스페이", "신용/체크카드"];
 
 export function PaymentModal({ onClose, onPaid }: { onClose: () => void; onPaid: (p: Plan) => void }) {
-  const [sel, setSel] = useState("monthly");
-  const [method, setMethod] = useState(METHODS[0]);
+  const chosen = PAY_PLANS[0]!;
   const [step, setStep] = useState<"form" | "paying" | "done">("form");
-  const chosen = PAY_PLANS.find((p) => p.key === sel)!;
-  const pay = () => { setStep("paying"); setTimeout(() => { setStep("done"); onPaid(chosen.plan); }, 1400); };
+  const [payErr, setPayErr] = useState<string | null>(null);
+  const pay = async () => {
+    setPayErr(null);
+    setStep("paying");
+    const res = await purchaseMonthlyWithPlayBilling();
+    if (res.ok) {
+      setStep("done");
+      onPaid(chosen.plan);
+      return;
+    }
+    setStep("form");
+    setPayErr(res.reason);
+  };
   return (
     <div className="absolute inset-0 z-70 flex items-end justify-center bg-black/45 backdrop-blur-[2px]" onClick={onClose}>
       <div className="max-h-[90%] w-full max-w-md overflow-y-auto rounded-t-3xl bg-card p-5 shadow-2xl animate-in slide-in-from-bottom" onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-center justify-between">
-          <p className="font-bold text-foreground">{tr("결제하기")} <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[0.7rem] text-muted-foreground">{tr("테스트")}</span></p>
+          <p className="font-bold text-foreground">{tr("프리미엄 구독")}</p>
           <button aria-label={tr("닫기")} onClick={onClose} className="rounded-full p-1.5 hover:bg-muted"><X className="size-4" /></button>
         </div>
         {step === "done" ? (
@@ -714,25 +724,16 @@ export function PaymentModal({ onClose, onPaid }: { onClose: () => void; onPaid:
           </div>
         ) : (
           <>
-            <div className="space-y-2">
-              {PAY_PLANS.map((p) => (
-                <button key={p.key} onClick={() => setSel(p.key)} className={`flex w-full items-center justify-between rounded-xl border px-3.5 py-3 text-left ${sel === p.key ? "border-primary bg-primary/15" : "border-border"}`}>
-                  <span className="text-sm font-semibold text-foreground">{tr(p.name)}</span>
-                  <span className="text-sm text-foreground"><b>{tr(p.price)}</b><span className="text-xs text-muted-foreground">{tr(p.unit)}</span></span>
-                </button>
-              ))}
+            <div className="flex w-full items-center justify-between rounded-xl border border-primary bg-primary/10 px-3.5 py-3 text-left">
+              <span className="text-sm font-semibold text-foreground">{tr(chosen.name)}</span>
+              <span className="text-sm text-foreground"><b>{tr(chosen.price)}</b><span className="text-xs text-muted-foreground">{tr(chosen.unit)}</span></span>
             </div>
             <details className="mt-3"><summary className="cursor-pointer text-xs font-semibold text-foreground">{tr("플랜별 차이 보기")}</summary><div className="mt-2"><PlanCompare /></div></details>
-            <p className="mb-2 mt-4 text-xs font-semibold text-muted-foreground">{tr("결제 수단")}</p>
-            <div className="grid grid-cols-3 gap-2">
-              {METHODS.map((m) => (
-                <button key={m} onClick={() => setMethod(m)} className={`rounded-xl border px-1 py-2 text-xs text-foreground ${method === m ? "border-foreground font-semibold" : "border-border"}`}>{tr(m)}</button>
-              ))}
-            </div>
-            <button disabled={step === "paying"} onClick={pay} className="mt-5 w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground disabled:opacity-60">
-              {step === "paying" ? tr("결제 진행 중...") : tr("{0} 결제하기", tr(chosen.price))}
+            {payErr && <p className="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">{tr(payErr)}</p>}
+            <button disabled={step === "paying"} onClick={() => void pay()} className="mt-5 w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground disabled:opacity-60">
+              {step === "paying" ? tr("결제 진행 중...") : tr("{0} 구독 시작하기", tr(chosen.price))}
             </button>
-            <p className="mt-2 text-center text-xs text-muted-foreground">{tr("목업 결제창이에요. 실제로 돈이 나가지 않아요.")}</p>
+            <p className="mt-2 text-center text-xs text-muted-foreground">{tr("Google Play 안전 결제로 진행되며 언제든 해지할 수 있어요.")}</p>
           </>
         )}
       </div>

@@ -93,7 +93,7 @@ export function NavigationDrawer({
   const u = usage ?? { image: 0, doc: 0, voice: 0, total: 0 };
   const cap = QUOTA_BYTES[prefs.plan];
   const pct = Math.min(100, (u.total / cap) * 100);
-  const isPremium = prefs.plan === "premium" || prefs.plan === "lifetime";
+  const isPremium = prefs.plan === "premium";
 
   return (
     <>

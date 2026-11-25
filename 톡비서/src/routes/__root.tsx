@@ -8,10 +8,11 @@ import {
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { syncClientLang } from "../lib/i18n";
 import appCss from "../styles.css?url";
+import jungbiAvatar from "../assets/jungbi-avatar.png";
 
 function NotFoundComponent() {
   return (
@@ -75,7 +76,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" },
-      { name: "theme-color", content: "#FEE500" },
+      { name: "theme-color", content: "#FFFFFF" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: "톡비서" },
       { name: "author", content: "YJ 스튜디오" },
@@ -119,6 +120,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const [splash, setSplash] = useState<"show" | "fade" | "hide">("show");
   useEffect(() => {
     syncClientLang();
     if ("serviceWorker" in navigator) {
@@ -127,10 +129,24 @@ function RootComponent() {
         .then((reg) => reg.update())
         .catch(() => {});
     }
+    const t1 = setTimeout(() => setSplash("fade"), 450);
+    const t2 = setTimeout(() => setSplash("hide"), 750);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
+      {splash !== "hide" && (
+        <div
+          aria-hidden="true"
+          className={`fixed inset-0 z-100 flex items-center justify-center bg-white transition-opacity duration-300 ${splash === "fade" ? "pointer-events-none opacity-0" : "opacity-100"}`}
+        >
+          <img src={jungbiAvatar} alt="" width={88} height={88} className="size-22 rounded-full object-cover shadow-md" />
+        </div>
+      )}
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
     </QueryClientProvider>

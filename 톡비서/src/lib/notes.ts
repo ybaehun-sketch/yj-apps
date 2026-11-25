@@ -37,7 +37,7 @@ export function noteSourceKind(note: {
 }
 
 /** 플랜별 맞춤 카테고리 최대 개수 (무료 0). */
-export const CUSTOM_CATEGORY_LIMIT = { free: 0, premium: 10, lifetime: 30 } as const;
+export const CUSTOM_CATEGORY_LIMIT = { free: 0, premium: 10 } as const;
 
 export type Analysis = {
   summary: string;
