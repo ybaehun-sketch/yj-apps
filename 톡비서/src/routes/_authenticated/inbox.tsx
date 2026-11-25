@@ -167,9 +167,11 @@ function Inbox() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const stickBottomRef = useRef(true);
   const initialScrolledRef = useRef(false);
   const isAutoScrollingRef = useRef(false);
+  const prevScrollTopRef = useRef(0);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [zoomImg, setZoomImg] = useState<string | null>(null);
   const [zoomed, setZoomed] = useState(false);
@@ -234,11 +236,23 @@ function Inbox() {
     if (behavior === "auto") {
       isAutoScrollingRef.current = false;
       el.scrollTop = el.scrollHeight;
+      prevScrollTopRef.current = el.scrollTop;
     } else {
       isAutoScrollingRef.current = true;
       el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     }
   };
+
+  useEffect(() => {
+    if (view !== "stream") return;
+    const contentEl = contentRef.current;
+    if (!contentEl || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      if (stickBottomRef.current) scrollToBottom("auto");
+    });
+    ro.observe(contentEl);
+    return () => ro.disconnect();
+  }, [view]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -909,15 +923,22 @@ function Inbox() {
           onScroll={(e) => {
             const el = e.currentTarget;
             const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
-            if (dist < 24) isAutoScrollingRef.current = false;
-            if (!isAutoScrollingRef.current) stickBottomRef.current = dist < 100;
+            const scrolledUp = el.scrollTop < prevScrollTopRef.current - 4;
+            prevScrollTopRef.current = el.scrollTop;
+            if (dist < 24) {
+              isAutoScrollingRef.current = false;
+              stickBottomRef.current = true;
+            } else if (!isAutoScrollingRef.current && scrolledUp) {
+              stickBottomRef.current = dist < 100;
+            }
             setShowScrollBtn(dist > 160);
           }}
           onLoadCapture={() => {
             if (stickBottomRef.current) scrollToBottom("auto");
           }}
-          className="relative flex-1 space-y-4 overflow-y-auto px-3.5 py-4"
+          className="relative flex-1 overflow-y-auto px-3.5 py-4"
         >
+          <div ref={contentRef} className="space-y-4">
           {isLoading && (
             <div className="flex items-center justify-center gap-2 py-8 text-xs text-muted-foreground">
               <MaterialSymbol name="progress_activity" size={18} weight={350} className="animate-spin text-primary" />
@@ -1028,6 +1049,7 @@ function Inbox() {
           )}
 
           <div ref={endRef} />
+          </div>
 
           {showScrollBtn && (
             <IconButton

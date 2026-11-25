@@ -41,7 +41,10 @@ async function handleSharePost(request) {
   }
   const q = params.toString();
   const dest = new URL(q ? `/inbox?${q}` : "/inbox", request.url);
-  return Response.redirect(dest.href, 303);
+  return new Response(
+    `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${dest.href.replace(/"/g, "&quot;")}"><script>location.replace(${JSON.stringify(dest.href)});</script></head><body></body></html>`,
+    { status: 200, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } },
+  );
 }
 
 self.addEventListener("push", (event) => {

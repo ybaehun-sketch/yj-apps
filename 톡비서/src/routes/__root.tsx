@@ -121,7 +121,12 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   useEffect(() => {
     syncClientLang();
-    if ("serviceWorker" in navigator) void navigator.serviceWorker.register("/sw.js").catch(() => {});
+    if ("serviceWorker" in navigator) {
+      void navigator.serviceWorker
+        .register("/sw.js", { updateViaCache: "none" })
+        .then((reg) => reg.update())
+        .catch(() => {});
+    }
   }, []);
 
   return (
