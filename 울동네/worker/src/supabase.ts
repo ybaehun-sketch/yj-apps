@@ -36,6 +36,21 @@ export async function fetchOldestActiveTargets(
 }
 
 /**
+ * 특정 타겟 ID 1건 조회 (개별 주소 재순찰용)
+ */
+export async function fetchTargetById(env: Env, targetId: string): Promise<CrawlTarget[]> {
+  const url =
+    `${env.SUPABASE_URL}/rest/v1/uldongne_crawl_targets` +
+    `?id=eq.${encodeURIComponent(targetId)}&limit=1`;
+
+  const res = await fetch(url, { headers: getHeaders(env) });
+  if (!res.ok) {
+    throw new Error(`Supabase fetchTargetById failed: ${res.status} ${await res.text()}`);
+  }
+  return (await res.json()) as CrawlTarget[];
+}
+
+/**
  * 오류('error') 또는 일시정지('paused')로 멈춘 타겟 N개 조회 (오후 6시 재점검용)
  */
 export async function fetchStoppedTargets(

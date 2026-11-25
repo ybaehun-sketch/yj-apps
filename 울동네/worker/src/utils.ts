@@ -45,16 +45,35 @@ export async function sha256Hex(input: string): Promise<string> {
 }
 
 /**
- * HTML에서 불필요한 태그(script/style/header/footer/nav)를 제거하고 순수 텍스트와 링크만 정제
+ * HTML에서 본문 컨테이너(<main>, #contents 등)가 있으면 그 시작점부터 잘라
+ * 좌측/상단 메뉴가 글자 수 제한(maxChars)을 먼저 차지하지 않도록 함
+ */
+function narrowToMainContent(html: string): string {
+  const mainMatch = html.match(
+    /<(?:main\b[^>]*|(?:div|section|article)\b[^>]*\b(?:id|class)=["'][^"']*\b(?:contents?|sub_?contents?|main_?contents?|body_?content)\b[^"']*["'][^>]*)>/i
+  );
+  if (mainMatch && mainMatch.index !== undefined) {
+    const sliced = html.slice(mainMatch.index);
+    if (sliced.length >= 300) {
+      return sliced;
+    }
+  }
+  return html;
+}
+
+/**
+ * HTML에서 불필요한 태그(script/style/header/footer/nav/aside)를 제거하고 순수 텍스트와 링크만 정제
  */
 export function extractCleanTextFromHtml(html: string, baseUrl: string, maxChars = 3000): string {
-  let cleaned = html
+  const scopedHtml = narrowToMainContent(html);
+  let cleaned = scopedHtml
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
     .replace(/<header[\s\S]*?<\/header>/gi, ' ')
     .replace(/<footer[\s\S]*?<\/footer>/gi, ' ')
-    .replace(/<nav[\s\S]*?<\/nav>/gi, ' ');
+    .replace(/<nav[\s\S]*?<\/nav>/gi, ' ')
+    .replace(/<aside[\s\S]*?<\/aside>/gi, ' ');
 
   // <a> 태그의 href를 텍스트 옆에 보존해 1차 AI가 detail_url을 추출할 수 있도록 함
   cleaned = cleaned.replace(

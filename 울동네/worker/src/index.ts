@@ -10,6 +10,7 @@ import {
   fetchBlogCandidates,
   fetchOldestActiveTargets,
   fetchStoppedTargets,
+  fetchTargetById,
   insertWelfarePost,
   promoteCandidateToBlogDraft,
   updateCrawlTargetState
@@ -502,6 +503,7 @@ export interface PatrolRunOptions {
   batchIndex?: number;
   workerBaseUrl?: string;
   sigungu?: string;
+  targetId?: string;
 }
 
 /**
@@ -539,8 +541,9 @@ export async function runPatrol(
   const roundStartedAt = options.roundStartedAt || new Date().toISOString();
   const workerBaseUrl = (options.workerBaseUrl || env.WORKER_PUBLIC_URL || '').replace(/\/$/, '');
 
-  const targets =
-    mode === 'recovery'
+  const targets = options.targetId
+    ? await fetchTargetById(env, options.targetId)
+    : mode === 'recovery'
       ? await fetchStoppedTargets(env, maxTargets, roundStartedAt)
       : await fetchOldestActiveTargets(env, maxTargets, roundStartedAt, options.sigungu);
 
@@ -723,11 +726,13 @@ export default {
       const batchIndex = Number(url.searchParams.get('batch') || '1') || 1;
       const isAsync = url.searchParams.get('async') === 'true';
       const sigungu = url.searchParams.get('sigungu') || undefined;
+      const targetId = url.searchParams.get('targetId') || undefined;
       const options: PatrolRunOptions = {
         roundStartedAt,
         batchIndex,
         workerBaseUrl: env.WORKER_PUBLIC_URL || url.origin,
-        sigungu
+        sigungu,
+        targetId
       };
 
       if (isAsync) {

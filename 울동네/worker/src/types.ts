@@ -8,7 +8,8 @@ export type WelfareCategory =
   | '주거/난방비'
   | '소상공인/일자리'
   | '농림/축산/어업'
-  | '생활/문화/법률';
+  | '생활/문화/법률'
+  | '다문화';
 
 export interface Env {
   SUPABASE_URL: string;

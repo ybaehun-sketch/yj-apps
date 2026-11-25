@@ -41,7 +41,8 @@ export const CATEGORY_PILL_COLORS: Record<string, { bg: string; text: string; bg
   '주거/난방비': UNIFIED_CATEGORY_PILL_COLOR,
   '소상공인/일자리': UNIFIED_CATEGORY_PILL_COLOR,
   '농림/축산/어업': UNIFIED_CATEGORY_PILL_COLOR,
-  '생활/문화/법률': UNIFIED_CATEGORY_PILL_COLOR
+  '생활/문화/법률': UNIFIED_CATEGORY_PILL_COLOR,
+  '다문화': UNIFIED_CATEGORY_PILL_COLOR
 };
 
 export function WelfareCard({

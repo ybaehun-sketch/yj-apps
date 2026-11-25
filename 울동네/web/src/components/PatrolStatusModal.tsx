@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { KOREA_REGIONS, normalizeSidoName } from '@/lib/koreaRegions';
 import type { CrawlTarget } from '@/lib/types';
 
-export type PatrolFilterTab = 'all' | 'active' | 'error' | 'paused';
+export type PatrolFilterTab = 'all' | 'active' | 'error' | 'paused' | 'reserve';
 
 interface PatrolStatusModalProps {
   open: boolean;
@@ -25,28 +25,38 @@ interface RegionCellData {
   activeCount: number;
   errorCount: number;
   pausedCount: number;
+  reserveCount: number;
 }
 
-const STATUS_DOT: Record<
-  CrawlTarget['status'],
-  { label: string; dotClass: string }
-> = {
-  active: { label: '정상', dotClass: 'bg-[#22c55e]' },
-  error: { label: '오류', dotClass: 'bg-[#facc15]' },
-  paused: { label: '일시정지', dotClass: 'bg-[#ef4444]' }
-};
+function isReserveNeeded(target: CrawlTarget): boolean {
+  return Boolean(target.last_item_title?.startsWith('[예비순찰대 필요]'));
+}
+
+function getTargetDot(target: CrawlTarget): { label: string; dotClass: string } {
+  if (target.status === 'paused') {
+    return { label: '일시정지', dotClass: 'bg-[#ef4444]' };
+  }
+  if (target.status === 'error') {
+    return { label: '오류', dotClass: 'bg-[#facc15]' };
+  }
+  if (isReserveNeeded(target)) {
+    return { label: '예비순찰필요', dotClass: 'bg-[#9334e6]' };
+  }
+  return { label: '정상', dotClass: 'bg-[#22c55e]' };
+}
 
 function isCommonTarget(target: CrawlTarget) {
   return target.region_sigungu === '전체' || target.region_code === '00000';
 }
 
 function sortTargetsBySeverity(items: CrawlTarget[]) {
-  const order: Record<CrawlTarget['status'], number> = {
-    paused: 0,
-    error: 1,
-    active: 2
+  const rank = (t: CrawlTarget) => {
+    if (t.status === 'paused') return 0;
+    if (t.status === 'error') return 1;
+    if (isReserveNeeded(t)) return 2;
+    return 3;
   };
-  return [...items].sort((a, b) => order[a.status] - order[b.status]);
+  return [...items].sort((a, b) => rank(a) - rank(b));
 }
 
 function matchesTab(cell: RegionCellData, tab: PatrolFilterTab) {
@@ -54,6 +64,7 @@ function matchesTab(cell: RegionCellData, tab: PatrolFilterTab) {
   if (tab === 'active') return cell.activeCount > 0;
   if (tab === 'error') return cell.errorCount > 0;
   if (tab === 'paused') return cell.pausedCount > 0;
+  if (tab === 'reserve') return cell.reserveCount > 0;
   return true;
 }
 
@@ -71,8 +82,10 @@ export function PatrolStatusModal({
   const [pasteUrl, setPasteUrl] = useState('');
   const [addingUrl, setAddingUrl] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
   const [editingUrl, setEditingUrl] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+  const [repatrollingTargetId, setRepatrollingTargetId] = useState<string | null>(null);
   const [modalNotice, setModalNotice] = useState('');
 
   const [lastOpen, setLastOpen] = useState(open);
@@ -93,7 +106,8 @@ export function PatrolStatusModal({
     () => ({
       active: targets.filter((t) => t.status === 'active').length,
       error: targets.filter((t) => t.status === 'error').length,
-      paused: targets.filter((t) => t.status === 'paused').length
+      paused: targets.filter((t) => t.status === 'paused').length,
+      reserve: targets.filter(isReserveNeeded).length
     }),
     [targets]
   );
@@ -122,7 +136,8 @@ export function PatrolStatusModal({
       items: sortTargetsBySeverity(commonItems),
       activeCount: commonItems.filter((t) => t.status === 'active').length,
       errorCount: commonItems.filter((t) => t.status === 'error').length,
-      pausedCount: commonItems.filter((t) => t.status === 'paused').length
+      pausedCount: commonItems.filter((t) => t.status === 'paused').length,
+      reserveCount: commonItems.filter(isReserveNeeded).length
     };
 
     const usedKeys = new Set<string>();
@@ -138,7 +153,8 @@ export function PatrolStatusModal({
           items,
           activeCount: items.filter((t) => t.status === 'active').length,
           errorCount: items.filter((t) => t.status === 'error').length,
-          pausedCount: items.filter((t) => t.status === 'paused').length
+          pausedCount: items.filter((t) => t.status === 'paused').length,
+          reserveCount: items.filter(isReserveNeeded).length
         };
       });
 
@@ -155,7 +171,8 @@ export function PatrolStatusModal({
             items,
             activeCount: items.filter((t) => t.status === 'active').length,
             errorCount: items.filter((t) => t.status === 'error').length,
-            pausedCount: items.filter((t) => t.status === 'paused').length
+            pausedCount: items.filter((t) => t.status === 'paused').length,
+            reserveCount: items.filter(isReserveNeeded).length
           });
         }
       }
@@ -239,15 +256,19 @@ export function PatrolStatusModal({
   }
 
   async function handleSaveEditUrl(id: string) {
-    const trimmed = editingUrl.trim();
-    if (!trimmed) return;
+    const trimmedName = editingName.trim();
+    const trimmedUrl = editingUrl.trim();
+    if (!trimmedName || !trimmedUrl) {
+      setModalNotice('이름과 주소를 모두 입력해 주세요.');
+      return;
+    }
     setSavingEdit(true);
     setModalNotice('');
     try {
       const res = await fetch('/api/admin/targets', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, target_url: trimmed })
+        body: JSON.stringify({ id, org_name: trimmedName, target_url: trimmedUrl })
       });
       const data = (await res.json()) as {
         ok?: boolean;
@@ -255,13 +276,14 @@ export function PatrolStatusModal({
         error?: string;
       };
       if (!res.ok || !data.target) {
-        setModalNotice(data.error || '주소 수정에 실패했습니다.');
+        setModalNotice(data.error || '정보 수정에 실패했습니다.');
         return;
       }
       onTargetUpdated?.(data.target);
       setEditingId(null);
+      setEditingName('');
       setEditingUrl('');
-      setModalNotice(`'${data.target.org_name}' 주소가 수정되어 정상 상태로 복구되었습니다.`);
+      setModalNotice(`'${data.target.org_name}' 이름과 주소가 수정되었습니다.`);
     } catch {
       setModalNotice('네트워크 오류로 수정하지 못했습니다.');
     } finally {
@@ -286,6 +308,47 @@ export function PatrolStatusModal({
       setModalNotice(`'${t.org_name}'이(가) 삭제되었습니다.`);
     } catch {
       setModalNotice('네트워크 오류로 삭제하지 못했습니다.');
+    }
+  }
+
+  async function handleRepatrolTarget(t: CrawlTarget) {
+    setRepatrollingTargetId(t.id);
+    setModalNotice(`'${t.org_name}' 재순찰을 시작했습니다. 잠시만 기다려 주세요...`);
+    try {
+      const res = await fetch('/api/admin/patrol', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetId: t.id })
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        summary?: {
+          createdPosts?: number;
+          errors?: number;
+        };
+        updatedTargets?: CrawlTarget[];
+        error?: string;
+      };
+      if (!res.ok || !data.ok) {
+        setModalNotice(data.error || `'${t.org_name}' 재순찰에 실패했습니다.`);
+        return;
+      }
+      if (data.updatedTargets && data.updatedTargets.length > 0) {
+        for (const updated of data.updatedTargets) {
+          onTargetUpdated?.(updated);
+        }
+      }
+      const created = data.summary?.createdPosts ?? 0;
+      const errors = data.summary?.errors ?? 0;
+      setModalNotice(
+        errors > 0
+          ? `'${t.org_name}' 재순찰 완료 — 접속이 어려워 예비순찰대 필요 상태로 표시되었습니다.`
+          : `'${t.org_name}' 재순찰 완료 — 정상 확인 (새 소식 ${created}건 수집)`
+      );
+    } catch {
+      setModalNotice('네트워크 오류로 재순찰하지 못했습니다.');
+    } finally {
+      setRepatrollingTargetId(null);
     }
   }
 
@@ -404,7 +467,7 @@ export function PatrolStatusModal({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2">
                     <span
-                      className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${STATUS_DOT[t.status].dotClass}`}
+                      className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${getTargetDot(t).dotClass}`}
                     />
                     {t.target_url ? (
                       <a
@@ -422,7 +485,7 @@ export function PatrolStatusModal({
                       </span>
                     )}
                     <span className="shrink-0 text-[#5f6368]">
-                      ({STATUS_DOT[t.status].label})
+                      ({getTargetDot(t).label})
                     </span>
                     {t.last_item_title?.startsWith('[예비순찰대 필요]') ? (
                       <span
@@ -450,18 +513,28 @@ export function PatrolStatusModal({
                   <div className="flex shrink-0 items-center gap-1.5">
                     <button
                       type="button"
+                      disabled={repatrollingTargetId === t.id}
+                      onClick={() => handleRepatrolTarget(t)}
+                      className="rounded border border-[#d2e3fc] bg-[#e8f0fe] px-2 py-1 font-medium text-[#1967d2] hover:bg-[#d2e3fc] disabled:opacity-50"
+                    >
+                      {repatrollingTargetId === t.id ? '재순찰 중...' : '재순찰'}
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => {
                         if (editingId === t.id) {
                           setEditingId(null);
+                          setEditingName('');
                           setEditingUrl('');
                         } else {
                           setEditingId(t.id);
+                          setEditingName(t.org_name || '');
                           setEditingUrl(t.target_url || '');
                         }
                       }}
                       className="rounded border border-[#dadce0] bg-white px-2 py-1 font-medium text-[#5f6368] hover:bg-[#f8f9fa] hover:text-[#202124]"
                     >
-                      {editingId === t.id ? '취소' : '주소 수정'}
+                      {editingId === t.id ? '취소' : '이름·주소 수정'}
                     </button>
                     <button
                       type="button"
@@ -485,10 +558,28 @@ export function PatrolStatusModal({
                 </div>
 
                 {editingId === t.id ? (
-                  <div className="mt-2 flex flex-wrap gap-1.5 border-t border-[#f1f3f4] pt-2">
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-[#f1f3f4] pt-2">
+                    <input
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSaveEditUrl(t.id);
+                        }
+                      }}
+                      placeholder="기관·게시판 이름"
+                      className="w-full sm:w-48 rounded border border-[#dadce0] px-2.5 py-1 text-xs"
+                    />
                     <input
                       value={editingUrl}
                       onChange={(e) => setEditingUrl(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSaveEditUrl(t.id);
+                        }
+                      }}
                       placeholder="새 게시판 주소를 붙여넣으세요"
                       className="min-w-[200px] flex-1 rounded border border-[#dadce0] px-2.5 py-1 text-xs"
                     />
@@ -498,7 +589,7 @@ export function PatrolStatusModal({
                       onClick={() => handleSaveEditUrl(t.id)}
                       className="rounded bg-[#1a73e8] px-3 py-1 text-xs font-semibold text-white hover:bg-[#1557b0] disabled:opacity-50"
                     >
-                      {savingEdit ? '저장 중...' : '저장 및 복구'}
+                      {savingEdit ? '저장 중...' : '저장'}
                     </button>
                   </div>
                 ) : null}
@@ -556,14 +647,18 @@ export function PatrolStatusModal({
           <div className="flex flex-wrap items-center gap-2">
             {(
               [
-                { key: 'active', label: '정상', count: counts.active, dotClass: 'bg-[#22c55e]' },
-                { key: 'error', label: '오류', count: counts.error, dotClass: 'bg-[#facc15]' },
-                { key: 'paused', label: '일시정지', count: counts.paused, dotClass: 'bg-[#ef4444]' }
+                { key: 'active', label: '정상', count: counts.active, dotClass: 'bg-[#22c55e]', isReserve: false },
+                { key: 'error', label: '오류', count: counts.error, dotClass: 'bg-[#facc15]', isReserve: false },
+                { key: 'paused', label: '일시정지', count: counts.paused, dotClass: 'bg-[#ef4444]', isReserve: false },
+                ...(counts.reserve > 0 || tab === 'reserve'
+                  ? [{ key: 'reserve' as const, label: '예비순찰필요', count: counts.reserve, dotClass: 'bg-[#9334e6]', isReserve: true }]
+                  : [])
               ] as Array<{
                 key: Exclude<PatrolFilterTab, 'all'>;
                 label: string;
                 count: number;
                 dotClass: string;
+                isReserve: boolean;
               }>
             ).map((item) => {
               const selected = tab === item.key;
@@ -574,8 +669,12 @@ export function PatrolStatusModal({
                   onClick={() => setTab((prev) => (prev === item.key ? 'all' : item.key))}
                   className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
                     selected
-                      ? 'border-[#1a73e8] bg-[#e8f0fe] text-[#1a73e8]'
-                      : 'border-[#dadce0] bg-white text-[#202124] hover:bg-[#f8f9fa]'
+                      ? item.isReserve
+                        ? 'border-[#9334e6] bg-[#f3e8fd] text-[#7627bb]'
+                        : 'border-[#1a73e8] bg-[#e8f0fe] text-[#1a73e8]'
+                      : item.isReserve
+                        ? 'border-[#d7aefb] bg-[#faf5ff] text-[#7627bb] hover:bg-[#f3e8fd]'
+                        : 'border-[#dadce0] bg-white text-[#202124] hover:bg-[#f8f9fa]'
                   }`}
                 >
                   <span className={`inline-block h-2.5 w-2.5 rounded-full ${item.dotClass}`} />
@@ -613,13 +712,16 @@ export function PatrolStatusModal({
                       전국 공통
                     </span>
                     <div className="flex items-center gap-1">
-                      {commonCell.items.map((t) => (
-                        <span
-                          key={t.id}
-                          title={`${t.org_name} (${STATUS_DOT[t.status].label})`}
-                          className={`inline-block h-2.5 w-2.5 rounded-full ${STATUS_DOT[t.status].dotClass}`}
-                        />
-                      ))}
+                      {commonCell.items.map((t) => {
+                        const dot = getTargetDot(t);
+                        return (
+                          <span
+                            key={t.id}
+                            title={`${t.org_name} (${dot.label})`}
+                            className={`inline-block h-2.5 w-2.5 rounded-full ${dot.dotClass}`}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                   <span className="text-xs font-semibold text-[#5f6368]">
@@ -661,6 +763,7 @@ export function PatrolStatusModal({
                       {section.cells.map((cell) => {
                         const isActive = cell.items.length > 0;
                         const hasProblem = cell.errorCount + cell.pausedCount > 0;
+                        const hasReserve = cell.reserveCount > 0;
                         const isSelected = selectedKey === cell.key;
 
                         if (!isActive) {
@@ -697,7 +800,9 @@ export function PatrolStatusModal({
                             className={`flex flex-col items-center justify-center gap-1 rounded-lg border px-2 py-2 text-center transition ${
                               hasProblem
                                 ? 'border-[#f5c2c0] bg-[#fff8f6] text-[#202124] hover:bg-[#fef1ee]'
-                                : 'border-[#dadce0] bg-white text-[#202124] hover:border-[#1a73e8] hover:bg-[#f8faff]'
+                                : hasReserve
+                                  ? 'border-[#d7aefb] bg-[#faf5ff] text-[#202124] hover:bg-[#f3e8fd]'
+                                  : 'border-[#dadce0] bg-white text-[#202124] hover:border-[#1a73e8] hover:bg-[#f8faff]'
                             } ${
                               isSelected
                                 ? 'border-[#1a73e8] ring-2 ring-[#1a73e8]'
@@ -708,13 +813,16 @@ export function PatrolStatusModal({
                               {cell.sigungu}
                             </span>
                             <div className="flex flex-wrap items-center justify-center gap-1">
-                              {cell.items.map((t) => (
-                                <span
-                                  key={t.id}
-                                  title={`${t.org_name} (${STATUS_DOT[t.status].label})`}
-                                  className={`inline-block h-2 w-2 rounded-full ${STATUS_DOT[t.status].dotClass}`}
-                                />
-                              ))}
+                              {cell.items.map((t) => {
+                                const dot = getTargetDot(t);
+                                return (
+                                  <span
+                                    key={t.id}
+                                    title={`${t.org_name} (${dot.label})`}
+                                    className={`inline-block h-2 w-2 rounded-full ${dot.dotClass}`}
+                                  />
+                                );
+                              })}
                             </div>
                           </button>
                         );

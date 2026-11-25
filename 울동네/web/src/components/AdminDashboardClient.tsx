@@ -26,6 +26,7 @@ export function AdminDashboardClient({
   const [drafts, setDrafts] = useState<WelfarePost[]>(initialDrafts);
   const [appPendingPosts, setAppPendingPosts] = useState<WelfarePost[]>(initialAppPendingPosts);
   const [showAppPending, setShowAppPending] = useState(false);
+  const [showAppPublished, setShowAppPublished] = useState(false);
   const [appPosts, setAppPosts] = useState<WelfarePost[]>(initialAppPosts);
   const [targets, setTargets] = useState<CrawlTarget[]>(initialTargets);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -276,12 +277,15 @@ export function AdminDashboardClient({
   const activeCount = targets.filter((t) => t.status === 'active').length;
   const errorCount = targets.filter((t) => t.status === 'error').length;
   const pausedCount = targets.filter((t) => t.status === 'paused').length;
+  const reserveCount = targets.filter((t) =>
+    t.last_item_title?.startsWith('[예비순찰대 필요]')
+  ).length;
 
   return (
     <div className="space-y-10">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#dadce0] pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#202124]">블로그 초안 검수실</h1>
+          <h1 className="text-2xl font-bold text-[#202124]">울동네 데이터 수집 관제센터</h1>
           <p className="text-sm text-[#5f6368]">
             모바일 앱은 AI가 자동 발행·알림을 처리하며, 이곳에서는 하루 최대 2~3건의 블로그 초안만 검토해 수정·반려·발행합니다.
           </p>
@@ -312,7 +316,7 @@ export function AdminDashboardClient({
             순찰지역 테이블 보기 ({targets.length}곳)
           </button>
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <button
             type="button"
             onClick={() => openPatrolModal('active')}
@@ -320,6 +324,18 @@ export function AdminDashboardClient({
           >
             <div className="text-xs text-[#5f6368]">정상 순찰 중</div>
             <div className="mt-1 text-2xl font-bold text-[#1a73e8]">{activeCount}곳</div>
+          </button>
+          <button
+            type="button"
+            onClick={() => openPatrolModal('reserve')}
+            className={`rounded-xl border p-4 text-left transition ${
+              reserveCount > 0
+                ? 'border-[#d7aefb] bg-[#faf5ff] hover:border-[#9334e6] hover:bg-[#f3e8fd]'
+                : 'border-[#dadce0] bg-white hover:border-[#9334e6] hover:bg-[#faf5ff]'
+            }`}
+          >
+            <div className="text-xs text-[#7627bb]">예비순찰필요</div>
+            <div className="mt-1 text-2xl font-bold text-[#9334e6]">{reserveCount}곳</div>
           </button>
           <button
             type="button"
@@ -719,16 +735,27 @@ export function AdminDashboardClient({
               <span>달력</span>
             </button>
           </div>
-          <span className="text-xs text-[#5f6368]">
-            최근 새벽 5시 최종 순찰 이후 신규 발행 (지난 기록은 달력에서 확인)
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[#5f6368]">
+              최근 새벽 5시 최종 순찰 이후 신규 발행 (지난 기록은 달력에서 확인)
+            </span>
+            {latestDawnPosts.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setShowAppPublished((prev) => !prev)}
+                className="rounded-lg border border-[#dadce0] bg-white px-3 py-1 text-xs font-semibold text-[#3c4043] hover:bg-[#f8f9fa]"
+              >
+                {showAppPublished ? '접기 ▴' : '펼쳐서 보기 ▾'}
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {latestDawnPosts.length === 0 ? (
           <div className="rounded-xl border border-[#dadce0] bg-[#f8f9fa] p-6 text-center text-sm text-[#5f6368]">
             최근 새벽 5시 순찰 이후 새로 자동 발행된 카드가 없습니다. (지난 발행 내역은 위 달력에서 확인하실 수 있습니다.)
           </div>
-        ) : (
+        ) : showAppPublished ? (
           <div className="divide-y divide-[#dadce0] rounded-xl border border-[#dadce0] bg-white">
             {latestDawnPosts.map((post) => {
               const isExpanded = Boolean(expandedAppPostIds[post.id]);
@@ -775,6 +802,14 @@ export function AdminDashboardClient({
               );
             })}
           </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowAppPublished(true)}
+            className="w-full rounded-xl border border-[#d2e3fc] bg-[#f8fbff] p-4 text-left text-xs font-medium text-[#1a73e8] hover:bg-[#e8f0fe]"
+          >
+            최근 새벽 5시 순찰 이후 자동 발행된 {latestDawnPosts.length}건이 있습니다. 클릭해서 확인하거나 앱에서 숨김 처리하실 수 있습니다.
+          </button>
         )}
       </section>
 

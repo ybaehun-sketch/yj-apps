@@ -11,7 +11,8 @@ const CATEGORIES = [
   '주거/난방비',
   '소상공인/일자리',
   '농림/축산/어업',
-  '생활/문화/법률'
+  '생활/문화/법률',
+  '다문화'
 ];
 
 const CATEGORY_PILL_STYLES: Record<string, string> = {
@@ -20,7 +21,8 @@ const CATEGORY_PILL_STYLES: Record<string, string> = {
   '주거/난방비': 'bg-[#eaf3ff] text-[#1967d2]',
   '소상공인/일자리': 'bg-[#f3efff] text-[#653bc4]',
   '농림/축산/어업': 'bg-[#eef6ea] text-[#2e6f24]',
-  '생활/문화/법률': 'bg-[#fef7e0] text-[#9c6500]'
+  '생활/문화/법률': 'bg-[#fef7e0] text-[#9c6500]',
+  '다문화': 'bg-[#fce8f3] text-[#a61c63]'
 };
 
 const PAGE_SIZE = 10;
