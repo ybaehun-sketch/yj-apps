@@ -1,4 +1,4 @@
-import { t } from './i18n.js?v=20261121event';
+import { t } from './i18n.js?v=20261125pay';
 
 /**
  * 「7일 무료 체험 + 1회성 평생 소장 결제(구독 아님)」 부품 (실속 보안 강화판)
@@ -50,13 +50,69 @@ function decodePayload(encoded) {
 }
 
 export function loadLicense() {
-  return {
-    startedAt: Date.now(),
-    lastSeenAt: Date.now(),
-    purchased: true,
+  const now = Date.now();
+  try {
+    const raw = localStorage.getItem(LICENSE_KEY);
+    if (raw) {
+      const parsed = decodePayload(raw);
+      if (parsed && typeof parsed.startedAt === 'number') {
+        const lic = {
+          startedAt: parsed.startedAt,
+          lastSeenAt: typeof parsed.lastSeenAt === 'number' ? parsed.lastSeenAt : parsed.startedAt,
+          purchased: Boolean(parsed.purchased),
+          simulatedExpired: Boolean(parsed.simulatedExpired),
+          tampered: Boolean(parsed.tampered)
+        };
+        if (!lic.purchased) {
+          // 휴대폰 시계를 1분 이상 과거로 돌린 경우 시간 역행 편법으로 감지
+          if (now + 60_000 < lic.lastSeenAt) {
+            lic.tampered = true;
+          } else if (now > lic.lastSeenAt) {
+            lic.lastSeenAt = now;
+          }
+          saveLicense(lic);
+        }
+        return lic;
+      }
+      // 저장값이 임의로 훼손된 경우 만료 처리
+      const tamperedLic = {
+        startedAt: now - TRIAL_DAYS * 86_400_000,
+        lastSeenAt: now,
+        purchased: false,
+        simulatedExpired: false,
+        tampered: true
+      };
+      saveLicense(tamperedLic);
+      return tamperedLic;
+    }
+
+    // 기존 v1 저장 이력이 있으면 시작일을 이어받아 초기화
+    const legacyRaw = localStorage.getItem(LEGACY_KEY);
+    if (legacyRaw) {
+      const legacy = JSON.parse(legacyRaw);
+      const migrated = {
+        startedAt: typeof legacy?.startedAt === 'number' ? legacy.startedAt : now,
+        lastSeenAt: now,
+        purchased: Boolean(legacy?.purchased),
+        simulatedExpired: false,
+        tampered: false
+      };
+      saveLicense(migrated);
+      return migrated;
+    }
+  } catch {
+    // 저장소 읽기 오류 시 기본 체험으로 진행
+  }
+
+  const fresh = {
+    startedAt: now,
+    lastSeenAt: now,
+    purchased: false,
     simulatedExpired: false,
     tampered: false
   };
+  saveLicense(fresh);
+  return fresh;
 }
 
 export function saveLicense(lic) {
@@ -75,9 +131,33 @@ export function saveLicense(lic) {
 }
 
 export function getLicenseStatus(lic) {
+  if (lic?.purchased) {
+    return {
+      state: 'purchased',
+      daysLeft: 0,
+      label: t('license.purchasedLabel')
+    };
+  }
+  if (lic?.tampered || lic?.simulatedExpired) {
+    return {
+      state: 'expired',
+      daysLeft: 0,
+      label: t('license.expiredLabel')
+    };
+  }
+  const elapsedMs = Math.max(0, Date.now() - (Number(lic?.startedAt) || Date.now()));
+  const elapsedDays = Math.floor(elapsedMs / 86_400_000);
+  const daysLeft = Math.max(0, TRIAL_DAYS - elapsedDays);
+  if (daysLeft <= 0) {
+    return {
+      state: 'expired',
+      daysLeft: 0,
+      label: t('license.expiredLabel')
+    };
+  }
   return {
-    state: 'purchased',
-    daysLeft: 0,
-    label: t('license.badgePurchased')
+    state: 'trial',
+    daysLeft,
+    label: t('license.trialLabel', { days: daysLeft })
   };
 }

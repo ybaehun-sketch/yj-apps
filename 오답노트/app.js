@@ -3,7 +3,13 @@ import { renderSubjectBar } from './modules/subjectBar.js?v=20261121free';
 import { createMagicEraser } from './modules/magicEraser.js?v=20261121idle';
 import { buildReviewQueue, renderReviewCard } from './modules/reviewDeck.js?v=20261121free';
 import { showAlert, showConfirm } from './modules/dialog.js?v=20261121free';
-import { loadLicense, saveLicense, getLicenseStatus } from './modules/trialLicense.js?v=20261121event';
+import { loadLicense, saveLicense, getLicenseStatus } from './modules/trialLicense.js?v=20261125pay';
+import {
+  fetchLifetimeStorePrice,
+  formatStorePrice,
+  purchaseLifetime,
+  checkLifetimePurchase
+} from './modules/playBilling.js?v=20261125pay';
 import { initRippleFeedback } from './modules/ripple.js?v=20261121event';
 import {
   t,
@@ -12,7 +18,7 @@ import {
   getLangPref,
   setLangPref,
   applyStaticTranslations
-} from './modules/i18n.js?v=20261121idle';
+} from './modules/i18n.js?v=20261125pay';
 
 const MAX_SUBJECTS = 13;
 const MAX_PROBLEMS_PER_SUBJECT = 50;
@@ -134,7 +140,9 @@ const licenseEls = {
   modal: document.getElementById('license-modal'),
   title: document.getElementById('license-modal-title'),
   badge: document.getElementById('license-badge-text'),
-  btnBuy: document.getElementById('btn-buy-lifetime')
+  btnBuy: document.getElementById('btn-buy-lifetime'),
+  btnBuyText: document.getElementById('btn-buy-lifetime-text'),
+  btnRestore: document.getElementById('btn-restore-lifetime')
 };
 
 const settingsEls = {
@@ -147,6 +155,7 @@ const settingsEls = {
   menuLanguage: document.getElementById('menu-open-language'),
   languageBadge: document.getElementById('settings-language-badge'),
   menuLicense: document.getElementById('menu-open-license'),
+  licenseLabel: document.getElementById('settings-license-label'),
   licenseBadge: document.getElementById('settings-license-badge'),
   linkGuide: document.getElementById('link-guide'),
   linkTerms: document.getElementById('link-terms'),
@@ -1293,30 +1302,68 @@ criteriaEls.inputMasteryTarget.addEventListener('change', () => {
 });
 
 /* ================= 7. 7일 무료 체험 & 평생 소장 ================= */
+let cachedDisplayPrice = '';
+
+function updateBuyButtonPriceText() {
+  if (!licenseEls.btnBuyText) return;
+  licenseEls.btnBuyText.textContent = cachedDisplayPrice
+    ? t('license.buyBtnWithPrice', { price: cachedDisplayPrice })
+    : t('license.buyBtn');
+}
+
 function updateLicenseUI() {
   const info = getLicenseStatus(license);
+  if (settingsEls.licenseLabel) {
+    settingsEls.licenseLabel.textContent =
+      info.state === 'purchased' ? t('settings.licensePurchased') : t('settings.license');
+  }
   settingsEls.licenseBadge.textContent =
     info.state === 'purchased'
       ? t('license.badgePurchased')
       : info.state === 'expired'
         ? t('license.badgeExpired')
         : t('license.badgeTrial');
+  licenseEls.badge.textContent = info.label;
+  const isPurchased = info.state === 'purchased';
+  licenseEls.btnBuy.classList.toggle('hidden', isPurchased);
+  licenseEls.btnRestore?.classList.toggle('hidden', isPurchased);
+  updateBuyButtonPriceText();
 }
 
 function openLicenseModal(expiredNotice = false) {
   const info = getLicenseStatus(license);
-  licenseEls.badge.textContent = info.label;
+  updateLicenseUI();
   licenseEls.title.textContent =
     info.state === 'expired' || expiredNotice
       ? t('license.titleExpired')
       : info.state === 'purchased'
         ? t('license.titlePurchased')
         : t('license.titleTrial');
-  licenseEls.btnBuy.classList.toggle('hidden', info.state === 'purchased');
   if (!settingsEls.modal.classList.contains('is-open')) {
     openSettingsDrawer('license');
   } else {
     navigateDrawerPage('license');
+  }
+  if (info.state !== 'purchased') {
+    fetchLifetimeStorePrice().then((price) => {
+      if (price) {
+        cachedDisplayPrice = formatStorePrice(price);
+        updateBuyButtonPriceText();
+      }
+    });
+  }
+}
+
+async function syncPlayPurchaseSilently() {
+  if (license.purchased) return;
+  const result = await checkLifetimePurchase();
+  if (result.purchased) {
+    license.purchased = true;
+    license.simulatedExpired = false;
+    license.tampered = false;
+    license.lastSeenAt = Date.now();
+    saveLicense(license);
+    updateLicenseUI();
   }
 }
 
@@ -1615,16 +1662,59 @@ settingsEls.linkPrivacy.addEventListener('click', () => {
 });
 
 licenseEls.btnBuy.addEventListener('click', async () => {
-  license.purchased = true;
-  license.simulatedExpired = false;
-  license.tampered = false;
-  license.lastSeenAt = Date.now();
-  saveLicense(license);
-  updateLicenseUI();
-  navigateDrawerPage('main');
-  await showAlert(t('license.buySuccessMsg'), {
-    title: t('license.buySuccessTitle')
-  });
+  if (licenseEls.btnBuy.disabled) return;
+  licenseEls.btnBuy.disabled = true;
+  try {
+    const result = await purchaseLifetime();
+    if (!result.ok) {
+      if (result.cancelled) {
+        showToast(result.reason);
+      } else {
+        await showAlert(result.reason);
+      }
+      return;
+    }
+    license.purchased = true;
+    license.simulatedExpired = false;
+    license.tampered = false;
+    license.lastSeenAt = Date.now();
+    saveLicense(license);
+    updateLicenseUI();
+    navigateDrawerPage('main');
+    await showAlert(t('license.buySuccessMsg'), {
+      title: t('license.buySuccessTitle')
+    });
+  } finally {
+    licenseEls.btnBuy.disabled = false;
+  }
+});
+
+licenseEls.btnRestore?.addEventListener('click', async () => {
+  if (licenseEls.btnRestore.disabled) return;
+  licenseEls.btnRestore.disabled = true;
+  try {
+    const result = await checkLifetimePurchase();
+    if (!result.available) {
+      await showAlert(t('license.playOnlyMsg'));
+      return;
+    }
+    if (!result.purchased) {
+      await showAlert(t('license.restoreNotFoundMsg'));
+      return;
+    }
+    license.purchased = true;
+    license.simulatedExpired = false;
+    license.tampered = false;
+    license.lastSeenAt = Date.now();
+    saveLicense(license);
+    updateLicenseUI();
+    navigateDrawerPage('main');
+    await showAlert(t('license.restoreSuccessMsg'), {
+      title: t('license.buySuccessTitle')
+    });
+  } finally {
+    licenseEls.btnRestore.disabled = false;
+  }
 });
 
 // 초기 화면 그리기 및 다국어·테마·물결 터치 반응 연결
@@ -1635,6 +1725,7 @@ initRippleFeedback();
 updateLicenseUI();
 updateLanguageUI();
 renderHome();
+syncPlayPurchaseSilently();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

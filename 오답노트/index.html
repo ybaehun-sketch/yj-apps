@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0" />
-  <link rel="stylesheet" href="styles.css?v=20261121ring" />
+  <link rel="stylesheet" href="styles.css?v=20261125pay" />
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -325,6 +325,16 @@
         </header>
         <div class="drawer-body">
           <div class="settings-menu-list">
+            <button type="button" id="menu-open-license" class="settings-menu-item">
+              <div class="settings-menu-lead">
+                <span class="material-symbols-rounded ms-icon" aria-hidden="true">workspace_premium</span>
+                <strong id="settings-license-label" data-i18n="settings.license">이용권 · 7일 무료 체험</strong>
+              </div>
+              <div class="settings-menu-tail">
+                <span id="settings-license-badge" class="badge-subject settings-badge">체험 중</span>
+                <span class="material-symbols-rounded ms-icon settings-arrow" aria-hidden="true">chevron_right</span>
+              </div>
+            </button>
             <button type="button" id="menu-open-subjects" class="settings-menu-item">
               <div class="settings-menu-lead">
                 <span class="material-symbols-rounded ms-icon" aria-hidden="true">tune</span>
@@ -356,16 +366,6 @@
               </div>
               <div class="settings-menu-tail">
                 <span id="settings-language-badge" class="badge-subject settings-badge">한국어</span>
-                <span class="material-symbols-rounded ms-icon settings-arrow" aria-hidden="true">chevron_right</span>
-              </div>
-            </button>
-            <button type="button" id="menu-open-license" class="settings-menu-item">
-              <div class="settings-menu-lead">
-                <span class="material-symbols-rounded ms-icon" aria-hidden="true">celebration</span>
-                <strong data-i18n="settings.license">출시 기념 무료 이벤트</strong>
-              </div>
-              <div class="settings-menu-tail">
-                <span id="settings-license-badge" class="badge-subject settings-badge">이벤트 적용 중</span>
                 <span class="material-symbols-rounded ms-icon settings-arrow" aria-hidden="true">chevron_right</span>
               </div>
             </button>
@@ -564,28 +564,31 @@
               <span class="material-symbols-rounded ms-icon ms-header" aria-hidden="true">arrow_back</span>
             </button>
             <h3 id="license-modal-title" class="modal-title-row">
-              <span data-i18n="license.titlePurchased">출시 기념 전 기능 무료 이벤트</span>
+              <span data-i18n="license.titleTrial">7일 무료 체험 · 평생 소장 안내</span>
             </h3>
           </div>
         </header>
         <div class="drawer-subpage-body">
+          <div class="license-actions-top">
+            <button id="btn-buy-lifetime" class="btn-primary-lg" type="button">
+              <span class="material-symbols-rounded ms-icon" aria-hidden="true">workspace_premium</span>
+              <span id="btn-buy-lifetime-text" data-i18n="license.buyBtn">평생 소장 구매하기 (₩3,900)</span>
+            </button>
+            <button id="btn-restore-lifetime" class="btn-restore-link" type="button" data-i18n="license.restoreBtn">
+              이미 구매하셨나요? 구매 복원
+            </button>
+          </div>
           <div class="license-hero-card">
-            <div id="license-badge-text" class="license-badge" data-i18n="license.badgePurchased">이벤트 적용 중</div>
-            <h4 class="license-headline" data-i18n-html="license.headline">출시 기념 특별 이벤트!<br />모든 기능을 무료로 즐겨보세요</h4>
-            <p class="license-sub" data-i18n-html="license.sub">오답정복 출시를 기념하여, 지금 이용하시는 모든 분께 쓱-지우개·가림막 복습·무제한 오답 등록까지 모든 프리미엄 기능을 결제 없이 한시적 특별 무료 혜택으로 제공합니다.</p>
+            <div id="license-badge-text" class="license-badge" data-i18n="license.badgeTrial">체험 중</div>
+            <h4 class="license-headline" data-i18n-html="license.headline">단 한 번 3,900원 결제로<br />오답정복을 평생 소장하세요</h4>
+            <p class="license-sub" data-i18n-html="license.sub">매달 나가는 구독료 부담 없이 커피 한 잔 값으로 쓱-지우개, 가림막 복습, 무제한 오답 등록까지 모든 기능을 평생 이용하실 수 있습니다. (이미 등록한 오답 복습은 계속 가능해요.)</p>
             <ul class="license-perks">
-              <li><span class="material-symbols-rounded ms-icon ms-perk" aria-hidden="true">check_circle</span><span data-i18n="license.perk1">출시 기념 특별 한정 무료 혜택</span></li>
+              <li><span class="material-symbols-rounded ms-icon ms-perk" aria-hidden="true">check_circle</span><span data-i18n="license.perk1">구독료 없는 1회 결제 평생 소장 (₩3,900)</span></li>
               <li><span class="material-symbols-rounded ms-icon ms-perk" aria-hidden="true">check_circle</span><span data-i18n="license.perk2">광고 없는 쾌적하고 깔끔한 학습 환경</span></li>
-              <li><span class="material-symbols-rounded ms-icon ms-perk" aria-hidden="true">check_circle</span><span data-i18n="license.perk3">쓱-지우개 · 가림막 복습 전체 무료 제공</span></li>
+              <li><span class="material-symbols-rounded ms-icon ms-perk" aria-hidden="true">check_circle</span><span data-i18n="license.perk3">쓱-지우개 · 가림막 복습 · 무제한 등록</span></li>
             </ul>
           </div>
         </div>
-        <footer class="drawer-subpage-footer license-footer">
-          <button id="btn-buy-lifetime" class="btn-primary-lg hidden" type="button">
-            <span class="material-symbols-rounded ms-icon" aria-hidden="true">celebration</span>
-            <span data-i18n="license.buyBtn">출시 기념 이벤트 혜택 적용 중</span>
-          </button>
-        </footer>
       </div>
     </aside>
   </div>
@@ -593,6 +596,6 @@
   <!-- 전역 토스트 알림 -->
   <div id="app-toast" class="app-toast hidden" role="status" aria-live="polite"></div>
 
-  <script type="module" src="app.js?v=20261125quiz"></script>
+  <script type="module" src="app.js?v=20261125pay"></script>
 </body>
 </html>

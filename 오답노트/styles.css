@@ -855,10 +855,34 @@ body {
   justify-content: center;
 }
 
+.license-actions-top {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
 .license-footer {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.btn-restore-link {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 12px;
+  cursor: pointer;
+  text-align: center;
+  border-radius: 10px;
+}
+
+.btn-restore-link:active {
+  background: var(--bg-soft);
 }
 
 /* 통합 설정 메뉴 & 문제 풀기 선택 팝업 */

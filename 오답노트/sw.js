@@ -1,9 +1,9 @@
-const CACHE_NAME = "odabnote-shell-v20261125quiz";
+const CACHE_NAME = "odabnote-shell-v20261125pay";
 const PRECACHE_URLS = [
   "/",
   "/index.html",
-  "/styles.css?v=20261121ring",
-  "/app.js?v=20261125quiz",
+  "/styles.css?v=20261125pay",
+  "/app.js?v=20261125pay",
   "/manifest.webmanifest",
   "/icon-192.png",
   "/icon-512.png",
@@ -12,7 +12,8 @@ const PRECACHE_URLS = [
   "/modules/sampleImages.js",
   "/modules/i18n.js",
   "/modules/magicEraser.js",
-  "/modules/trialLicense.js"
+  "/modules/trialLicense.js",
+  "/modules/playBilling.js"
 ];
 
 self.addEventListener("install", (event) => {
