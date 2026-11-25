@@ -398,7 +398,7 @@ function SummaryCard({ title, notes }: { title: string; notes: Note[] }) {
   );
 }
 
-import { purchaseWithPlayBilling, type BillingCycle } from "@/lib/play-billing";
+import { checkPlaySubscription, purchaseWithPlayBilling, type BillingCycle } from "@/lib/play-billing";
 
 export type Plan = "free" | "premium";
 export const PLAN_LABEL: Record<Plan, string> = { free: "무료 사용자", premium: "프리미엄" };
@@ -693,7 +693,7 @@ const PAY_PLANS: { key: BillingCycle; plan: Plan; name: string; price: string; u
   { key: "yearly", plan: "premium", name: "연간 구독", price: "39,000원", unit: "/년", badge: "2개월 무료" },
 ];
 
-export function PaymentModal({ onClose, onPaid }: { onClose: () => void; onPaid: (p: Plan) => void }) {
+export function PaymentModal({ currentPlan = "free", onClose, onPaid }: { currentPlan?: Plan; onClose: () => void; onPaid: (p: Plan) => void }) {
   const [selectedKey, setSelectedKey] = useState<BillingCycle>("yearly");
   const chosen = PAY_PLANS.find((p) => p.key === selectedKey) ?? PAY_PLANS[0]!;
   const [step, setStep] = useState<"form" | "paying" | "done">("form");
@@ -723,6 +723,23 @@ export function PaymentModal({ onClose, onPaid }: { onClose: () => void; onPaid:
             <p className="mt-2 font-bold text-foreground">{tr("결제 완료!")}</p>
             <p className="mt-1 text-sm text-muted-foreground">{tr("{0}이(가) 적용되었어요.", tr(chosen.name))}</p>
             <button onClick={onClose} className="mt-5 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground">{tr("확인")}</button>
+          </div>
+        ) : currentPlan === "premium" ? (
+          <div className="py-2">
+            <div className="flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5">
+              <Crown className="size-6 shrink-0 text-amber-500" />
+              <div>
+                <p className="text-sm font-bold text-foreground">{tr("프리미엄 이용 중")}</p>
+                <p className="text-xs text-muted-foreground">{tr("무제한 스마트 혜택")}</p>
+              </div>
+            </div>
+            <ul className="mt-3 space-y-1.5 rounded-xl border border-border/70 bg-muted/30 p-3">
+              {PLAN_META.premium.perks.map((p) => (
+                <li key={p} className="text-xs text-foreground">✓ {tr(p)}</li>
+              ))}
+            </ul>
+            <p className="mt-3 text-center text-xs text-muted-foreground">{tr("구독 관리 및 해지는 Google Play 스토어에서 할 수 있어요.")}</p>
+            <button onClick={onClose} className="mt-4 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground">{tr("확인")}</button>
           </div>
         ) : (
           <>
@@ -767,29 +784,34 @@ export function usePrefs() {
   const [p, setP] = useState<Prefs>(DEFAULT);
   const hydratedRef = useRef(false);
   useEffect(() => {
+    let initial: Prefs = DEFAULT;
     try {
       const s2 = localStorage.getItem("jungbi-prefs-v2");
       if (s2) {
         const parsed = JSON.parse(s2) as Omit<Partial<Prefs>, "accent"> & { accent?: string };
         const accent: Prefs["accent"] = parsed.accent === "lavender" || parsed.accent === "mint" || parsed.accent === "pink" ? parsed.accent : "sky";
-        const next = { ...DEFAULT, ...parsed, accent };
-        hydratedRef.current = true;
-        setP(next);
-        applyPrefs(next);
-        return;
-      }
-      const s1 = localStorage.getItem("jungbi-prefs");
-      if (s1) {
-        const parsed = JSON.parse(s1);
-        const next = { ...DEFAULT, ...parsed, accent: "sky" as const };
-        hydratedRef.current = true;
-        setP(next);
-        applyPrefs(next);
-        return;
+        // Always start as free and verify active subscription via Google Play Billing
+        initial = { ...DEFAULT, ...parsed, accent, plan: "free" };
+      } else {
+        const s1 = localStorage.getItem("jungbi-prefs");
+        if (s1) {
+          const parsed = JSON.parse(s1);
+          initial = { ...DEFAULT, ...parsed, accent: "sky" as const, plan: "free" };
+        }
       }
     } catch { /* ignore */ }
     hydratedRef.current = true;
-    applyPrefs(DEFAULT);
+    setP(initial);
+    applyPrefs(initial);
+
+    let cancelled = false;
+    void checkPlaySubscription().then((res) => {
+      if (cancelled || !res.available) return;
+      setP((prev) => ({ ...prev, plan: res.active ? "premium" : "free" }));
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
   useEffect(() => {
     if (!hydratedRef.current) return;
@@ -892,7 +914,6 @@ export function SettingsSheet({ usage, email, joinedAt, prefs, setPrefs, onLogou
                     <Crown className="size-4" />{tr("프리미엄으로 업그레이드")}
                   </button>
                 )}
-                {BILLING_ENABLED && prefs.plan !== "free" && <button onClick={() => setPrefs({ ...prefs, plan: "free" })} className="mt-2 w-full text-xs text-muted-foreground underline">{tr("무료로 되돌리기 (테스트)")}</button>}
               </Section>
               <Section title={tr("내 보관함")}>
                 {(() => {

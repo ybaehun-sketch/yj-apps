@@ -98,8 +98,13 @@ function Inbox() {
       return sumUsage((files ?? []).map((f) => ({ name: f.name, size: Number((f.metadata as { size?: number } | null)?.size ?? 0) })));
     },
   });
-  const quotaErr = (size: number) => { const r = uploadBlockReason(prefs.plan, user.created, usage?.total ?? 0, size, new Date(), BILLING_ENABLED); return r ? tr(r) : null; };
+  const quotaErr = (size: number) => {
+    if (user.exempt) return null;
+    const r = uploadBlockReason(prefs.plan, user.created, usage?.total ?? 0, size, new Date(), BILLING_ENABLED);
+    return r ? tr(r) : null;
+  };
   const dailyErr = () => {
+    if (user.exempt) return null;
     const start = new Date(); start.setHours(0, 0, 0, 0);
     const ms = start.getTime();
     const todayCount = notes.filter((n) => Date.parse(n.created_at) >= ms).length + answers.filter((a) => Date.parse(a.at) >= ms).length;
@@ -140,11 +145,16 @@ function Inbox() {
     void syncPushIfEnabled(prefs.alarm);
   }, [prefs.alarm]);
 
-  const [user, setUser] = useState<{ email: string; created: string | null }>({ email: "local@talk-secretary", created: null });
+  const [user, setUser] = useState<{ email: string; created: string | null; exempt?: boolean }>({ email: "local@talk-secretary", created: null });
   useEffect(() => {
-    void supabase.auth.getUser().then(({ data: u }) =>
-      setUser({ email: u.user?.email ?? "local@talk-secretary", created: u.user?.created_at ?? null }),
-    );
+    void supabase.auth.getUser().then(({ data: u }) => {
+      const exempt = Boolean(u.user?.user_metadata?.trial_exempt);
+      setUser({
+        email: u.user?.email ?? "local@talk-secretary",
+        created: exempt ? null : (u.user?.created_at ?? null),
+        exempt,
+      });
+    });
   }, []);
 
   const [text, setText] = useState("");
@@ -545,7 +555,8 @@ function Inbox() {
       }
     } catch (e) {
       console.error(e);
-      setErr(tr("앗, 정리하다 문제가 생겼어요. 다시 던져 주세요"));
+      const detail = e instanceof Error && e.message ? ` (${e.message})` : "";
+      setErr(`${tr("앗, 정리하다 문제가 생겼어요. 다시 던져 주세요")}${detail}`);
       if (!opts) setText(t);
     } finally {
       setPending(null);
@@ -865,6 +876,7 @@ function Inbox() {
       {/* 정기 구독 안내 / 결제 모달 */}
       {BILLING_ENABLED && isBillingOpen && (
         <PaymentModal
+          currentPlan={prefs.plan}
           onClose={() => setIsBillingOpen(false)}
           onPaid={(plan) => setPrefs({ ...prefs, plan })}
         />

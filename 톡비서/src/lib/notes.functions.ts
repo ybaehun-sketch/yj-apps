@@ -12,6 +12,8 @@ import { DAILY_AI_LIMIT } from "./storage-quota";
 const SERVER_DAILY_CAP = DAILY_AI_LIMIT.premium;
 
 async function assertDailyLimit(supabase: SupabaseClient<Database>, userId: string, tzOffsetMin = -540) {
+  const { data: authData } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
+  if (authData?.user?.user_metadata?.trial_exempt) return;
   const localNow = Date.now() - tzOffsetMin * 60000;
   const startLocal = new Date(localNow);
   startLocal.setUTCHours(0, 0, 0, 0);

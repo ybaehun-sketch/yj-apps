@@ -59,9 +59,14 @@ export async function purchaseWithPlayBilling(cycle: BillingCycle): Promise<
     if (!details || details.length === 0) {
       return { ok: false, reason: "스토어 상품 정보를 아직 불러올 수 없어요" };
     }
+    const storePrice = details[0]?.price;
+    const totalAmount =
+      storePrice?.currency && storePrice?.value
+        ? { currency: storePrice.currency, value: storePrice.value }
+        : { currency: "KRW", value: meta.amount };
     const request = new PaymentRequest(
       [{ supportedMethods: PLAY_BILLING_METHOD, data: { sku: meta.id } }],
-      { total: { label: meta.label, amount: { currency: "KRW", value: meta.amount } } },
+      { total: { label: details[0]?.title || meta.label, amount: totalAmount } },
     );
     const response = await request.show();
     const token =
@@ -69,11 +74,35 @@ export async function purchaseWithPlayBilling(cycle: BillingCycle): Promise<
     await response.complete("success");
     return { ok: true, purchaseToken: token };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "";
-    if (/cancel|abort/i.test(msg)) {
+    const name = e instanceof Error ? e.name : "";
+    const msg = e instanceof Error ? e.message : String(e ?? "");
+    if (/cancel|user.*abort|aborted the request/i.test(msg)) {
       return { ok: false, reason: "결제가 취소되었어요" };
     }
-    return { ok: false, reason: "구글 플레이 결제를 진행하지 못했어요. 잠시 후 다시 시도해 주세요" };
+    const detail = [name, msg].filter(Boolean).join(": ");
+    return {
+      ok: false,
+      reason: detail
+        ? `구글 플레이 결제를 진행하지 못했어요 (${detail})`
+        : "구글 플레이 결제를 진행하지 못했어요. 잠시 후 다시 시도해 주세요",
+    };
+  }
+}
+
+export async function checkPlaySubscription(): Promise<{ available: boolean; active: boolean }> {
+  if (typeof window === "undefined") return { available: false, active: false };
+  const w = window as WindowWithDgs;
+  if (!w.getDigitalGoodsService) return { available: false, active: false };
+  try {
+    const service = await w.getDigitalGoodsService(PLAY_BILLING_METHOD);
+    if (!service) return { available: false, active: false };
+    const purchases = await service.listPurchases();
+    const active = purchases.some(
+      (p) => p.itemId === MONTHLY_PRODUCT_ID || p.itemId === YEARLY_PRODUCT_ID,
+    );
+    return { available: true, active };
+  } catch {
+    return { available: false, active: false };
   }
 }
 
