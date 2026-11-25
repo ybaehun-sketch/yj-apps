@@ -1,12 +1,24 @@
 import { GoogleGenAI } from "@google/genai";
 
 export const GEMINI_MODEL = "gemini-3.5-flash-lite";
-export const GEMINI_FALLBACK_MODEL = "gemini-3.1-flash-lite";
+export const GEMINI_FALLBACK_MODEL = "gemini-flash-lite-latest";
+export const GEMINI_EMERGENCY_MODEL = "gemini-3.8-flash";
 export const GEMINI_MODELS = [
   GEMINI_MODEL,
   GEMINI_FALLBACK_MODEL,
-  "gemini-flash-lite-latest",
+  GEMINI_EMERGENCY_MODEL,
 ] as const;
+
+/**
+ * Resolve the ordered model list from `GEMINI_MODELS` env var (comma-separated)
+ * so models can be swapped centrally without redeploying the app.
+ */
+export function getConfiguredModels(): string[] {
+  const raw = process.env["GEMINI_MODELS"]?.trim();
+  if (!raw) return [...GEMINI_MODELS];
+  const parsed = raw.split(",").map((m) => m.trim()).filter(Boolean);
+  return parsed.length > 0 ? parsed : [...GEMINI_MODELS];
+}
 
 const QUOTA_COOLDOWN_MS = 20_000;
 const modelCooldownUntil = new Map<string, number>();
@@ -29,7 +41,7 @@ export function isQuotaError(error: unknown): boolean {
 export function getCandidateModels(now = Date.now()): string[] {
   const healthy: string[] = [];
   const cooled: Array<{ model: string; until: number }> = [];
-  for (const model of GEMINI_MODELS) {
+  for (const model of getConfiguredModels()) {
     const until = modelCooldownUntil.get(model) ?? 0;
     if (until <= now) {
       modelCooldownUntil.delete(model);
@@ -61,9 +73,13 @@ export async function callGemini(opts: {
   input: string | GeminiInputPart[];
   maxOutputTokens?: number;
   json?: boolean;
+  timeoutMs?: number;
 }): Promise<string | null> {
   const apiKey = getGeminiApiKey();
   if (!apiKey) return null;
+
+  const hasMedia = Array.isArray(opts.input) && opts.input.some((p) => p.type === "image" || p.type === "audio");
+  const timeoutMs = opts.timeoutMs ?? (hasMedia ? MEDIA_CALL_TIMEOUT_MS : CALL_TIMEOUT_MS);
 
   const ai = new GoogleGenAI({ apiKey, apiVersion: "v1beta" });
   const models = getCandidateModels();
@@ -80,7 +96,7 @@ export async function callGemini(opts: {
             thinking_level: "low",
           },
         }),
-        CALL_TIMEOUT_MS,
+        timeoutMs,
       );
       const out = (interaction as { output_text?: string; outputs?: Array<{ type?: string; text?: string }> });
       if (typeof out.output_text === "string" && out.output_text.trim()) {
@@ -101,7 +117,49 @@ export async function callGemini(opts: {
   return null;
 }
 
-const CALL_TIMEOUT_MS = 12_000;
+export async function checkGeminiHealth(): Promise<{
+  ok: boolean;
+  activeModel: string | null;
+  primaryModel: string | null;
+  failedModels: string[];
+}> {
+  const apiKey = getGeminiApiKey();
+  const models = getCandidateModels();
+  const primaryModel = models[0] ?? null;
+  if (!apiKey) {
+    return { ok: false, activeModel: null, primaryModel, failedModels: models };
+  }
+  const ai = new GoogleGenAI({ apiKey, apiVersion: "v1beta" });
+  const failedModels: string[] = [];
+  for (const model of models) {
+    try {
+      const interaction = await withTimeout(
+        ai.interactions.create({
+          model,
+          input: "Reply with OK",
+          store: false,
+          generation_config: { max_output_tokens: 16, thinking_level: "low" },
+        }),
+        CALL_TIMEOUT_MS,
+      );
+      const out = interaction as { output_text?: string; outputs?: Array<{ type?: string; text?: string }> };
+      const text =
+        (typeof out.output_text === "string" && out.output_text.trim()) ||
+        (out.outputs ?? []).filter((o) => o.type === "text" && typeof o.text === "string").map((o) => o.text).join("").trim();
+      if (text) {
+        return { ok: true, activeModel: model, primaryModel, failedModels };
+      }
+      failedModels.push(model);
+    } catch (e) {
+      failedModels.push(model);
+      console.error(`gemini health check failed (${model})`, e);
+    }
+  }
+  return { ok: false, activeModel: null, primaryModel, failedModels };
+}
+
+const CALL_TIMEOUT_MS = 20_000;
+const MEDIA_CALL_TIMEOUT_MS = 35_000;
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {

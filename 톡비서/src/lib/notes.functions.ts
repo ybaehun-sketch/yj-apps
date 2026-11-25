@@ -64,6 +64,71 @@ export const transcribeVoice = createServerFn({ method: "POST" })
     return { text: text.trim() };
   });
 
+async function runNoteAnalysis(
+  supabase: SupabaseClient<Database>,
+  opts: {
+    text: string;
+    imagePath: string | null;
+    imageDataUrl: string | null;
+    tzOffsetMin: number;
+    lang: Lang;
+  },
+) {
+  const L = opts.lang;
+  const url = opts.imagePath ? null : firstUrl(opts.text);
+  const [{ data: custom }, { data: recent }, og] = await Promise.all([
+    supabase.from("user_categories").select("name, hint").limit(30),
+    supabase.from("notes").select("summary, category, tags").order("created_at", { ascending: false }).limit(3),
+    url ? fetchOg(url) : Promise.resolve(null),
+  ]);
+  const extra = (custom ?? []).map((c) => c.name);
+  const customLine = extra.length
+    ? `\n사용자 맞춤 카테고리(해당하면 기본보다 우선): ${(custom ?? []).map((c) => (c.hint ? `${c.name}(${c.hint})` : c.name)).join(", ")}`
+    : "";
+  const recentLine = recent?.length
+    ? `\n[최근 보관 흐름(참고용)] ${recent.map((r) => `${r.category}:"${r.summary}"(${(r.tags ?? []).map((t: string) => `#${t}`).join(" ")})`).join(" | ")}\n방금 던진 내용·스크린샷이 직전 메모와 같은 주제·시리즈(예: 같은 시험 기출문제, 같은 프로젝트)로 보이면 카테고리(예: 공부)와 핵심 검색 태그(예: 자격증, 시험명)를 일관되게 유지하라.`
+    : "";
+  const now = new Date();
+  const localNow = new Date(now.getTime() - opts.tzOffsetMin * 60000).toISOString().slice(0, 16);
+  const offH = -opts.tzOffsetMin / 60;
+  const tz = `UTC${offH >= 0 ? "+" : ""}${offH}`;
+  const instructions = `너는 다정하고 똑똑한 '톡비서'다. 사용자가 던진 텍스트/스크린샷을 분석해 JSON 하나만 출력한다.
+현재 사용자 현지 시각: ${localNow} (${tz}). 상대 날짜("다음 주 토요일", "내일")는 이 기준으로 계산하라.
+스키마: {"summary": 핵심 1줄 요약(40자 이내), "category": ${[...NOTE_CATEGORIES, ...extra].join("|")} 중 하나, "has_date": boolean, "detected_date": 시간대 포함 ISO 8601 또는 null, "remind_at": 일정 전날 20:00 또는 당일 아침 08:00 (시간대 포함 ISO) 또는 null, "remind_message": 그 시점에 건넬 다정한 1줄 알림 또는 null, "tags": 검색용 키워드 3~5개(# 없이), "secretary_reply": 방금 받은 직후 건넬 짧은 확인 한마디(이모지 없이 담백하게)}.
+스크린샷이면 이미지 속 글자(청첩장, 예약 문자, 영수증, 상품명, 가게 이름, 기출문제)를 읽어서 판단하라.
+[카테고리 분류 원칙] "일정"은 실제 날짜·시간·약속·예약이 있는 경우에만 선택하라(날짜가 없으면 절대 "일정" 선택 금지). 시험·학습·기출문제는 "공부"로 분류하고, 딱 맞는 카테고리가 없으면 억지로 끼워 맞추지 말고 반드시 "기타"로 분류하라. 시간이 없으면 일정은 12:00로 가정.${customLine}${recentLine}` + aiLangRule(L);
+
+  const ogLine = og?.title ? `\n\n[링크 정보] 제목: ${og.title}${og.author ? ` / 채널: ${og.author}` : ""}${og.description ? ` / 설명: ${og.description}` : ""}\n(주소만 보지 말고 이 제목·내용의 주제로 분류·요약하라)` : "";
+  const parts: GeminiInputPart[] = [
+    { type: "text", text: `다음 내용을 분석해 JSON으로 답해줘.\n\n${opts.text.trim() || "(텍스트 없음, 스크린샷만)"}${ogLine}` },
+  ];
+  if (opts.imageDataUrl) {
+    const img = parseDataUrl(opts.imageDataUrl);
+    if (img) parts.push({ type: "image", data: img.data, mime_type: img.mime_type });
+  }
+
+  let raw: unknown = {};
+  let aiUnavailable = false;
+  if (getGeminiApiKey()) {
+    const text = await callGemini({
+      instructions,
+      input: parts,
+      maxOutputTokens: 1200,
+    });
+    if (text === null) {
+      aiUnavailable = true;
+    } else {
+      raw = parseGeminiJson(text) ?? {};
+    }
+  }
+
+  const analysis = normalizeAnalysis(raw, opts.text, opts.tzOffsetMin, extra);
+  if (aiUnavailable) {
+    analysis.secretary_reply = trL(L, "AI 정리가 잠시 지연되어 원문만 먼저 보관해 두었어요");
+  }
+  return { analysis, url, og, aiUnavailable };
+}
+
 // One AI call per dump (same model as 찻잔 타로). Result is stored so reminders need no AI later.
 export const analyzeAndSaveNote = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -91,57 +156,14 @@ export const analyzeAndSaveNote = createServerFn({ method: "POST" })
     if (data.filePath && !data.filePath.startsWith(`${userId}/`)) throw new Error("Forbidden");
     if (!data.text.trim() && !data.imageDataUrl) throw new Error("내용이 비어 있어요");
 
-    const [{ data: custom }, { data: recent }] = await Promise.all([
-      supabase.from("user_categories").select("name, hint").limit(30),
-      supabase.from("notes").select("summary, category, tags").order("created_at", { ascending: false }).limit(3),
-    ]);
-    const extra = (custom ?? []).map((c) => c.name);
-    const customLine = extra.length
-      ? `\n사용자 맞춤 카테고리(해당하면 기본보다 우선): ${(custom ?? []).map((c) => (c.hint ? `${c.name}(${c.hint})` : c.name)).join(", ")}`
-      : "";
-    const recentLine = recent?.length
-      ? `\n[최근 보관 흐름(참고용)] ${recent.map((r) => `${r.category}:"${r.summary}"(${(r.tags ?? []).map((t: string) => `#${t}`).join(" ")})`).join(" | ")}\n방금 던진 내용·스크린샷이 직전 메모와 같은 주제·시리즈(예: 같은 시험 기출문제, 같은 프로젝트)로 보이면 카테고리(예: 공부)와 핵심 검색 태그(예: 자격증, 시험명)를 일관되게 유지하라.`
-      : "";
-    const now = new Date();
-    const localNow = new Date(now.getTime() - data.tzOffsetMin * 60000).toISOString().slice(0, 16);
-    const offH = -data.tzOffsetMin / 60;
-    const tz = `UTC${offH >= 0 ? "+" : ""}${offH}`;
-    const instructions = `너는 다정하고 똑똑한 '톡비서'다. 사용자가 던진 텍스트/스크린샷을 분석해 JSON 하나만 출력한다.
-현재 사용자 현지 시각: ${localNow} (${tz}). 상대 날짜("다음 주 토요일", "내일")는 이 기준으로 계산하라.
-스키마: {"summary": 핵심 1줄 요약(40자 이내), "category": ${[...NOTE_CATEGORIES, ...extra].join("|")} 중 하나, "has_date": boolean, "detected_date": 시간대 포함 ISO 8601 또는 null, "remind_at": 일정 전날 20:00 또는 당일 아침 08:00 (시간대 포함 ISO) 또는 null, "remind_message": 그 시점에 건넬 다정한 1줄 알림 또는 null, "tags": 검색용 키워드 3~5개(# 없이), "secretary_reply": 방금 받은 직후 건넬 짧은 확인 한마디(이모지 없이 담백하게)}.
-스크린샷이면 이미지 속 글자(청첩장, 예약 문자, 영수증, 상품명, 가게 이름, 기출문제)를 읽어서 판단하라.
-[카테고리 분류 원칙] "일정"은 실제 날짜·시간·약속·예약이 있는 경우에만 선택하라(날짜가 없으면 절대 "일정" 선택 금지). 시험·학습·기출문제는 "공부"로 분류하고, 딱 맞는 카테고리가 없으면 억지로 끼워 맞추지 말고 반드시 "기타"로 분류하라. 시간이 없으면 일정은 12:00로 가정.${customLine}${recentLine}` + aiLangRule(L);
+    const { analysis, url, og } = await runNoteAnalysis(supabase, {
+      text: data.text,
+      imagePath: data.imagePath,
+      imageDataUrl: data.imageDataUrl,
+      tzOffsetMin: data.tzOffsetMin,
+      lang: L,
+    });
 
-    const url = data.imagePath ? null : firstUrl(data.text);
-    const og = url ? await fetchOg(url) : null;
-    const ogLine = og?.title ? `\n\n[링크 정보] 제목: ${og.title}${og.author ? ` / 채널: ${og.author}` : ""}${og.description ? ` / 설명: ${og.description}` : ""}\n(주소만 보지 말고 이 제목·내용의 주제로 분류·요약하라)` : "";
-    const parts: GeminiInputPart[] = [
-      { type: "text", text: `다음 내용을 분석해 JSON으로 답해줘.\n\n${data.text.trim() || "(텍스트 없음, 스크린샷만)"}${ogLine}` },
-    ];
-    if (data.imageDataUrl) {
-      const img = parseDataUrl(data.imageDataUrl);
-      if (img) parts.push({ type: "image", data: img.data, mime_type: img.mime_type });
-    }
-
-    let raw: unknown = {};
-    let aiUnavailable = false;
-    if (getGeminiApiKey()) {
-      const text = await callGemini({
-        instructions,
-        input: parts,
-        maxOutputTokens: 1200,
-      });
-      if (text === null) {
-        aiUnavailable = true;
-      } else {
-        raw = parseGeminiJson(text) ?? {};
-      }
-    }
-
-    const a = normalizeAnalysis(raw, data.text, data.tzOffsetMin, extra);
-    if (aiUnavailable) {
-      a.secretary_reply = trL(L, "AI 정리가 잠시 지연되어 원문만 먼저 보관해 두었어요");
-    }
     const { data: row, error } = await supabase
       .from("notes")
       .insert({
@@ -157,7 +179,7 @@ export const analyzeAndSaveNote = createServerFn({ method: "POST" })
         link_title: og?.title ?? null,
         link_description: og?.description ?? null,
         link_image: og?.image ?? null,
-        ...a,
+        ...analysis,
       })
       .select()
       .single();
@@ -166,6 +188,76 @@ export const analyzeAndSaveNote = createServerFn({ method: "POST" })
       throw new Error("저장에 실패했어요");
     }
     return row;
+  });
+
+/** 지연된 원문 보관 노트를 뒷단 또는 사용자 요청으로 다시 AI 분석해 업데이트한다. */
+export const reanalyzeNote = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        noteId: z.string().min(1).max(100),
+        imageDataUrl: z.string().max(3_000_000).nullable().optional(),
+        tzOffsetMin: z.number().int().min(-840).max(840),
+        lang: z.enum(LANGS).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const L: Lang = data.lang ?? "ko";
+    const { supabase, userId } = context;
+    const { data: existing, error: fetchErr } = await supabase
+      .from("notes")
+      .select("*")
+      .eq("id", data.noteId)
+      .eq("user_id", userId)
+      .single();
+    if (fetchErr || !existing) throw new Error("메모를 찾지 못했어요");
+
+    let imageDataUrl = data.imageDataUrl ?? null;
+    if (!imageDataUrl && existing.image_path) {
+      const { data: blob } = await supabase.storage.from("shots").download(existing.image_path);
+      if (blob) {
+        const buf = Buffer.from(await blob.arrayBuffer());
+        imageDataUrl = `data:${blob.type || "image/webp"};base64,${buf.toString("base64")}`;
+      }
+    }
+    if (!existing.content.trim() && !imageDataUrl) {
+      return { note: existing, aiUnavailable: true };
+    }
+
+    const { analysis, aiUnavailable } = await runNoteAnalysis(supabase, {
+      text: existing.content,
+      imagePath: existing.image_path,
+      imageDataUrl,
+      tzOffsetMin: data.tzOffsetMin,
+      lang: L,
+    });
+    if (aiUnavailable) {
+      return { note: existing, aiUnavailable: true };
+    }
+
+    const { data: updated, error: upErr } = await supabase
+      .from("notes")
+      .update({
+        summary: analysis.summary,
+        category: analysis.category,
+        tags: analysis.tags,
+        has_date: analysis.has_date,
+        detected_date: analysis.detected_date,
+        remind_at: analysis.remind_at,
+        remind_message: analysis.remind_message,
+        secretary_reply: analysis.secretary_reply,
+      })
+      .eq("id", existing.id)
+      .eq("user_id", userId)
+      .select()
+      .single();
+    if (upErr || !updated) {
+      console.error("note reanalyze update failed", upErr);
+      throw new Error("다시 정리에 실패했어요");
+    }
+    return { note: updated, aiUnavailable: false };
   });
 
 function youtubeId(url: string): string | null {
@@ -233,6 +325,44 @@ async function fetchOg(url: string): Promise<{ title: string | null; description
   }
 }
 
+async function runAskNotes(
+  supabase: SupabaseClient<Database>,
+  question: string,
+  tzOffsetMin: number,
+  L: Lang,
+): Promise<{ answer: string; noteIds: string[] }> {
+  const { data: rows, error } = await supabase
+    .from("notes")
+    .select("id, created_at, kind, content, summary, category, detected_date, tags, link_title, file_name")
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (error) throw new Error("서류함을 열지 못했어요");
+  if (!rows.length) return { answer: trL(L, "아직 서류함이 비어 있어요. 먼저 뭐든 던져 주세요"), noteIds: [] };
+
+  const localStats = tryAnswerStatsLocally(question, rows, tzOffsetMin, L);
+  if (localStats) return localStats;
+
+  const localNow = new Date(Date.now() - tzOffsetMin * 60000).toISOString().slice(0, 16);
+  const docs = buildCompactSearchDocs(question, rows);
+  if (!getGeminiApiKey()) throw new Error("AI 설정이 없어요");
+  const instructions = `너는 '톡비서'다. 사용자의 저장된 메모(JSON)만 근거로 질문에 답한다. 현재 현지 시각: ${localNow}. 날짜는 현지 기준으로 말하라.
+JSON 하나만 출력: {"answer": 한국어 1~2문장, 간결하고 다정하게(이모지·이모티콘 사용 금지), 메모에 없으면 솔직히 못 찾았다고, "note_ids": 근거가 된 메모 id 배열(관련도 순)}.
+개수·통계·현황 질문(몇 개, 얼마나 등)은 정확한 개수와 형태/카테고리별 내역으로 답하고 note_ids에는 해당 메모를 모두(최대 20개) 넣는다(화면에서 접어 두고 사용자가 원할 때만 펼친다). 특정 메모 찾기는 가장 관련된 1~2개만 고른다.
+주제 검색 시 정확한 단어 일치만 보지 말고, 카테고리("공부" 등)·요약·태그의 의미적 연관성(예: "자격증" 질문에 학습·기출문제·임업학·사방사업 등 시험 관련 메모도 함께 포함)까지 폭넓게 연결해 누락 없이 찾아라.
+중요: 질문이 사용자 메모에 대한 것이 아니라 너(톡비서) 자신에 대한 질문(이름·정체·할 수 있는 일)이면 메모를 뒤지지 말고 "저는 초간편 AI 톡비서예요..."처럼 자기소개하고 note_ids는 []. 일상 잡담·푸념 질문이면 "메모에서 못 찾았다"고 하지 말고 "저는 톡비서예요. 일상 잡담은 서툴지만, 메모 정리·검색은 자신 있어요!" 톤으로 짧게 안내하고 note_ids는 [].\n[톡비서 본분] 톡비서는 컨설턴트·기획자·창작자·만능 에이전트가 아니라 "정리·기록 비서"다. 가격 책정, 아이디어 제안, 전략, 맞춤형 에이전트 역할 등을 "잡아드릴게요/맞춰드릴게요"처럼 약속하지 마라. 대신 "그건 제 영역 밖이에요. 생각을 툭 던져주시면 아이디어 메모로 정리해 두고 나중에 바로 꺼내드릴게요"처럼 이모지 없이 정리·보관·알림으로 담백하게 유도한다.
+의도가 모호하면(예: "이 책 읽어봤어?", "그거 어떻게 됐지?"처럼 '이/그/저것' 지칭 대상이 메모에서 특정되지 않거나, 저장 메모 찾기인지 외부 정보·감상을 원하는지 불분명) "못 찾았다"로 끝내지 말고 되물어라. answer는 2~3문장 허용: "혹시 저장해두신 ○○ 메모를 찾으시는 걸까요, 아니면 새 ○○ 정보를 원하시는 걸까요? 제목이나 핵심 단어를 알려주시면 바로 찾아드리고, 링크나 스샷을 던져주시면 정리해 둘게요 (실시간 웹검색은 서툴러요)" 톤. note_ids는 [] (관련 후보가 1~2개 있으면 그것을 넣고 "이 메모 말씀이세요?"라고 확인).` + aiLangRule(L);
+  const text = await callGemini({
+    instructions,
+    input: `메모 목록(json):\n${JSON.stringify(docs)}\n\n질문: ${question}`,
+    maxOutputTokens: 800,
+  });
+  if (text === null) throw new Error("찾다가 문제가 생겼어요");
+  const parsed = parseGeminiJson<{ answer?: unknown; note_ids?: unknown }>(text) ?? {};
+  const valid = new Set(rows.map((r) => r.id));
+  const noteIds = Array.isArray(parsed.note_ids) ? parsed.note_ids.filter((x): x is string => typeof x === "string" && valid.has(x)).slice(0, 20) : [];
+  return { answer: typeof parsed.answer === "string" && parsed.answer.trim() ? parsed.answer.trim().slice(0, 300) : trL(L, "관련 메모를 찾지 못했어요"), noteIds };
+}
+
 /** 저장된 메모를 근거로 질문에 답한다 (질문은 저장하지 않음). */
 export const askNotes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -240,36 +370,7 @@ export const askNotes = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const L: Lang = data.lang ?? "ko";
     await assertDailyLimit(context.supabase, context.userId, data.tzOffsetMin);
-    const { data: rows, error } = await context.supabase
-      .from("notes")
-      .select("id, created_at, kind, content, summary, category, detected_date, tags, link_title, file_name")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (error) throw new Error("서류함을 열지 못했어요");
-    if (!rows.length) return { answer: trL(L, "아직 서류함이 비어 있어요. 먼저 뭐든 던져 주세요"), noteIds: [] as string[] };
-
-    const localStats = tryAnswerStatsLocally(data.question, rows, data.tzOffsetMin, L);
-    if (localStats) return localStats;
-
-    const localNow = new Date(Date.now() - data.tzOffsetMin * 60000).toISOString().slice(0, 16);
-    const docs = buildCompactSearchDocs(data.question, rows);
-    if (!getGeminiApiKey()) throw new Error("AI 설정이 없어요");
-    const instructions = `너는 '톡비서'다. 사용자의 저장된 메모(JSON)만 근거로 질문에 답한다. 현재 현지 시각: ${localNow}. 날짜는 현지 기준으로 말하라.
-JSON 하나만 출력: {"answer": 한국어 1~2문장, 간결하고 다정하게(이모지·이모티콘 사용 금지), 메모에 없으면 솔직히 못 찾았다고, "note_ids": 근거가 된 메모 id 배열(관련도 순)}.
-개수·통계·현황 질문(몇 개, 얼마나 등)은 정확한 개수와 형태/카테고리별 내역으로 답하고 note_ids에는 해당 메모를 모두(최대 20개) 넣는다(화면에서 접어 두고 사용자가 원할 때만 펼친다). 특정 메모 찾기는 가장 관련된 1~2개만 고른다.
-주제 검색 시 정확한 단어 일치만 보지 말고, 카테고리("공부" 등)·요약·태그의 의미적 연관성(예: "자격증" 질문에 학습·기출문제·임업학·사방사업 등 시험 관련 메모도 함께 포함)까지 폭넓게 연결해 누락 없이 찾아라.
-중요: 질문이 사용자 메모에 대한 것이 아니라 너(톡비서) 자신에 대한 질문(이름·정체·할 수 있는 일)이면 메모를 뒤지지 말고 "저는 초간편 AI 톡비서예요..."처럼 자기소개하고 note_ids는 []. 일상 잡담·푸념 질문이면 "메모에서 못 찾았다"고 하지 말고 "저는 톡비서예요. 일상 잡담은 서툴지만, 메모 정리·검색은 자신 있어요!" 톤으로 짧게 안내하고 note_ids는 [].\n[톡비서 본분] 톡비서는 컨설턴트·기획자·창작자·만능 에이전트가 아니라 "정리·기록 비서"다. 가격 책정, 아이디어 제안, 전략, 맞춤형 에이전트 역할 등을 "잡아드릴게요/맞춰드릴게요"처럼 약속하지 마라. 대신 "그건 제 영역 밖이에요. 생각을 툭 던져주시면 아이디어 메모로 정리해 두고 나중에 바로 꺼내드릴게요"처럼 이모지 없이 정리·보관·알림으로 담백하게 유도한다.
-의도가 모호하면(예: "이 책 읽어봤어?", "그거 어떻게 됐지?"처럼 '이/그/저것' 지칭 대상이 메모에서 특정되지 않거나, 저장 메모 찾기인지 외부 정보·감상을 원하는지 불분명) "못 찾았다"로 끝내지 말고 되물어라. answer는 2~3문장 허용: "혹시 저장해두신 ○○ 메모를 찾으시는 걸까요, 아니면 새 ○○ 정보를 원하시는 걸까요? 제목이나 핵심 단어를 알려주시면 바로 찾아드리고, 링크나 스샷을 던져주시면 정리해 둘게요 (실시간 웹검색은 서툴러요)" 톤. note_ids는 [] (관련 후보가 1~2개 있으면 그것을 넣고 "이 메모 말씀이세요?"라고 확인).` + aiLangRule(L);
-    const text = await callGemini({
-      instructions,
-      input: `메모 목록(json):\n${JSON.stringify(docs)}\n\n질문: ${data.question}`,
-      maxOutputTokens: 800,
-    });
-    if (text === null) throw new Error("찾다가 문제가 생겼어요");
-    const parsed = parseGeminiJson<{ answer?: unknown; note_ids?: unknown }>(text) ?? {};
-    const valid = new Set(rows.map((r) => r.id));
-    const noteIds = Array.isArray(parsed.note_ids) ? parsed.note_ids.filter((x): x is string => typeof x === "string" && valid.has(x)).slice(0, 20) : [];
-    return { answer: typeof parsed.answer === "string" && parsed.answer.trim() ? parsed.answer.trim().slice(0, 300) : trL(L, "관련 메모를 찾지 못했어요"), noteIds };
+    return runAskNotes(context.supabase, data.question, data.tzOffsetMin, L);
   });
 
 /** 최근 10개 대화 흐름을 보고 직전 메모를 자연어로 수정한다 (잡담은 짧게 컷). */
@@ -319,34 +420,9 @@ JSON 하나만 출력: {"intent": "edit"|"chat", "note_id": 수정할 메모 id 
     return { answer: reply || trL(L, "말씀하신 대로 고쳐 두었어요"), noteIds: [target.id] };
   });
 
-/** 한 문장의 의도를 AI가 1회 판정 (정규식 땜질 대신). 실패 시 null → 클라이언트가 기존 규칙으로 대체. */
-export const routeIntent = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ text: z.string().min(1).max(4000), lastAnswer: z.string().max(400).nullable() }).parse(d))
-  .handler(async ({ data }) => {
-    if (!getGeminiApiKey()) return { intent: null as string | null };
-    const instructions = `너는 메모 비서 앱 '톡비서'의 의도 분류기다. 사용자의 한마디를 아래 중 하나로 분류해 JSON {"intent": "..."}만 출력.
-dump: 나중을 위해 남기는 기록·메모·일정·할일·생각·감상 (예: "오늘 날씨 추움", "다음주 수요일 동생 생일", "~라고 저장해줘", "우유 사기"). 애매하면 dump.
-query: 이미 저장한 내 메모를 찾거나 개수·현황을 묻기 (예: "성수동 파스타집 어디였지?", "오늘 몇 개 던졌어?", "이 책 읽어봤어?", "그거 어떻게 됐지?" — 이/그/저것을 가리키는 질문은 항상 query)
-edit: 직전/기존 메모의 알림·날짜·카테고리·태그·제목 수정 요청 (예: "알람은 화요일 10시로", "태그에 가족 추가")
-web: 실시간 외부 정보 조회 요청 (예: "오늘 날씨 어때?", "환율 검색해줘")
-create: 표·글·시·번역 등 창작 요청
-clear: 채팅창/대화 기록을 비우거나 청소해 달라는 요청 (예: "채팅창 청소해줘", "대화 다 지워줘")
-self: 톡비서 자신에 대한 질문 (이름·정체·기능)
-chat: 인사·잡담·푸념·장난·역할놀이·호칭 요구 (예: "심심해", "나한테 형이라고 해봐", "오늘 뭐 먹을까?")`;
-    const text = await callGemini({
-      instructions,
-      input: `${data.lastAnswer ? `직전 톡비서 말: ${data.lastAnswer}\n` : ""}json으로 분류할 사용자 말: ${data.text.slice(0, 600)}`,
-      maxOutputTokens: 200,
-    });
-    const parsed = parseGeminiJson<{ intent?: unknown }>(text);
-    const i = String(parsed?.intent ?? "");
-    return { intent: ["dump", "query", "edit", "web", "create", "self", "chat", "clear"].includes(i) ? i : null };
-  });
-
 /**
  * 통합 비서: 텍스트 한마디를 최근 맥락과 함께 1회 판단 + 바로 실행.
- * create/update는 서버에서 즉시 DB 반영, query는 클라이언트가 전체 검색(askNotes)으로 이어감.
+ * create/update는 서버에서 즉시 DB 반영, query는 서버에서 즉시 검색까지 실행해 1회 왕복으로 응답.
  */
 export const agentTurn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -414,6 +490,10 @@ export const agentTurn = createServerFn({ method: "POST" })
       if (error) { console.error("agent insert failed", error); throw new Error("저장에 실패했어요"); }
       return { action: "create" as const, answer: "", noteIds: [] as string[] };
     }
-    if (action === "query" || action === "clear") return { action, answer: "", noteIds: [] as string[] } as { action: "query" | "clear"; answer: string; noteIds: string[] };
+    if (action === "query") {
+      const res = await runAskNotes(supabase, data.text.slice(0, 500), data.tzOffsetMin, L);
+      return { action: "query" as const, answer: res.answer, noteIds: res.noteIds };
+    }
+    if (action === "clear") return { action: "clear" as const, answer: "", noteIds: [] as string[] };
     return { action: "chat" as const, answer: reply || trL(L, "저는 톡비서예요. 메모 정리·검색·알림을 도와드릴게요!"), noteIds: [] as string[] };
   });

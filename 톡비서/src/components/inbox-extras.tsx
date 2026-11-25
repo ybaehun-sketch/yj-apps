@@ -1,5 +1,5 @@
 import { QUOTA_BYTES, fmtBytes, trialDaysLeft, type Usage } from "@/lib/storage-quota";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Camera,
   CheckCircle2,
@@ -24,8 +24,9 @@ import {
   X,
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
-import { CUSTOM_CATEGORY_LIMIT, NOTE_CATEGORIES, registerCustomCategories } from "@/lib/notes";
+import { CUSTOM_CATEGORY_LIMIT, NOTE_CATEGORIES, noteSourceKind, registerCustomCategories } from "@/lib/notes";
 import { CUSTOM_ICON_CHOICES, CategoryIcon, CustomIcon } from "@/components/category-icon";
+import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { t as tr, locale, useLang, setLang, LANGS, LANG_LABEL } from "@/lib/i18n";
@@ -244,12 +245,19 @@ export function NotesCalendar({
                     const imgUrl = n.image_path ? urls[n.image_path] : undefined;
                     const audUrl = n.audio_path ? urls[n.audio_path] : undefined;
                     const docUrl = n.file_path ? urls[n.file_path] : undefined;
+                    const src = noteSourceKind(n);
                     return (
                       <li key={n.id} className="rounded-2xl border border-border p-3">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-foreground">
-                            <CategoryIcon name={n.category} className="size-3" /> {tr(n.category)}
-                          </span>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-foreground">
+                              <CategoryIcon name={n.category} className="size-3" /> {tr(n.category)}
+                            </span>
+                            <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                              <MaterialSymbol name={src.icon} size={12} weight={350} />
+                              <span>{tr(src.label)}</span>
+                            </span>
+                          </div>
                           <div className="flex items-center gap-1">
                             <button type="button" aria-label={tr("보기")}
                               onClick={() => { setViewId(isViewing ? null : n.id); setEditId(null); setDelId(null); }}
@@ -676,7 +684,7 @@ export function CustomCategories({ plan, onUpgrade }: { plan: Plan; onUpgrade: (
   );
 }
 
-export type Prefs = { alarm: boolean; mode: "light" | "dark"; accent: "sky" | "lavender" | "mint" | "pink" | "yellow"; plan: Plan };
+export type Prefs = { alarm: boolean; mode: "light" | "dark"; accent: "sky" | "lavender" | "mint" | "pink"; plan: Plan };
 const DEFAULT: Prefs = { alarm: true, mode: "light", accent: "sky", plan: "free" };
 
 const PAY_PLANS = [
@@ -737,21 +745,37 @@ export function applyPrefs(p: Prefs) {
 }
 export function usePrefs() {
   const [p, setP] = useState<Prefs>(DEFAULT);
+  const hydratedRef = useRef(false);
   useEffect(() => {
     try {
       const s2 = localStorage.getItem("jungbi-prefs-v2");
       if (s2) {
-        setP({ ...DEFAULT, ...JSON.parse(s2) });
+        const parsed = JSON.parse(s2) as Omit<Partial<Prefs>, "accent"> & { accent?: string };
+        const accent: Prefs["accent"] = parsed.accent === "lavender" || parsed.accent === "mint" || parsed.accent === "pink" ? parsed.accent : "sky";
+        const next = { ...DEFAULT, ...parsed, accent };
+        hydratedRef.current = true;
+        setP(next);
+        applyPrefs(next);
         return;
       }
       const s1 = localStorage.getItem("jungbi-prefs");
       if (s1) {
         const parsed = JSON.parse(s1);
-        setP({ ...DEFAULT, ...parsed, accent: "sky" });
+        const next = { ...DEFAULT, ...parsed, accent: "sky" as const };
+        hydratedRef.current = true;
+        setP(next);
+        applyPrefs(next);
+        return;
       }
     } catch { /* ignore */ }
+    hydratedRef.current = true;
+    applyPrefs(DEFAULT);
   }, []);
-  useEffect(() => { applyPrefs(p); localStorage.setItem("jungbi-prefs-v2", JSON.stringify(p)); }, [p]);
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    applyPrefs(p);
+    localStorage.setItem("jungbi-prefs-v2", JSON.stringify(p));
+  }, [p]);
   return [p, setP] as const;
 }
 
@@ -760,14 +784,13 @@ export const ACCENTS = [
   { key: "lavender", label: "라벤더", cls: "bg-[oklch(0.58_0.19_290)]" },
   { key: "mint", label: "민트", cls: "bg-[oklch(0.60_0.15_165)]" },
   { key: "pink", label: "핑크", cls: "bg-[oklch(0.62_0.18_355)]" },
-  { key: "yellow", label: "앰버", cls: "bg-[oklch(0.76_0.16_82)]" },
 ] as const;
 
 const GUIDE_URL = "https://yjstudio.app/tokbiseo#guide";
 const PRIVACY_URL = "https://yjstudio.app/tokbiseo#privacy";
 const TERMS_URL = "https://yjstudio.app/tokbiseo#terms";
 /** 1차 스토어 심사용 결제 모달 비활성화 (2차 구글 인앱 결제 연동 시 true로 전환). */
-const BILLING_ENABLED = false;
+export const BILLING_ENABLED = false;
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return <section className="rounded-2xl bg-card p-4 shadow-sm"><p className="mb-2 text-xs font-semibold text-muted-foreground">{title}</p>{children}</section>;
@@ -819,7 +842,7 @@ export function SettingsSheet({ usage, email, joinedAt, prefs, setPrefs, onLogou
         <div className="flex-1 space-y-3 overflow-y-auto p-3">
           {tab === "plan" && (
             <>
-              <Section title={tr("결제 정보")}>
+              <Section title={BILLING_ENABLED ? tr("결제 정보") : tr("이용 안내")}>
                 <div className="flex items-center gap-3 rounded-xl border border-border p-3">
                   {(() => {
                     const PlanIcon = PLAN_META[prefs.plan].Icon;
@@ -831,17 +854,19 @@ export function SettingsSheet({ usage, email, joinedAt, prefs, setPrefs, onLogou
                   })()}
                   <div className="flex-1">
                     <p className="text-xs text-muted-foreground">{tr("현재 플랜")}</p>
-                    <p className="text-base font-bold text-foreground">{tr(PLAN_LABEL[prefs.plan])}</p>
+                    <p className="text-base font-bold text-foreground">{BILLING_ENABLED ? tr(PLAN_LABEL[prefs.plan]) : tr("출시 이벤트 무료 사용 기간")}</p>
                   </div>
                   <span className="rounded-full border border-border px-2 py-0.5 text-[0.7rem] font-semibold text-foreground">{tr("이용 중")}</span>
                 </div>
                 <ul className="mt-2.5 space-y-1">
                   {PLAN_META[prefs.plan].perks.map((p) => <li key={p} className="text-xs text-foreground">✓ {tr(p)}</li>)}
                 </ul>
-                <details className="mt-3">
-                  <summary className="cursor-pointer text-xs font-semibold text-foreground">{tr("플랜별 혜택 한눈에 비교")}</summary>
-                  <div className="mt-2"><PlanCompare current={prefs.plan} /></div>
-                </details>
+                {BILLING_ENABLED && (
+                  <details className="mt-3">
+                    <summary className="cursor-pointer text-xs font-semibold text-foreground">{tr("플랜별 혜택 한눈에 비교")}</summary>
+                    <div className="mt-2"><PlanCompare current={prefs.plan} /></div>
+                  </details>
+                )}
                 {BILLING_ENABLED && prefs.plan === "free" && (
                   <button onClick={() => setPaying(true)} className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary py-2 text-sm font-semibold text-primary-foreground">
                     <Crown className="size-4" />{tr("프리미엄으로 업그레이드")}
@@ -868,7 +893,15 @@ export function SettingsSheet({ usage, email, joinedAt, prefs, setPrefs, onLogou
                         <span className="flex items-center gap-1"><i className="size-2 rounded-full bg-accent-foreground/60" />{tr("문서")} {fmtBytes(u.doc)}</span>
                         <span className="flex items-center gap-1"><i className="size-2 rounded-full bg-destructive/70" />{tr("음성")} {fmtBytes(u.voice)}</span>
                       </div>
-                      {prefs.plan === "free" && <p className="mt-2 rounded-lg bg-muted px-2.5 py-1.5 text-xs text-foreground">{left > 0 ? tr("무료 체험 {0}일 남았어요 (7일 · 100MB)", left) : tr("무료 체험 7일이 끝났어요. 업그레이드하면 계속 보관할 수 있어요")}</p>}
+                      {prefs.plan === "free" && (
+                        <p className="mt-2 rounded-lg bg-muted px-2.5 py-1.5 text-xs text-foreground">
+                          {BILLING_ENABLED
+                            ? left > 0
+                              ? tr("무료 체험 {0}일 남았어요 (7일 · 100MB)", left)
+                              : tr("무료 체험 7일이 끝났어요. 업그레이드하면 계속 보관할 수 있어요")
+                            : tr("출시 이벤트 무료 사용 기간 중이에요 (100MB 제공)")}
+                        </p>
+                      )}
                       <p className="mt-1.5 text-xs text-muted-foreground">{prefs.plan === "free" ? tr("파일 1개당 최대 20MB (프리미엄 50MB)") : tr("파일 1개당 최대 50MB")}</p>
                     </>
                   );
@@ -927,7 +960,7 @@ export function SettingsSheet({ usage, email, joinedAt, prefs, setPrefs, onLogou
                   <a href={PRIVACY_URL} target="_blank" rel="noreferrer" className="underline">{tr("개인정보처리방침")}</a>
                   <a href={TERMS_URL} target="_blank" rel="noreferrer" className="underline">{tr("이용약관")}</a>
                 </div>
-                <p className="text-xs text-muted-foreground">{tr("톡비서 웹 버전 v1.0.0")}</p>
+                <p className="text-xs text-muted-foreground">{tr("톡비서 웹 버전 v1.1.0")}</p>
                 <button onClick={() => setQuitting(true)} className="pt-2 text-xs text-muted-foreground underline">{tr("회원탈퇴")}</button>
               </div>
             </>

@@ -19,6 +19,23 @@ export function catIconKey(name: string): string | undefined {
   return customEmoji[name];
 }
 
+export type NoteSourceKind = "스샷" | "음성" | "문서" | "링크" | "메모";
+
+/** Return the source-type label and Material icon name for a saved note. */
+export function noteSourceKind(note: {
+  image_path?: string | null;
+  audio_path?: string | null;
+  file_path?: string | null;
+  link_url?: string | null;
+  kind?: string | null;
+}): { label: NoteSourceKind; icon: string } {
+  if (note.image_path || note.kind === "image") return { label: "스샷", icon: "image" };
+  if (note.audio_path || note.kind === "voice") return { label: "음성", icon: "mic" };
+  if (note.file_path) return { label: "문서", icon: "description" };
+  if (note.link_url || note.kind === "link") return { label: "링크", icon: "link" };
+  return { label: "메모", icon: "edit_note" };
+}
+
 /** 플랜별 맞춤 카테고리 최대 개수 (무료 0). */
 export const CUSTOM_CATEGORY_LIMIT = { free: 0, premium: 10, lifetime: 30 } as const;
 

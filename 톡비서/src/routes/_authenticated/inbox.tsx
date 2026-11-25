@@ -1,24 +1,32 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+﻿import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { dailyLimitReason, uploadBlockReason, sumUsage, type Usage } from "@/lib/storage-quota";
-import { NoteMetaEditor, NotesCalendar, PaymentModal, useCustomCategories, usePrefs } from "@/components/inbox-extras";
-import { CategoryIcon } from "@/components/category-icon";
+import { BILLING_ENABLED, NotesCalendar, PaymentModal, useCustomCategories, usePrefs } from "@/components/inbox-extras";
+import {
+  AnswerThread,
+  Avatar,
+  NoteThread,
+  PinCtx,
+  PinnedBar,
+  UserBubble,
+  ZoomCtx,
+  type Answer,
+  type Note,
+} from "@/components/inbox-thread";
 import { supabase } from "@/integrations/supabase/client";
-import type { Tables } from "@/integrations/supabase/types";
-import { agentTurn, analyzeAndSaveNote, askNotes, editFromChat, routeIntent, transcribeVoice } from "@/lib/notes.functions";
+import { agentTurn, analyzeAndSaveNote, askNotes, editFromChat, reanalyzeNote, transcribeVoice } from "@/lib/notes.functions";
 import { OFFTOPIC_REPLY, offTopicKind, isChitchat, isEdit, isQuestion, isYes } from "@/lib/notes";
 import { isSilenceHallucination } from "@/lib/voice-guard";
 import { blobToDataUrl, compressToWebp } from "@/lib/image-compress";
-import { blobToBase64, compressFileForStorage, downloadFile, extractDocText } from "@/lib/doc-text";
-import jungbiAvatar from "@/assets/jungbi-avatar.png";
+import { blobToBase64, compressFileForStorage, extractDocText } from "@/lib/doc-text";
 import { deleteAccount } from "@/lib/account.functions";
-import { t as tr, locale, getLang, useLang } from "@/lib/i18n";
+import { t as tr, useLang } from "@/lib/i18n";
 import { requestNotificationPermission, useReminders } from "@/lib/reminders";
+import { syncPushIfEnabled } from "@/lib/push-client";
 import { MaterialSymbol, IconButton } from "@/components/ui/material-symbol";
 import { NavigationDrawer } from "@/components/navigation-drawer";
-import { SplashScreen } from "@/components/splash-screen";
 import { CategoryManagerModal } from "@/components/category-manager-modal";
 
 export const Route = createFileRoute("/_authenticated/inbox")({
@@ -35,14 +43,8 @@ export const Route = createFileRoute("/_authenticated/inbox")({
   component: Inbox,
 });
 
-type Note = Tables<"notes">;
-type Answer = { id: string; q: string; answer: string; noteIds: string[]; at: string };
 const LOADERS = ["비서가 서류함을 뒤지는 중...", "스샷 속 글자를 읽는 중...", "날짜를 챙기는 중..."];
 const MAX_REC_SEC = 60;
-
-const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleString(locale(), { month: "long", day: "numeric", weekday: "short", hour: "numeric", minute: "2-digit" });
-const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString(locale(), { hour: "numeric", minute: "2-digit" });
 
 function useNotes() {
   return useQuery({
@@ -61,8 +63,6 @@ function useNotes() {
   });
 }
 
-const PinCtx = createContext<{ pins: string[]; toggle: (id: string) => void }>({ pins: [], toggle: () => {} });
-const ZoomCtx = createContext<(url: string) => void>(() => {});
 const PIN_KEY = "jungbi.pins";
 const CLEAR_KEY = "jungbi.chatClearedAt";
 const MAX_PINS = 3;
@@ -78,62 +78,6 @@ function usePins() {
   return { pins, toggle };
 }
 
-async function copyText(text: string) {
-  try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
-}
-
-function noteCopyText(n: Note) {
-  return [n.summary, n.detected_date ? fmtDate(n.detected_date) : "", n.tags.length ? n.tags.map((t) => `#${t}`).join(" ") : "", n.link_url ?? ""].filter(Boolean).join("\n");
-}
-
-function PinnedBar({ notes }: { notes: Note[] }) {
-  const { pins, toggle } = useContext(PinCtx);
-  const [open, setOpen] = useState(false);
-  const list = pins.map((id) => notes.find((n) => n.id === id)).filter((n): n is Note => !!n);
-  if (!list.length) return null;
-  const shown = open ? list : list.slice(0, 1);
-  return (
-    <div className="border-b border-border/60 bg-muted/40 px-3.5 py-2 text-xs backdrop-blur-xs">
-      {shown.map((n) => (
-        <div key={n.id} className="flex items-center gap-2 py-1 text-sm text-foreground">
-          <MaterialSymbol name="keep" size={17} weight={400} fill className="text-primary shrink-0" />
-          <button
-            type="button"
-            className="inline-flex min-w-0 flex-1 items-center gap-1.5 truncate text-left font-semibold"
-            onClick={() => document.getElementById(`note-${n.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}
-          >
-            <CategoryIcon name={n.category} className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="truncate">{n.summary}</span>
-          </button>
-          <IconButton ariaLabel={tr("고정 해제")} onClick={() => toggle(n.id)} className="h-7 w-7 min-h-[30px] min-w-[30px] text-muted-foreground">
-            <MaterialSymbol name="close" size={16} weight={350} />
-          </IconButton>
-        </div>
-      ))}
-      {list.length > 1 && (
-        <button type="button" onClick={() => setOpen(!open)} className="w-full pt-1 text-center text-[11px] font-medium text-muted-foreground hover:text-foreground">
-          {open ? tr("접기 ▲") : tr("고정 {0}개 모두 보기 ▼", list.length)}
-        </button>
-      )}
-    </div>
-  );
-}
-
-function CopyButton({ text, label = tr("복사") }: { text: string; label?: string }) {
-  const [done, setDone] = useState(false);
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={async () => { if (await copyText(text)) { setDone(true); setTimeout(() => setDone(false), 1500); } }}
-      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted"
-    >
-      <MaterialSymbol name={done ? "check" : "content_copy"} size={14} weight={350} />
-      <span>{done ? tr("복사됨") : label}</span>
-    </button>
-  );
-}
-
 const LOCAL_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 function Inbox() {
@@ -142,6 +86,8 @@ function Inbox() {
   const nav = useNavigate();
   const qc = useQueryClient();
   const analyze = useServerFn(analyzeAndSaveNote);
+  const reanalyze = useServerFn(reanalyzeNote);
+  const [retryingIds, setRetryingIds] = useState<Record<string, boolean>>({});
   const { data, isLoading } = useNotes();
   const { data: usage } = useQuery({
     queryKey: ["usage"],
@@ -152,7 +98,7 @@ function Inbox() {
       return sumUsage((files ?? []).map((f) => ({ name: f.name, size: Number((f.metadata as { size?: number } | null)?.size ?? 0) })));
     },
   });
-  const quotaErr = (size: number) => { const r = uploadBlockReason(prefs.plan, user.created, usage?.total ?? 0, size); return r ? tr(r) : null; };
+  const quotaErr = (size: number) => { const r = uploadBlockReason(prefs.plan, user.created, usage?.total ?? 0, size, new Date(), BILLING_ENABLED); return r ? tr(r) : null; };
   const dailyErr = () => {
     const start = new Date(); start.setHours(0, 0, 0, 0);
     const ms = start.getTime();
@@ -190,6 +136,9 @@ function Inbox() {
   const [isBillingOpen, setIsBillingOpen] = useState(false);
   const [prefs, setPrefs] = usePrefs();
   useCustomCategories();
+  useEffect(() => {
+    void syncPushIfEnabled(prefs.alarm);
+  }, [prefs.alarm]);
 
   const [user, setUser] = useState<{ email: string; created: string | null }>({ email: "local@talk-secretary", created: null });
   useEffect(() => {
@@ -217,7 +166,10 @@ function Inbox() {
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
   const stickBottomRef = useRef(true);
+  const initialScrolledRef = useRef(false);
+  const isAutoScrollingRef = useRef(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [zoomImg, setZoomImg] = useState<string | null>(null);
   const [zoomed, setZoomed] = useState(false);
@@ -238,7 +190,6 @@ function Inbox() {
 
   const ask = useServerFn(askNotes);
   const edit = useServerFn(editFromChat);
-  const route = useServerFn(routeIntent);
   const agent = useServerFn(agentTurn);
 
   const [dragging, setDragging] = useState(false);
@@ -274,14 +225,34 @@ function Inbox() {
     return items.filter((x) => !clearedAt || x.at > clearedAt).sort((x, y) => x.at.localeCompare(y.at));
   }, [notes, answers, clearedAt]);
 
-  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
-    endRef.current?.scrollIntoView({ behavior });
+  const scrollToBottom = (behavior: ScrollBehavior = "auto") => {
+    const el = mainRef.current;
+    if (!el) {
+      endRef.current?.scrollIntoView({ behavior });
+      return;
+    }
+    if (behavior === "auto") {
+      isAutoScrollingRef.current = false;
+      el.scrollTop = el.scrollHeight;
+    } else {
+      isAutoScrollingRef.current = true;
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    }
   };
 
   useEffect(() => {
+    if (isLoading) return;
     stickBottomRef.current = true;
-    scrollToBottom("smooth");
-  }, [notes.length, answers.length, pending]);
+    if (!initialScrolledRef.current) {
+      initialScrolledRef.current = true;
+      requestAnimationFrame(() => scrollToBottom("auto"));
+      const t = setTimeout(() => {
+        if (stickBottomRef.current) scrollToBottom("auto");
+      }, 150);
+      return () => clearTimeout(t);
+    }
+    requestAnimationFrame(() => scrollToBottom("smooth"));
+  }, [isLoading, notes.length, answers.length, pending]);
 
   useEffect(() => {
     if (!pending) return;
@@ -312,8 +283,20 @@ function Inbox() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const speechRef = useRef<any>(null);
 
+  function stopDictation() {
+    const r = speechRef.current;
+    speechRef.current = null;
+    if (r) {
+      r.onresult = null;
+      r.onerror = null;
+      r.onend = null;
+      try { r.stop(); } catch { /* ignore */ }
+    }
+    setListening(false);
+  }
+
   function toggleDictation() {
-    if (listening) { speechRef.current?.stop(); return; }
+    if (listening) { stopDictation(); return; }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const w = window as any;
     const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
@@ -323,12 +306,21 @@ function Inbox() {
     const base = text ? text.trimEnd() + " " : "";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     r.onresult = (e: any) => {
+      if (speechRef.current !== r) return;
       let s = "";
       for (let i = 0; i < e.results.length; i++) s += e.results[i][0].transcript;
       setText(base + s);
     };
-    r.onerror = (e: { error?: string }) => { if (e.error === "not-allowed") setErr(tr("마이크 권한을 허용해 주세요")); };
-    r.onend = () => { setListening(false); speechRef.current = null; };
+    r.onerror = (e: { error?: string }) => {
+      if (e.error === "not-allowed") setErr(tr("마이크 권한을 허용해 주세요"));
+      stopDictation();
+    };
+    r.onend = () => {
+      if (speechRef.current === r) {
+        speechRef.current = null;
+        setListening(false);
+      }
+    };
     speechRef.current = r;
     setErr(null); setListening(true);
     r.start();
@@ -387,6 +379,7 @@ function Inbox() {
   }
 
   async function send(opts?: { text: string; image?: { blob: Blob; preview: string }; kind?: "voice"; audioPath?: string; filePath?: string; fileName?: string }) {
+    if (listening || speechRef.current) stopDictation();
     const t = (opts?.text ?? text).trim();
     const current = opts?.image ?? (opts ? null : img);
     if (!t && !current) return;
@@ -409,33 +402,43 @@ function Inbox() {
     if (!opts && !current) {
       const waiting = [...notes].reverse().find((n) => !n.confirmed);
       if (waiting && isYes(t)) { setText(""); await confirmNote(waiting.id); return; }
+      const quickClear = /(채팅|대화)(창|방|\s?기록|\s?내용)?\s*(을|를)?\s*(다\s?|모두\s?|전부\s?)?(청소|비워|비우|지워|초기화|정리)/.test(t);
+      if (quickClear) { setText(""); setView("stream"); setClearAsk(t); return; }
+      const quickOffTopic = isChitchat(t) ? offTopicKind(t) : null;
+      if (quickOffTopic) {
+        setText(""); setView("stream");
+        await supabase.from("chat_answers").insert({ question: t, answer: tr(OFFTOPIC_REPLY[quickOffTopic]), note_ids: [] });
+        await qc.invalidateQueries({ queryKey: ["chat_answers"] });
+        return;
+      }
       let intent: string | null = /https?:\/\/\S+/.test(t) ? "dump" : null;
       if (!intent) {
         setPending({ text: t, preview: null }); setText(""); setView("stream");
         try {
           const r = await agent({ data: { text: t, tzOffsetMin: new Date().getTimezoneOffset(), lang } });
           if (r.action === "create" || r.action === "update") {
-            await qc.invalidateQueries({ queryKey: ["notes"] });
-            await qc.invalidateQueries({ queryKey: ["usage"] });
+            const refresh: Promise<unknown>[] = [
+              qc.invalidateQueries({ queryKey: ["notes"] }),
+              qc.invalidateQueries({ queryKey: ["usage"] }),
+            ];
             if (r.action === "update") {
-              await supabase.from("chat_answers").insert({ question: t, answer: r.answer, note_ids: r.noteIds });
-              await qc.invalidateQueries({ queryKey: ["chat_answers"] });
+              refresh.push(
+                Promise.resolve(supabase.from("chat_answers").insert({ question: t, answer: r.answer, note_ids: r.noteIds }))
+                  .then(() => qc.invalidateQueries({ queryKey: ["chat_answers"] })),
+              );
             }
+            await Promise.all(refresh);
             setPending(null); return;
           }
-          if (r.action === "chat") {
-            await supabase.from("chat_answers").insert({ question: t, answer: r.answer, note_ids: [] });
+          if (r.action === "chat" || r.action === "query") {
+            await supabase.from("chat_answers").insert({ question: t, answer: r.answer, note_ids: r.noteIds });
             await qc.invalidateQueries({ queryKey: ["chat_answers"] });
             setPending(null); return;
           }
           intent = r.action === "fallback" ? null : r.action;
         } catch { intent = null; }
-        if (!intent) {
-          try { intent = (await route({ data: { text: t, lastAnswer: answers.at(-1)?.answer.slice(0, 400) ?? null } })).intent; } catch { intent = null; }
-        }
         setPending(null);
-        if (!intent && /(채팅|대화)(창|방|\s?기록|\s?내용)?\s*(을|를)?\s*(다\s?|모두\s?|전부\s?)?(청소|비워|비우|지워|초기화|정리)/.test(t)) intent = "clear";
-        if (!intent) intent = isChitchat(t) ? offTopicKind(t) : isEdit(t) && !isQuestion(t) ? "edit" : isQuestion(t) ? "query" : "dump";
+        if (!intent) intent = isEdit(t) && !isQuestion(t) ? "edit" : isQuestion(t) ? "query" : "dump";
       }
       if (intent === "clear") { setText(""); setView("stream"); setClearAsk(t); return; }
       if (intent === "web" || intent === "create" || intent === "chat" || intent === "self") {
@@ -451,10 +454,12 @@ function Inbox() {
         try {
           const tz = new Date().getTimezoneOffset();
           const r = editing ? await edit({ data: { message: t, tzOffsetMin: tz, lang } }) : await ask({ data: { question: t, tzOffsetMin: tz, lang } });
-          if (editing) await qc.invalidateQueries({ queryKey: ["notes"] });
           const { error: saveErr } = await supabase.from("chat_answers").insert({ question: t, answer: r.answer, note_ids: r.noteIds });
           if (saveErr) console.error("chat_answers insert failed", saveErr);
-          await qc.invalidateQueries({ queryKey: ["chat_answers"] });
+          await Promise.all([
+            editing ? qc.invalidateQueries({ queryKey: ["notes"] }) : Promise.resolve(),
+            qc.invalidateQueries({ queryKey: ["chat_answers"] }),
+          ]);
         } catch { setErr(tr("찾다가 문제가 생겼어요. 다시 물어봐 주세요")); setText(t); }
         finally { setPending(null); }
         return;
@@ -478,18 +483,119 @@ function Inbox() {
           .then((up) => { if (up.error) throw up.error; });
         imageDataUrl = await blobToDataUrl(current.blob);
       }
-      await Promise.all([
+      const [, saved] = await Promise.all([
         uploadPromise,
         analyze({ data: { text: t, imagePath, imageDataUrl, audioPath: opts?.audioPath ?? null, filePath: opts?.filePath ?? null, fileName: opts?.fileName ?? null, kind: opts?.kind, tzOffsetMin: new Date().getTimezoneOffset(), lang } }),
       ]);
       await qc.invalidateQueries({ queryKey: ["notes"] });
       await qc.invalidateQueries({ queryKey: ["usage"] });
+      if (saved?.id && saved.secretary_reply === tr("AI 정리가 잠시 지연되어 원문만 먼저 보관해 두었어요")) {
+        setRetryingIds((p) => ({ ...p, [saved.id]: true }));
+        setTimeout(() => { void retryNoteAnalysis(saved.id, imageDataUrl); }, 1500);
+      }
     } catch (e) {
       console.error(e);
       setErr(tr("앗, 정리하다 문제가 생겼어요. 다시 던져 주세요"));
       if (!opts) setText(t);
     } finally {
       setPending(null);
+    }
+  }
+
+  // 안드로이드 등 외부 앱에서 공유하기(Share Target)로 전달된 링크·텍스트·이미지 자동 수신 및 처리
+  const processingShareRef = useRef(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const processShare = async () => {
+      if (processingShareRef.current) return;
+      processingShareRef.current = true;
+      try {
+        let rawSearch = window.location.search;
+        if (!rawSearch.includes("shared_")) {
+          try {
+            const saved = localStorage.getItem("jungbi.pendingShare") ?? sessionStorage.getItem("jungbi.pendingShare");
+            if (saved?.includes("shared_")) rawSearch = saved;
+          } catch { /* ignore */ }
+        }
+        try {
+          localStorage.removeItem("jungbi.pendingShare");
+          sessionStorage.removeItem("jungbi.pendingShare");
+        } catch { /* ignore */ }
+        if (window.location.search.includes("shared_")) {
+          window.history.replaceState({}, "", window.location.pathname);
+        }
+
+        const sp = new URLSearchParams(rawSearch.includes("shared_") ? rawSearch : "");
+        let title = sp.get("shared_title")?.trim() ?? "";
+        let body = sp.get("shared_text")?.trim() ?? "";
+        let url = sp.get("shared_url")?.trim() ?? "";
+        const hasMedia = sp.get("shared_media") === "1";
+
+        let sharedImage: { blob: Blob; preview: string } | undefined;
+        if ("caches" in window) {
+          try {
+            const cache = await caches.open("jungbi-share-v1");
+            const payloadRes = await cache.match("/__shared_payload__");
+            if (payloadRes) {
+              const p = (await payloadRes.json()) as { shared_title?: string; shared_text?: string; shared_url?: string };
+              if (!title && p.shared_title) title = p.shared_title.trim();
+              if (!body && p.shared_text) body = p.shared_text.trim();
+              if (!url && p.shared_url) url = p.shared_url.trim();
+              await cache.delete("/__shared_payload__");
+            }
+            const mediaRes = await cache.match("/__shared_media__");
+            if (mediaRes || hasMedia) {
+              if (mediaRes) {
+                const rawBlob = await mediaRes.blob();
+                const compressed = await compressToWebp(rawBlob);
+                sharedImage = { blob: compressed, preview: URL.createObjectURL(compressed) };
+                await cache.delete("/__shared_media__");
+              }
+            }
+          } catch (e) {
+            console.error("Failed to read shared cache", e);
+          }
+        }
+
+        const parts: string[] = [];
+        if (title && !body.includes(title)) parts.push(title);
+        if (body) parts.push(body);
+        if (url && !body.includes(url)) parts.push(url);
+        const combinedText = parts.join("\n").trim();
+
+        if (combinedText || sharedImage) {
+          await send({ text: combinedText, image: sharedImage });
+        }
+      } finally {
+        processingShareRef.current = false;
+      }
+    };
+
+    void processShare();
+    const onVis = () => {
+      if (document.visibilityState === "visible") void processShare();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
+
+  async function retryNoteAnalysis(noteId: string, imageDataUrl?: string | null) {
+    setRetryingIds((p) => ({ ...p, [noteId]: true }));
+    try {
+      const res = await reanalyze({
+        data: { noteId, imageDataUrl: imageDataUrl ?? null, tzOffsetMin: new Date().getTimezoneOffset(), lang },
+      });
+      if (!res.aiUnavailable) {
+        await qc.invalidateQueries({ queryKey: ["notes"] });
+      }
+    } catch (e) {
+      console.error("reanalyze failed", e);
+    } finally {
+      setRetryingIds((p) => {
+        const next = { ...p };
+        delete next[noteId];
+        return next;
+      });
     }
   }
 
@@ -638,9 +744,6 @@ function Inbox() {
         onDragLeave={() => { dragDepth.current = Math.max(0, dragDepth.current - 1); if (dragDepth.current === 0) setDragging(false); }}
         onDrop={(e) => { dragDepth.current = 0; onDropFiles(e); }}
       >
-      {/* 0.5초 스플래시 스크린 */}
-      <SplashScreen duration={500} />
-
       {/* 파일 드래그 앤 드롭 표시 */}
       {dragging && (
         <div className="pointer-events-none absolute inset-0 z-50 rounded-2xl ring-2 ring-inset ring-primary/60 backdrop-blur-xs">
@@ -692,7 +795,7 @@ function Inbox() {
       />
 
       {/* 정기 구독 안내 / 결제 모달 */}
-      {isBillingOpen && (
+      {BILLING_ENABLED && isBillingOpen && (
         <PaymentModal
           onClose={() => setIsBillingOpen(false)}
           onPaid={(plan) => setPrefs({ ...prefs, plan })}
@@ -802,10 +905,12 @@ function Inbox() {
         />
       ) : (
         <main
+          ref={mainRef}
           onScroll={(e) => {
             const el = e.currentTarget;
             const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
-            stickBottomRef.current = dist < 100;
+            if (dist < 24) isAutoScrollingRef.current = false;
+            if (!isAutoScrollingRef.current) stickBottomRef.current = dist < 100;
             setShowScrollBtn(dist > 160);
           }}
           onLoadCapture={() => {
@@ -865,6 +970,8 @@ function Inbox() {
                   imageUrl={it.n.image_path ? data?.urls[it.n.image_path] : undefined}
                   audioUrl={it.n.audio_path ? data?.urls[it.n.audio_path] : undefined}
                   fileUrl={it.n.file_path ? data?.urls[it.n.file_path] : undefined}
+                  retrying={Boolean(retryingIds[it.n.id])}
+                  onRetry={it.n.secretary_reply === tr("AI 정리가 잠시 지연되어 원문만 먼저 보관해 두었어요") ? () => void retryNoteAnalysis(it.n.id) : undefined}
                   onConfirm={() => void confirmNote(it.n.id)}
                   onDiscard={() => void discardNote(it.n)}
                   onUpdate={(p) => void updateNote(it.n.id, p)}
@@ -891,7 +998,7 @@ function Inbox() {
               <UserBubble text={clearAsk} />
               <div className="flex items-start gap-2.5">
                 <Avatar />
-                <div className="flex items-center gap-2.5 rounded-2xl rounded-tl-sm border border-border/80 bg-card p-3 text-sm text-foreground shadow-xs">
+                <div className="flex items-center gap-2.5 rounded-2xl rounded-tl-sm border border-sky-200/70 bg-sky-50/75 p-3 text-sm text-foreground shadow-xs dark:border-sky-800/40 dark:bg-sky-950/35">
                   <div>
                     <p className="font-semibold">{tr("채팅창을 지금 모두 비울까요?")}</p>
                     <p className="text-xs text-muted-foreground">{tr("저장된 메모와 캘린더 기록은 그대로 안전하게 남아요")}</p>
@@ -912,7 +1019,7 @@ function Inbox() {
               <UserBubble text={pending.text} imageUrl={pending.preview ?? undefined} />
               <div className="flex items-start gap-2.5">
                 <Avatar />
-                <div className="flex items-center gap-2 rounded-2xl rounded-tl-sm border border-border/50 bg-card/80 px-4 py-3 text-sm text-muted-foreground shadow-xs animate-pulse">
+                <div className="flex items-center gap-2 rounded-2xl rounded-tl-sm border border-sky-200/70 bg-sky-50/75 px-4 py-3 text-sm text-muted-foreground shadow-xs animate-pulse dark:border-sky-800/40 dark:bg-sky-950/35">
                   <MaterialSymbol name="auto_awesome" size={16} weight={400} className="text-primary animate-spin" />
                   <span>{tr(LOADERS[loaderIdx]!)}</span>
                 </div>
@@ -1107,422 +1214,6 @@ function Inbox() {
           </div>
         </div>
       </div>
-      </div>
-    </div>
-  );
-}
-
-function Avatar() {
-  return (
-    <img
-      src={jungbiAvatar}
-      alt={tr("톡비서")}
-      width={32}
-      height={32}
-      className="mt-0.5 size-8 shrink-0 rounded-xl object-cover shadow-2xs"
-    />
-  );
-}
-
-function UserBubble({ text, imageUrl, fileUrl, origName }: { text: string; imageUrl?: string | undefined; fileUrl?: string | undefined; origName?: string | null }) {
-  const [open, setOpen] = useState(false);
-  const zoom = useContext(ZoomCtx);
-  const isDoc = text.startsWith("📄 ");
-  const nl = text.indexOf("\n");
-  const fileName = isDoc ? (nl > 0 ? text.slice(2, nl) : text.slice(2)).trim() : "";
-  const body = isDoc ? (nl > 0 ? text.slice(nl + 1) : "") : text;
-  const long = body.length > 300 || body.split("\n").length > 8;
-  return (
-    <div className="flex flex-col items-end gap-1">
-      {imageUrl && (
-        <img
-          src={imageUrl}
-          alt={tr("보낸 스크린샷")}
-          onClick={() => zoom(imageUrl)}
-          className="h-auto max-h-64 w-auto max-w-[70%] cursor-zoom-in rounded-2xl object-contain shadow-xs"
-        />
-      )}
-      {isDoc ? (
-        <div className="w-64 max-w-[80%] rounded-2xl rounded-tr-sm border border-primary/20 bg-bubble px-3.5 py-2.5 text-sm text-foreground shadow-xs">
-          <div className="flex items-center gap-2">
-            <MaterialSymbol name="description" size={24} weight={350} className="shrink-0 opacity-80" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold">{fileName}</p>
-              <p className="text-[11px] opacity-70">{tr("문서 · {0}자", body.length.toLocaleString())}</p>
-            </div>
-          </div>
-          {body && (
-            <>
-              {open && <p className="mt-2 max-h-60 overflow-y-auto whitespace-pre-wrap break-words border-t border-current/10 pt-2 text-xs opacity-80">{body}</p>}
-              <div className="mt-2 flex items-center justify-between">
-                <button type="button" onClick={() => setOpen(!open)} className="text-xs font-medium underline opacity-80">{open ? tr("접기 ▲") : tr("내용 보기 ▼")}</button>
-                {fileUrl && (
-                  <button type="button" onClick={() => void downloadFile(fileUrl, origName)} className="inline-flex items-center gap-1 text-xs font-semibold underline">
-                    <MaterialSymbol name="download" size={14} weight={400} />
-                    <span>{tr("원본 받기")}</span>
-                  </button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      ) : text && (
-        <div className="max-w-[80%] whitespace-pre-wrap break-words rounded-2xl rounded-tr-sm border border-primary/20 bg-bubble px-4 py-2.5 text-[15px] leading-relaxed text-foreground shadow-xs">
-          <span className={long && !open ? "line-clamp-6" : ""}>{body}</span>
-          {long && <button type="button" onClick={() => setOpen(!open)} className="mt-1 block text-xs font-medium underline opacity-80">{open ? tr("접기 ▲") : tr("... 더보기")}</button>}
-        </div>
-      )}
-      {(isDoc ? body : text) && <CopyButton text={isDoc ? body : text} label={isDoc ? tr("원문 복사") : tr("복사")} />}
-    </div>
-  );
-}
-
-function LinkPreview({ note }: { note: Note }) {
-  const meta = note.link_meta as { title?: string; description?: string; image?: string; site?: string } | null;
-  if (!note.link_url) return null;
-  const host = (() => { try { return new URL(note.link_url).hostname.replace(/^www\./, ""); } catch { return ""; } })();
-  return (
-    <a href={note.link_url} target="_blank" rel="noreferrer" className="block border-b border-border/60 bg-muted/30 p-3 hover:bg-muted/50 transition-colors">
-      <div className="flex gap-2.5">
-        {meta?.image && <img src={meta.image} alt={meta.title ?? "preview"} className="size-14 shrink-0 rounded-xl object-cover" />}
-        <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
-            <MaterialSymbol name="link" size={13} weight={350} />
-            <span className="truncate">{meta?.site || host}</span>
-          </p>
-          <p className="truncate text-xs font-semibold text-foreground">{meta?.title || note.link_url}</p>
-          {meta?.description && <p className="line-clamp-2 text-[11px] text-muted-foreground">{meta.description}</p>}
-        </div>
-      </div>
-    </a>
-  );
-}
-
-function NoteMenu({
-  note,
-  onEdit,
-  onDelete,
-}: {
-  note: Note;
-  onEdit?: () => void;
-  onDelete?: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const { pins, toggle } = useContext(PinCtx);
-  const pinned = pins.includes(note.id);
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    await copyText(noteCopyText(note));
-    setCopied(true);
-    setTimeout(() => {
-      setCopied(false);
-      setOpen(false);
-    }, 800);
-  };
-
-  return (
-    <div className="relative">
-      <IconButton
-        ariaLabel={tr("더보기")}
-        onClick={() => setOpen((v) => !v)}
-        className="h-7 w-7 min-h-[30px] min-w-[30px] text-muted-foreground hover:text-foreground"
-      >
-        <MaterialSymbol name="more_vert" size={18} weight={350} />
-      </IconButton>
-
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-8 z-50 w-36 overflow-hidden rounded-2xl border border-border/80 bg-card p-1 shadow-lg animate-in fade-in zoom-in-95 duration-150">
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors"
-            >
-              <MaterialSymbol name={copied ? "check" : "content_copy"} size={16} weight={350} />
-              <span>{copied ? tr("복사됨!") : tr("요약 복사")}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                toggle(note.id);
-                setOpen(false);
-              }}
-              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors"
-            >
-              <MaterialSymbol name={pinned ? "keep_off" : "keep"} size={16} weight={350} fill={pinned} />
-              <span>{pinned ? tr("고정 해제") : tr("상단 고정")}</span>
-            </button>
-            {onEdit && (
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false);
-                  onEdit();
-                }}
-                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors"
-              >
-                <MaterialSymbol name="edit" size={16} weight={350} />
-                <span>{tr("수정")}</span>
-              </button>
-            )}
-            {onDelete && (
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false);
-                  onDelete();
-                }}
-                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
-              >
-                <MaterialSymbol name="delete" size={16} weight={350} />
-                <span>{tr("삭제")}</span>
-              </button>
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function NoteCard({ note, onUpdate, onDelete }: { note: Note; onUpdate?: (patch: { category: string; tags: string[] }) => void; onDelete?: () => void }) {
-  const [editing, setEditing] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  return (
-    <div className="relative rounded-2xl border border-border/70 bg-card shadow-xs">
-      {/* 카드 상단: 카테고리 배지 + 작성 시간 + 우측 상단 더보기(⋮) 메뉴 */}
-      <div className="flex items-center justify-between gap-2 border-b border-border/50 px-3.5 py-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-muted/80 px-2.5 py-0.5 text-xs font-semibold text-foreground">
-          <CategoryIcon name={note.category} className="size-3.5" />
-          <span>{tr(note.category)}</span>
-        </span>
-        <div className="flex items-center gap-1">
-          <span className="text-[11px] text-muted-foreground">{fmtTime(note.created_at)}</span>
-          <NoteMenu
-            note={note}
-            onEdit={note.confirmed && onUpdate ? () => { setEditing(true); setDeleting(false); } : undefined}
-            onDelete={note.confirmed && onDelete ? () => { setDeleting(true); setEditing(false); } : undefined}
-          />
-        </div>
-      </div>
-
-      <LinkPreview note={note} />
-
-      {/* 요약 본문 및 태그 */}
-      <div className="space-y-2 px-3.5 py-3">
-        <p className="text-[15px] font-semibold leading-snug text-foreground">{note.summary}</p>
-        {note.detected_date && (
-          <p className="flex items-center gap-1.5 text-xs text-foreground/80">
-            <MaterialSymbol name="calendar_today" size={14} weight={350} className="text-muted-foreground" />
-            <span>{fmtDate(note.detected_date)}</span>
-          </p>
-        )}
-        {note.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {note.tags.map((t) => (
-              <span key={t} className="rounded-md bg-muted/50 px-1.5 py-0.5 text-xs text-muted-foreground">
-                #{t}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* 알림 배너 */}
-      {note.remind_at && (
-        <div className="flex items-start gap-2 bg-primary/10 px-3.5 py-2 text-xs text-foreground">
-          <MaterialSymbol
-            name={note.reminded ? "notifications_active" : "notifications"}
-            size={16}
-            weight={350}
-            className="mt-0.5 text-primary shrink-0"
-          />
-          <span>
-            {note.reminded ? tr("알림을 전해드렸어요 ({0})", fmtDate(note.remind_at)) : tr("{0}에 잊지 않게 챙겨드릴게요", fmtDate(note.remind_at))}
-            {note.remind_message ? <><br /><span className="text-muted-foreground">“{note.remind_message}”</span></> : null}
-          </span>
-        </div>
-      )}
-
-      {/* 수정 에디터 */}
-      {editing && onUpdate && (
-        <div className="border-t border-border/60">
-          <NoteMetaEditor initialCategory={note.category} initialTags={note.tags} onSave={(p) => { onUpdate(p); setEditing(false); }} onCancel={() => setEditing(false)} />
-        </div>
-      )}
-
-      {/* 삭제 확인 창 */}
-      {deleting && onDelete && (
-        <div className="flex items-center justify-between gap-2 border-t border-border/60 bg-destructive/10 px-3.5 py-2 text-xs">
-          <span className="font-medium text-destructive">{tr("삭제할까요?")}</span>
-          <div className="flex gap-1.5">
-            <button type="button" onClick={() => setDeleting(false)} className="rounded-full bg-card px-3 py-1 font-medium text-muted-foreground hover:bg-muted">{tr("취소")}</button>
-            <button type="button" onClick={() => { onDelete(); setDeleting(false); }} className="rounded-full bg-destructive px-3 py-1 font-semibold text-white shadow-2xs">{tr("삭제")}</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function AnswerActions({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    await copyText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1200);
-  };
-
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: tr("톡비서 답변"),
-          text: text,
-        });
-      } catch { /* user cancelled */ }
-    } else {
-      await handleCopy();
-    }
-  };
-
-  return (
-    <div className="flex items-center gap-1 pt-1 text-muted-foreground/80">
-      <IconButton ariaLabel={tr("복사")} onClick={handleCopy} className="h-7 w-7 min-h-[30px] min-w-[30px] text-muted-foreground hover:text-foreground">
-        <MaterialSymbol name={copied ? "check" : "content_copy"} size={16} weight={350} />
-      </IconButton>
-      <IconButton ariaLabel={tr("공유")} onClick={handleShare} className="h-7 w-7 min-h-[30px] min-w-[30px] text-muted-foreground hover:text-foreground">
-        <MaterialSymbol name="share" size={16} weight={350} />
-      </IconButton>
-    </div>
-  );
-}
-
-function NoteThread({ note, imageUrl, audioUrl, fileUrl, highlighted, onConfirm, onDiscard, onUpdate }: { note: Note; imageUrl: string | undefined; audioUrl: string | undefined; fileUrl?: string | undefined; highlighted?: boolean; onConfirm: () => void; onDiscard: () => void; onUpdate: (patch: { category: string; tags: string[] }) => void }) {
-  return (
-    <div
-      id={`note-${note.id}`}
-      className={`space-y-2 animate-in fade-in slide-in-from-bottom-1 rounded-2xl transition-all duration-300 ${
-        highlighted ? "bg-primary/10 p-2 -m-2 ring-2 ring-primary/50" : ""
-      }`}
-    >
-      {audioUrl && (
-        <div className="flex justify-end">
-          <div className="w-64 max-w-[78%] rounded-2xl rounded-tr-sm border border-primary/20 bg-bubble p-2.5 text-foreground shadow-xs">
-            <p className="mb-1 inline-flex items-center gap-1 px-1 text-xs font-medium text-foreground/85">
-              <MaterialSymbol name="mic" size={15} weight={350} />
-              {tr("음성 메모")}
-            </p>
-            <audio controls preload="none" src={audioUrl} className="h-9 w-full" />
-          </div>
-        </div>
-      )}
-      <UserBubble text={note.content} imageUrl={imageUrl} fileUrl={fileUrl} origName={note.file_name} />
-      <div className="flex items-start gap-2.5">
-        <Avatar />
-        <div className="w-full max-w-[92%] space-y-2">
-          <p className="text-xs font-semibold text-muted-foreground">{tr("톡비서")}</p>
-          <div className="rounded-2xl rounded-tl-sm border border-border/50 bg-card/85 px-4 py-2.5 text-[15.5px] leading-[1.6] text-foreground shadow-xs">
-            {note.secretary_reply}
-          </div>
-          <NoteCard note={note} onUpdate={onUpdate} onDelete={onDiscard} />
-          {!note.confirmed && <ConfirmBar note={note} onConfirm={onConfirm} onDiscard={onDiscard} onUpdate={onUpdate} />}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ConfirmBar({ note, onConfirm, onDiscard, onUpdate }: { note: Note; onConfirm: () => void; onDiscard: () => void; onUpdate: (patch: { category: string; tags: string[] }) => void }) {
-  const [editing, setEditing] = useState(false);
-
-  if (editing) {
-    return (
-      <NoteMetaEditor
-        initialCategory={note.category}
-        initialTags={note.tags}
-        onSave={(patch) => { onUpdate(patch); setEditing(false); }}
-        onCancel={() => setEditing(false)}
-      />
-    );
-  }
-
-  return (
-    <div className="flex items-center justify-between gap-2 rounded-2xl border border-primary/30 bg-primary/10 px-3.5 py-2">
-      <span className="text-xs font-semibold text-foreground">{tr("이대로 서류함에 보관할까요?")}</span>
-      <div className="flex items-center gap-1.5">
-        <IconButton ariaLabel={tr("보관")} onClick={onConfirm} className="h-8 w-8 min-h-[34px] min-w-[34px] bg-primary text-primary-foreground hover:opacity-90">
-          <MaterialSymbol name="check" size={18} weight={400} />
-        </IconButton>
-        <IconButton ariaLabel={tr("수정")} onClick={() => setEditing(true)} className="h-8 w-8 min-h-[34px] min-w-[34px] bg-card text-muted-foreground hover:text-foreground">
-          <MaterialSymbol name="edit" size={18} weight={350} />
-        </IconButton>
-        <IconButton ariaLabel={tr("버리기")} onClick={onDiscard} className="h-8 w-8 min-h-[34px] min-w-[34px] bg-card text-muted-foreground hover:text-destructive">
-          <MaterialSymbol name="delete" size={18} weight={350} />
-        </IconButton>
-      </div>
-    </div>
-  );
-}
-
-function AnswerThread({ a, notes, urls, showConfirm, onConfirm, onDiscard, onUpdate }: { a: Answer; notes: Note[]; urls: Record<string, string>; showConfirm: boolean; onConfirm: (n: Note) => void; onDiscard: (n: Note) => void; onUpdate: (n: Note, patch: { category: string; tags: string[] }) => void }) {
-  const zoom = useContext(ZoomCtx);
-  const countQ = /몇\s*(개|건|번|가지)|개수|총\s*몇|모두\s*몇|전부\s*몇|얼마나\s*(던|저장|메모|있)|how many|何件|いくつ|何個/i.test(a.q);
-  const many = notes.length > 2 || (countQ && notes.length > 0);
-  const [open, setOpen] = useState(false);
-  const shown = !many ? notes : open ? notes : [];
-  return (
-    <div className="space-y-2 animate-in fade-in slide-in-from-bottom-1">
-      <UserBubble text={a.q} />
-      <div className="flex items-start gap-2.5">
-        <Avatar />
-        <div className="w-full max-w-[92%] space-y-2">
-          <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-            <MaterialSymbol name="auto_awesome" size={15} weight={400} className="text-primary" />
-            <span>{tr("톡비서")}</span>
-          </p>
-          <div className="rounded-3xl rounded-tl-sm border border-border/50 bg-card/85 p-4 text-[15.5px] leading-[1.6] text-foreground shadow-xs">
-            <div className="space-y-3.5 whitespace-pre-wrap break-words">{a.answer}</div>
-            {many && !open && (
-              <p className="mt-3 text-xs text-muted-foreground">
-                {tr("메모 {0}건, 모두 보여드릴까요?", notes.length)}
-              </p>
-            )}
-          </div>
-          <AnswerActions text={a.answer} />
-          {many && (
-            <button
-              type="button"
-              onClick={() => setOpen((v) => !v)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/90 px-3.5 py-1.5 text-xs font-medium text-foreground shadow-2xs hover:bg-muted"
-            >
-              <MaterialSymbol name={open ? "expand_less" : "format_list_bulleted"} size={16} weight={350} />
-              <span>{open ? tr("목록 접기") : tr("메모 {0}건 모두 보기", notes.length)}</span>
-            </button>
-          )}
-          {shown.map((n) => {
-            const imgUrl = n.image_path ? urls[n.image_path] : undefined;
-            return (
-              <div key={n.id} className="space-y-1 pt-1">
-                {imgUrl && (
-                  <img
-                    src={imgUrl}
-                    alt={tr("저장된 스크린샷")}
-                    onClick={() => zoom(imgUrl)}
-                    className="h-auto max-h-48 w-auto max-w-full cursor-zoom-in rounded-2xl object-contain shadow-xs"
-                  />
-                )}
-                <NoteCard note={n} onUpdate={(p) => onUpdate(n, p)} onDelete={() => onDiscard(n)} />
-                {showConfirm && !n.confirmed && (
-                  <ConfirmBar note={n} onConfirm={() => onConfirm(n)} onDiscard={() => onDiscard(n)} onUpdate={(p) => onUpdate(n, p)} />
-                )}
-              </div>
-            );
-          })}
-        </div>
       </div>
     </div>
   );

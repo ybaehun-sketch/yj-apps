@@ -4,7 +4,12 @@
 //     nitro (build-only using cloudflare as a default target), VITE_* env injection, @ path alias,
 //     React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
+import { loadEnv } from "vite";
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+
+for (const [k, v] of Object.entries(loadEnv("development", process.cwd(), ""))) {
+  if (process.env[k] === undefined) process.env[k] = v;
+}
 
 export default defineConfig({
   tanstackStart: {

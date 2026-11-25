@@ -19,16 +19,63 @@ self.addEventListener("fetch", (event) => {
 async function handleSharePost(request) {
   const form = await request.formData();
   const params = new URLSearchParams();
+  const payload = {};
   for (const k of ["shared_title", "shared_text", "shared_url"]) {
     const v = form.get(k);
-    if (typeof v === "string" && v.trim()) params.set(k, v.trim());
+    if (typeof v === "string" && v.trim()) {
+      params.set(k, v.trim());
+      payload[k] = v.trim();
+    }
+  }
+  const cache = await caches.open(SHARE_CACHE);
+  if (Object.keys(payload).length > 0) {
+    await cache.put(
+      "/__shared_payload__",
+      new Response(JSON.stringify(payload), { headers: { "Content-Type": "application/json" } }),
+    );
   }
   const file = form.get("media");
   if (file && typeof file === "object" && "arrayBuffer" in file && file.size > 0) {
-    const cache = await caches.open(SHARE_CACHE);
     await cache.put("/__shared_media__", new Response(file, { headers: { "Content-Type": file.type || "image/png" } }));
     params.set("shared_media", "1");
   }
   const q = params.toString();
-  return Response.redirect(q ? `/inbox?${q}` : "/inbox", 303);
+  const dest = new URL(q ? `/inbox?${q}` : "/inbox", request.url);
+  return Response.redirect(dest.href, 303);
 }
+
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+  let data = {};
+  try {
+    data = event.data.json();
+  } catch {
+    data = { body: event.data.text() };
+  }
+  const title = data.title || "톡비서 알림";
+  const options = {
+    body: data.body || "",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    tag: data.tag || "tokbiseo-reminder",
+    data: { url: data.url || "/inbox" },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || "/inbox";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
+        if ("focus" in client) {
+          client.focus();
+          if ("navigate" in client) return client.navigate(targetUrl);
+          return client;
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+    }),
+  );
+});

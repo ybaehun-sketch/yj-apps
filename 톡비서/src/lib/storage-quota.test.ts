@@ -11,6 +11,7 @@ describe("storage quota", () => {
   });
   it("free upload allowed within 7 days", () => expect(uploadBlockReason("free", "2026-11-05T00:00:00Z", 0, MB, now)).toBeNull());
   it("free upload blocked after 7 days", () => expect(uploadBlockReason("free", "2026-11-01T00:00:00Z", 0, MB, now)).not.toBeNull());
+  it("free upload allowed after 7 days when trial check disabled", () => expect(uploadBlockReason("free", "2026-11-01T00:00:00Z", 0, MB, now, false)).toBeNull());
   it("free upload blocked over 100MB", () => expect(uploadBlockReason("free", "2026-11-09T00:00:00Z", 99.5 * MB, MB, now)).not.toBeNull());
   it("premium not limited by trial", () => expect(uploadBlockReason("premium", "2020-01-01T00:00:00Z", 0, MB, now)).toBeNull());
   it("per-file limit is 20MB for free and 50MB for premium", () => {

@@ -39,4 +39,28 @@ describe("notes-stats", () => {
     const img = docs.find((d) => d.id === "1");
     expect(img?.text).toBeUndefined();
   });
+
+  it("answers stats questions locally in additional languages (zh, es)", () => {
+    const zhRes = tryAnswerStatsLocally("本月有多少截图?", rows, TZ, "zh", NOW);
+    expect(zhRes?.answer).toContain("2条");
+    const esRes = tryAnswerStatsLocally("¿Cuántas capturas hay este mes?", rows, TZ, "es", NOW);
+    expect(esRes?.answer).toContain("2");
+  });
+
+  it("caps search docs to 60 candidates while keeping keyword hits", () => {
+    const many: SearchRow[] = Array.from({ length: 120 }, (_, i) => ({
+      id: `n-${i}`,
+      created_at: "2026-11-01T00:00:00Z",
+      kind: "text",
+      content: i === 110 ? "특별한 계약서 내용" : `일반 메모 ${i}`,
+      summary: i === 110 ? "계약서" : `요약 ${i}`,
+      category: "기타",
+      detected_date: null,
+      tags: [],
+      link_title: null,
+    }));
+    const docs = buildCompactSearchDocs("계약서 찾아줘", many);
+    expect(docs).toHaveLength(60);
+    expect(docs.some((d) => d.id === "n-110")).toBe(true);
+  });
 });

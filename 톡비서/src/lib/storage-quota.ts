@@ -25,13 +25,13 @@ export function dailyLimitReason(plan: QuotaPlan, todayCount: number): string | 
 }
 
 /** 업로드 가능하면 null, 아니면 사용자에게 보여줄 안내 문구 */
-export function uploadBlockReason(plan: QuotaPlan, joinedAt: string | null, usedBytes: number, fileBytes: number, now = new Date()): string | null {
+export function uploadBlockReason(plan: QuotaPlan, joinedAt: string | null, usedBytes: number, fileBytes: number, now = new Date(), checkTrial = true): string | null {
   if (fileBytes > MAX_FILE_BYTES[plan]) {
     return plan === "free"
       ? "무료 회원은 파일 하나당 최대 20MB까지 올릴 수 있어요 (프리미엄 50MB)"
       : "파일 하나는 최대 50MB까지 올릴 수 있어요";
   }
-  if (plan === "free" && trialDaysLeft(joinedAt, now) === 0) return "무료 체험 7일이 끝났어요. 프리미엄으로 업그레이드하면 계속 보관할 수 있어요";
+  if (checkTrial && plan === "free" && trialDaysLeft(joinedAt, now) === 0) return "무료 체험 7일이 끝났어요. 프리미엄으로 업그레이드하면 계속 보관할 수 있어요";
   if (usedBytes + fileBytes > QUOTA_BYTES[plan]) return plan === "free"
     ? "무료 보관함 100MB가 가득 찼어요. 프리미엄으로 20GB를 써보세요"
     : "보관함이 가득 찼어요. 안 쓰는 파일을 지워 주세요";

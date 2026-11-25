@@ -6,6 +6,9 @@ export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
     const { data } = await supabase.auth.getSession();
     if (!data.session) {
+      if (typeof window !== "undefined" && window.location.search.includes("shared_")) {
+        try { localStorage.setItem("jungbi.pendingShare", window.location.search); } catch { /* ignore */ }
+      }
       throw redirect({ to: "/login" });
     }
     return {

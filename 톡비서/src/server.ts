@@ -2,6 +2,9 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { supabaseAdmin } from "./integrations/supabase/client.server";
+import { checkGeminiHealth } from "./lib/gemini.server";
+import { sendWebPush, type PushSubscriptionData } from "./lib/web-push.server";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -44,8 +47,164 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+function applyEnv(env: unknown) {
+  if (env && typeof env === "object") {
+    for (const [k, v] of Object.entries(env)) {
+      if (typeof v === "string" && !process.env[k]) {
+        process.env[k] = v;
+      }
+    }
+  }
+}
+
+async function dispatchDueReminders() {
+  const publicKey = process.env.VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  if (!publicKey || !privateKey) return;
+
+  const admin = supabaseAdmin;
+  const nowIso = new Date().toISOString();
+  const { data: dueNotes, error } = await admin
+    .from("notes")
+    .select("id, user_id, summary, remind_message, remind_at")
+    .eq("confirmed", true)
+    .eq("reminded", false)
+    .not("remind_at", "is", null)
+    .lte("remind_at", nowIso)
+    .limit(50);
+
+  if (error || !dueNotes?.length) return;
+
+  const userCache = new Map<string, { enabled: boolean; subs: PushSubscriptionData[] }>();
+  const vapid = { publicKey, privateKey, subject: "mailto:ybaehun@gmail.com" };
+
+  for (const note of dueNotes) {
+    let info = userCache.get(note.user_id);
+    if (!info) {
+      const { data: uData } = await admin.auth.admin.getUserById(note.user_id);
+      const meta = (uData.user?.user_metadata ?? {}) as {
+        push_enabled?: boolean;
+        push_subscriptions?: PushSubscriptionData[];
+      };
+      info = {
+        enabled: meta.push_enabled !== false,
+        subs: Array.isArray(meta.push_subscriptions) ? meta.push_subscriptions : [],
+      };
+      userCache.set(note.user_id, info);
+    }
+
+    if (info.enabled && info.subs.length > 0) {
+      const expiredEndpoints = new Set<string>();
+      const bodyText = note.remind_message || note.summary;
+      await Promise.all(
+        info.subs.map(async (sub) => {
+          try {
+            const res = await sendWebPush(
+              sub,
+              { title: "톡비서 알림", body: bodyText, tag: `note-${note.id}`, url: "/inbox" },
+              vapid,
+            );
+            if (res.expired) expiredEndpoints.add(sub.endpoint);
+          } catch (e) {
+            console.error("Web push send failed", e);
+          }
+        }),
+      );
+      if (expiredEndpoints.size > 0) {
+        const remaining = info.subs.filter((s) => !expiredEndpoints.has(s.endpoint));
+        info.subs = remaining;
+        await admin.auth.admin.updateUserById(note.user_id, {
+          user_metadata: { push_enabled: info.enabled, push_subscriptions: remaining },
+        });
+      }
+    }
+
+    await admin.from("notes").update({ reminded: true }).eq("id", note.id);
+  }
+}
+
+async function findAdminUser(adminEmail: string) {
+  const admin = supabaseAdmin;
+  const adminUserId = (process.env["ADMIN_USER_ID"] || "").trim();
+  if (adminUserId) {
+    const { data, error } = await admin.auth.admin.getUserById(adminUserId);
+    if (!error && data.user) return data.user;
+  }
+
+  const perPage = 200;
+  for (let page = 1; page <= 100; page++) {
+    const { data: usersData, error: listErr } = await admin.auth.admin.listUsers({ page, perPage });
+    if (listErr || !usersData.users.length) return null;
+    const found = usersData.users.find((u) => u.email?.toLowerCase() === adminEmail);
+    if (found) return found;
+    if (usersData.users.length < perPage) return null;
+  }
+  return null;
+}
+
+async function runDailyAiHealthCheck() {
+  const adminEmail = (process.env["ADMIN_ALERT_EMAIL"] || "ybaehun@gmail.com").trim().toLowerCase();
+  const todayKst = new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10);
+  const admin = supabaseAdmin;
+
+  const adminUser = await findAdminUser(adminEmail);
+  if (!adminUser) return;
+
+  const meta = (adminUser.user_metadata ?? {}) as Record<string, unknown> & {
+    last_ai_health_date?: string;
+    push_subscriptions?: PushSubscriptionData[];
+  };
+  if (meta.last_ai_health_date === todayKst) return;
+
+  const health = await checkGeminiHealth();
+  await admin.auth.admin.updateUserById(adminUser.id, {
+    user_metadata: { ...meta, last_ai_health_date: todayKst },
+  });
+
+  // 1순위 정상 응답이면 조용히 통과; 예비 모델로 넘어갔거나 전체 실패 시에만 대표님께 푸시 알림 발송
+  if (health.ok && health.failedModels.length === 0) return;
+
+  const alertBody = health.ok
+    ? `기본 AI(${health.primaryModel}) 응답이 끊겨 예비 AI(${health.activeModel})로 작동 중입니다. 설정을 확인해 주세요.`
+    : "톡비서 AI 전체가 응답하지 않고 있습니다. 크레딧 잔액이나 구글 AI 상태를 바로 확인해 주세요.";
+  console.error("AI daily health check alert:", alertBody, health);
+
+  const publicKey = process.env["VAPID_PUBLIC_KEY"];
+  const privateKey = process.env["VAPID_PRIVATE_KEY"];
+  const subs = Array.isArray(meta.push_subscriptions) ? meta.push_subscriptions : [];
+  if (!publicKey || !privateKey || subs.length === 0) return;
+
+  const vapid = { publicKey, privateKey, subject: `mailto:${adminEmail}` };
+  await Promise.all(
+    subs.map((sub) =>
+      sendWebPush(
+        sub,
+        { title: "⚠️ 톡비서 AI 긴급 점검 알림", body: alertBody, tag: `ai-health-${todayKst}`, url: "/inbox" },
+        vapid,
+      ).catch((e) => console.error("Health alert push failed", e)),
+    ),
+  );
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    applyEnv(env);
+    const reqUrl = new URL(request.url);
+    if (request.method === "POST" && reqUrl.pathname === "/share-target") {
+      try {
+        const form = await request.formData();
+        const params = new URLSearchParams();
+        for (const k of ["shared_title", "shared_text", "shared_url"]) {
+          const v = form.get(k);
+          if (typeof v === "string" && v.trim()) params.set(k, v.trim());
+        }
+        const q = params.toString();
+        const dest = new URL(q ? `/inbox?${q}` : "/inbox", reqUrl.origin);
+        return Response.redirect(dest.toString(), 303);
+      } catch {
+        return Response.redirect(new URL("/inbox", reqUrl.origin).toString(), 303);
+      }
+    }
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
@@ -56,6 +215,19 @@ export default {
         status: 500,
         headers: { "content-type": "text/html; charset=utf-8" },
       });
+    }
+  },
+  async scheduled(_controller: unknown, env: unknown, _ctx: unknown) {
+    applyEnv(env);
+    try {
+      await dispatchDueReminders();
+    } catch (e) {
+      console.error("scheduled reminder dispatch error", e);
+    }
+    try {
+      await runDailyAiHealthCheck();
+    } catch (e) {
+      console.error("scheduled AI health check error", e);
     }
   },
 };

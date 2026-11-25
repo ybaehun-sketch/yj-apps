@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   GEMINI_MODELS,
   callGemini,
+  checkGeminiHealth,
   getCandidateModels,
   getGeminiApiKey,
   isQuotaError,
@@ -19,6 +20,7 @@ vi.mock("@google/genai", () => ({
 describe("gemini.server failover & key resolution", () => {
   const origGemini = process.env["GEMINI_API_KEY"];
   const origGoogle = process.env["GOOGLE_API_KEY"];
+  const origModels = process.env["GEMINI_MODELS"];
 
   afterEach(() => {
     resetGeminiCooldowns();
@@ -27,6 +29,8 @@ describe("gemini.server failover & key resolution", () => {
     else process.env["GEMINI_API_KEY"] = origGemini;
     if (origGoogle === undefined) delete process.env["GOOGLE_API_KEY"];
     else process.env["GOOGLE_API_KEY"] = origGoogle;
+    if (origModels === undefined) delete process.env["GEMINI_MODELS"];
+    else process.env["GEMINI_MODELS"] = origModels;
   });
 
   it("prefers explicit env key over local fallback key", () => {
@@ -69,5 +73,30 @@ describe("gemini.server failover & key resolution", () => {
     const out = await callGemini({ input: "테스트" });
     expect(out).toBe("3차 모델 응답");
     expect(createMock.mock.calls.map((c) => c[0]?.model)).toEqual([...GEMINI_MODELS]);
+  });
+
+  it("uses centrally configured GEMINI_MODELS env var when provided", async () => {
+    process.env["GEMINI_API_KEY"] = "test-key";
+    process.env["GEMINI_MODELS"] = "custom-model-a, custom-model-b";
+    createMock
+      .mockRejectedValueOnce(new Error("fail a"))
+      .mockResolvedValueOnce({ output_text: "커스텀 B 응답" });
+
+    const out = await callGemini({ input: "테스트" });
+    expect(out).toBe("커스텀 B 응답");
+    expect(createMock.mock.calls.map((c) => c[0]?.model)).toEqual(["custom-model-a", "custom-model-b"]);
+  });
+
+  it("reports healthy or degraded status via checkGeminiHealth", async () => {
+    process.env["GEMINI_API_KEY"] = "test-key";
+    createMock
+      .mockRejectedValueOnce(new Error("primary down"))
+      .mockResolvedValueOnce({ output_text: "OK" });
+
+    const health = await checkGeminiHealth();
+    expect(health.ok).toBe(true);
+    expect(health.primaryModel).toBe(GEMINI_MODELS[0]);
+    expect(health.activeModel).toBe(GEMINI_MODELS[1]);
+    expect(health.failedModels).toEqual([GEMINI_MODELS[0]]);
   });
 });
