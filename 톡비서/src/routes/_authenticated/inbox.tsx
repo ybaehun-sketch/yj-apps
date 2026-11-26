@@ -284,6 +284,12 @@ function Inbox() {
   }, [pending]);
 
   const [clipUrl, setClipUrl] = useState<string | null>(null);
+  const rememberClip = (url: string) => {
+    try {
+      sessionStorage.setItem("jungbi.lastClip", url);
+      localStorage.setItem("jungbi.lastClip", url);
+    } catch { /* ignore */ }
+  };
   useEffect(() => {
     const checkClip = async () => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
@@ -291,7 +297,7 @@ function Inbox() {
         if (!navigator.clipboard?.readText) return;
         const txt = (await navigator.clipboard.readText()).trim();
         if (/^https?:\/\/[^\s]+$/.test(txt)) {
-          const last = sessionStorage.getItem("jungbi.lastClip");
+          const last = sessionStorage.getItem("jungbi.lastClip") ?? localStorage.getItem("jungbi.lastClip");
           if (last !== txt) setClipUrl(txt);
         }
       } catch { /* clipboard permission rejected */ }
@@ -443,6 +449,7 @@ function Inbox() {
     const current = opts?.image ?? (opts ? null : img);
     if (!t && !current) return;
     if (pending && !opts) return;
+    if (/^https?:\/\/[^\s]+$/.test(t)) rememberClip(t);
     setErr(null);
     if (prefs.alarm) requestNotificationPermission();
     if (clearAsk && !opts && !current) {
@@ -1171,12 +1178,12 @@ function Inbox() {
               </div>
               <button
                 type="button"
-                onClick={() => { const u = clipUrl; setClipUrl(null); void send({ text: u }); }}
+                onClick={() => { const u = clipUrl; rememberClip(u); setClipUrl(null); void send({ text: u }); }}
                 className="shrink-0 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-white shadow-2xs hover:opacity-90"
               >
                 {tr("바로 던지기")}
               </button>
-              <IconButton ariaLabel={tr("닫기")} onClick={() => setClipUrl(null)} className="h-7 w-7 min-h-[28px] min-w-[28px]">
+              <IconButton ariaLabel={tr("닫기")} onClick={() => { rememberClip(clipUrl); setClipUrl(null); }} className="h-7 w-7 min-h-[28px] min-w-[28px]">
                 <MaterialSymbol name="close" size={16} weight={350} />
               </IconButton>
             </div>
