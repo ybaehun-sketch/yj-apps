@@ -69,6 +69,7 @@ export const Route = createFileRoute("/auth")({
       { name: "description", content: "로그인하고 나만의 타로 상담 기록을 간직하세요." },
       { property: "og:title", content: "로그인 — 찻잔 타로" },
       { property: "og:description", content: "로그인하고 나만의 타로 상담 기록을 간직하세요." },
+      { name: "robots", content: "noindex" },
     ],
   }),
   component: AuthPage,
