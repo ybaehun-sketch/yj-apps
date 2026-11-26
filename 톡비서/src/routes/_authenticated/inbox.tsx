@@ -145,8 +145,39 @@ function Inbox() {
     void syncPushIfEnabled(prefs.alarm);
   }, [prefs.alarm]);
 
+  const [storeUpdate, setStoreUpdate] = useState<{ version: string; url: string } | null>(null);
+  const dismissStoreUpdate = (version: string) => {
+    setStoreUpdate(null);
+    try { localStorage.setItem("jungbi.seenStoreVersion", version); } catch { /* ignore */ }
+  };
   useEffect(() => {
-    void fetch("/api/warmup", { cache: "no-store" }).catch(() => {});
+    void (async () => {
+      try {
+        const res = await fetch("/api/warmup", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { storeVersion?: string; storeUrl?: string };
+        const latest = data.storeVersion?.trim();
+        const url = data.storeUrl?.trim();
+        if (!latest || !url) return;
+        const isStandaloneApp =
+          window.matchMedia?.("(display-mode: standalone)")?.matches ||
+          document.referrer.startsWith("android-app://");
+        if (!isStandaloneApp) return;
+        if (localStorage.getItem("jungbi.seenStoreVersion") === latest) return;
+        const navAny = navigator as Navigator & {
+          getInstalledRelatedApps?: () => Promise<Array<{ id?: string; version?: string }>>;
+        };
+        if (typeof navAny.getInstalledRelatedApps === "function") {
+          const apps = await navAny.getInstalledRelatedApps().catch(() => []);
+          const installed = apps.find((a) => a.id === "app.yjstudio.tokbiseo");
+          if (installed?.version && installed.version.localeCompare(latest, undefined, { numeric: true }) >= 0) {
+            localStorage.setItem("jungbi.seenStoreVersion", latest);
+            return;
+          }
+        }
+        setStoreUpdate({ version: latest, url });
+      } catch { /* ignore warmup/update check failure */ }
+    })();
   }, []);
 
   const [user, setUser] = useState<{ email: string; created: string | null; exempt?: boolean }>({ email: "local@talk-secretary", created: null });
@@ -1169,6 +1200,31 @@ function Inbox() {
       <div className="sticky bottom-0 z-20 bg-gradient-to-t from-background via-background/95 to-transparent pt-1 pb-[max(0.6rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto max-w-2xl px-3">
           {err && <p className="mb-1.5 px-3 text-xs text-destructive">{err}</p>}
+
+          {/* 스토어 새 버전 업데이트 안내 배너 */}
+          {storeUpdate && (
+            <div className="mb-2 flex items-center gap-2 rounded-2xl border border-primary/30 bg-card px-3.5 py-2.5 text-xs text-foreground shadow-xs">
+              <div className="min-w-0 flex-1">
+                <p className="inline-flex items-center gap-1 font-semibold">
+                  <MaterialSymbol name="system_update" size={16} weight={350} className="text-primary" />
+                  {tr("새 앱 버전이 출시되었어요")} (v{storeUpdate.version})
+                </p>
+                <p className="truncate text-xs text-muted-foreground">{tr("업데이트하면 최신 기능을 바로 쓸 수 있어요")}</p>
+              </div>
+              <a
+                href={storeUpdate.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => dismissStoreUpdate(storeUpdate.version)}
+                className="shrink-0 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-white shadow-2xs hover:opacity-90"
+              >
+                {tr("업데이트")}
+              </a>
+              <IconButton ariaLabel={tr("닫기")} onClick={() => dismissStoreUpdate(storeUpdate.version)} className="h-7 w-7 min-h-[28px] min-w-[28px]">
+                <MaterialSymbol name="close" size={16} weight={350} />
+              </IconButton>
+            </div>
+          )}
 
           {/* 클립보드 링크 제안 배너 */}
           {clipUrl && (

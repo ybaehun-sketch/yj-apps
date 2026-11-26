@@ -194,6 +194,9 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     applyEnv(env);
     const reqUrl = new URL(request.url);
+const LATEST_STORE_VERSION = "1.0.2.0";
+const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=app.yjstudio.tokbiseo";
+
     if (reqUrl.pathname === "/api/warmup") {
       try {
         const proxy = (env as { GEMINI_PROXY?: { fetch: typeof fetch } } | undefined)?.GEMINI_PROXY;
@@ -201,7 +204,10 @@ export default {
           await proxy.fetch("https://proxy.local/health");
         }
       } catch { /* ignore warmup failure */ }
-      return new Response("ok", { status: 200, headers: { "Cache-Control": "no-store" } });
+      return Response.json(
+        { ok: true, storeVersion: LATEST_STORE_VERSION, storeUrl: PLAY_STORE_URL },
+        { status: 200, headers: { "Cache-Control": "no-store" } },
+      );
     }
     if (reqUrl.pathname === "/api/log-client" && request.method === "POST") {
       const text = await request.text().catch(() => "");
