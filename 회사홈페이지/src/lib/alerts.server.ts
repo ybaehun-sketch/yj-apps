@@ -15,8 +15,18 @@ export interface AlertChannelStatus {
   emailToMasked: string | null;
 }
 
+export interface RecordedAlert extends UrgentAlertPayload {
+  receivedAt: string;
+}
+
 const lastSentMap = new Map<string, number>();
+const recentAlerts: RecordedAlert[] = [];
+const MAX_RECENT_ALERTS = 30;
 const COOLDOWN_MS = 60 * 60 * 1000; // 같은 앱/제목 경보는 1시간 쿨타임
+
+export function listRecentAlerts(): RecordedAlert[] {
+  return [...recentAlerts];
+}
 
 export function getAlertChannelStatus(): AlertChannelStatus {
   const emailTo = process.env["ALERT_EMAIL_TO"] || "";
@@ -40,6 +50,11 @@ export async function sendUrgentAlert(
   skippedCooldown?: boolean;
   notes: string[];
 }> {
+  recentAlerts.unshift({ ...payload, receivedAt: new Date().toISOString() });
+  if (recentAlerts.length > MAX_RECENT_ALERTS) {
+    recentAlerts.length = MAX_RECENT_ALERTS;
+  }
+
   const dedupeKey = `${payload.appKey}:${payload.title}`;
   const now = Date.now();
   const prev = lastSentMap.get(dedupeKey) ?? 0;

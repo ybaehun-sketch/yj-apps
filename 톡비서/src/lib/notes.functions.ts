@@ -6,7 +6,7 @@ import { buildCompactSearchDocs, tryAnswerStatsLocally } from "./notes-stats";
 import { NOTE_CATEGORIES, firstUrl, normalizeAnalysis, parseOg, sanitizeEdit } from "./notes";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { callGemini, getGeminiApiKey, parseDataUrl, parseGeminiJson, type GeminiInputPart } from "./gemini.server";
+import { callGemini, hasAnyAiKey, parseDataUrl, parseGeminiJson, type GeminiInputPart } from "./gemini.server";
 import { DAILY_AI_LIMIT } from "./storage-quota";
 
 const SERVER_DAILY_CAP = DAILY_AI_LIMIT.premium;
@@ -50,7 +50,7 @@ export const transcribeVoice = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertDailyLimit(context.supabase, context.userId);
-    if (!getGeminiApiKey()) throw new Error("음성 인식 설정이 없어요");
+    if (!hasAnyAiKey()) throw new Error("음성 인식 설정이 없어요");
     if (!data.audioBase64.trim()) throw new Error("녹음이 비어 있어요");
     const mimeType = data.mimeType.split(";")[0]?.trim() || "audio/webm";
     const text = await callGemini({
@@ -111,7 +111,7 @@ async function runNoteAnalysis(
 
   let raw: unknown = {};
   let aiUnavailable = false;
-  if (getGeminiApiKey()) {
+  if (hasAnyAiKey()) {
     const text = await callGemini({
       instructions,
       input: parts,
@@ -346,7 +346,7 @@ async function runAskNotes(
 
   const localNow = new Date(Date.now() - tzOffsetMin * 60000).toISOString().slice(0, 16);
   const docs = buildCompactSearchDocs(question, rows);
-  if (!getGeminiApiKey()) throw new Error("AI 설정이 없어요");
+  if (!hasAnyAiKey()) throw new Error("AI 설정이 없어요");
   const instructions = `너는 '톡비서'다. 사용자의 저장된 메모(JSON)만 근거로 질문에 답한다. 현재 현지 시각: ${localNow}. 날짜는 현지 기준으로 말하라.
 JSON 하나만 출력: {"answer": 한국어 1~2문장, 간결하고 다정하게(이모지·이모티콘 사용 금지), 메모에 없으면 솔직히 못 찾았다고, "note_ids": 근거가 된 메모 id 배열(관련도 순)}.
 개수·통계·현황 질문(몇 개, 얼마나 등)은 정확한 개수와 형태/카테고리별 내역으로 답하고 note_ids에는 해당 메모를 모두(최대 20개) 넣는다(화면에서 접어 두고 사용자가 원할 때만 펼친다). 특정 메모 찾기는 가장 관련된 1~2개만 고른다.
@@ -397,7 +397,7 @@ export const editFromChat = createServerFn({ method: "POST" })
     const allowed = [...NOTE_CATEGORIES, ...(custom ?? []).map((c) => c.name)] as string[];
     const localNow = new Date(Date.now() - data.tzOffsetMin * 60000).toISOString().slice(0, 16);
     const offH = -data.tzOffsetMin / 60;
-    if (!getGeminiApiKey()) throw new Error("AI 설정이 없어요");
+    if (!hasAnyAiKey()) throw new Error("AI 설정이 없어요");
     const instructions = `너는 '톡비서'다. 최근 대화 흐름(오래된→최신)을 보고 사용자가 어떤 메모를 고치려는지 판단한다. 보통 가장 최근 메모를 가리킨다.
 현재 현지 시각: ${localNow} (UTC${offH >= 0 ? "+" : ""}${offH}). 시각은 시간대 포함 ISO로.
 JSON 하나만 출력: {"intent": "edit"|"chat", "note_id": 수정할 메모 id 또는 null, "changes": {"remind_at"?: ISO 또는 null(알림 끄기), "category"?: ${allowed.join("|")}, "summary"?: 새 요약, "tags_add"?: [], "tags_remove"?: []}, "reply": 한국어 1문장 다정한 확인(무엇을 어떻게 바꿨는지, 이모지 없이)}.
@@ -449,7 +449,7 @@ export const agentTurn = createServerFn({ method: "POST" })
     const tz = `UTC${offH >= 0 ? "+" : ""}${offH}`;
     const customLine = extra.length ? `\n사용자 맞춤 카테고리(해당하면 우선): ${(custom ?? []).map((c) => (c.hint ? `${c.name}(${c.hint})` : c.name)).join(", ")}` : "";
 
-    if (!getGeminiApiKey()) return { action: "fallback" as const, answer: "", noteIds: [] as string[] };
+    if (!hasAnyAiKey()) return { action: "fallback" as const, answer: "", noteIds: [] as string[] };
     const instructions = `너는 초간편 AI '톡비서'다. 사람 비서처럼 사용자의 말 전체 뜻과 최근 흐름(오래된→최신)을 함께 보고, 지금 무엇을 해야 하는지 스스로 판단해 바로 실행할 내용을 JSON 하나로 출력한다.
 현재 현지 시각: ${localNow} (${tz}). 시각은 모두 시간대 포함 ISO 8601.
 행동(action) 판단 원칙 — 단어가 아니라 '사용자가 원하는 결과'로 판단하라:

@@ -99,4 +99,52 @@ describe("gemini.server failover & key resolution", () => {
     expect(health.activeModel).toBe(GEMINI_MODELS[1]);
     expect(health.failedModels).toEqual([GEMINI_MODELS[0]]);
   });
+
+  it("falls back to OpenAI when all Gemini models fail and notifies control center", async () => {
+    process.env["GEMINI_API_KEY"] = "test-key";
+    process.env["OPENAI_API_KEY"] = "sk-test-openai";
+    process.env["CONTROL_CENTER_ALERT_URL"] = "https://control.example.com/api/alerts/ingest";
+    process.env["CONTROL_CENTER_ALERT_TOKEN"] = "secret-token";
+
+    createMock
+      .mockRejectedValueOnce(Object.assign(new Error("429 quota exceeded"), { status: 429 }))
+      .mockRejectedValueOnce(Object.assign(new Error("429 quota exceeded"), { status: 429 }))
+      .mockRejectedValueOnce(Object.assign(new Error("429 quota exceeded"), { status: 429 }));
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      const target = String(url);
+      if (target.includes("api.openai.com/v1/chat/completions")) {
+        return new Response(
+          JSON.stringify({ choices: [{ message: { content: '{"summary":"백업 정리 완료"}' } }] }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (target.includes("control.example.com")) {
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    try {
+      const out = await callGemini({ input: "내일 3시 미팅" });
+      expect(out).toBe('{"summary":"백업 정리 완료"}');
+
+      await new Promise((r) => setTimeout(r, 10));
+      const alertCall = fetchSpy.mock.calls.find((c) => String(c[0]).includes("control.example.com"));
+      expect(alertCall).toBeTruthy();
+      const alertBody = JSON.parse(String((alertCall?.[1] as RequestInit | undefined)?.body ?? "{}")) as {
+        severity?: string;
+        appKey?: string;
+        message?: string;
+      };
+      expect(alertBody.appKey).toBe("tokbiseo");
+      expect(alertBody.severity).toBe("warning");
+      expect(alertBody.message).toContain("할당량 또는 잔액 소진");
+    } finally {
+      fetchSpy.mockRestore();
+      delete process.env["OPENAI_API_KEY"];
+      delete process.env["CONTROL_CENTER_ALERT_URL"];
+      delete process.env["CONTROL_CENTER_ALERT_TOKEN"];
+    }
+  });
 });
