@@ -9,8 +9,10 @@ interface WelfareCardProps {
   largeText: boolean;
   isDark?: boolean;
   isFavorite?: boolean;
+  isExpanded?: boolean;
   isMenuOpen?: boolean;
   onPress: () => void;
+  onOpenDetail?: () => void;
   onToggleMenu?: () => void;
   onShare?: () => void;
   onToggleFavorite?: () => void;
@@ -57,8 +59,10 @@ export function WelfareCard({
   largeText,
   isDark = false,
   isFavorite = false,
+  isExpanded = true,
   isMenuOpen = false,
   onPress,
+  onOpenDetail,
   onToggleMenu,
   onShare,
   onToggleFavorite,
@@ -78,9 +82,13 @@ export function WelfareCard({
       <TouchableOpacity
         activeOpacity={0.75}
         onPress={onPress}
-        style={[styles.card, isDark && styles.cardDark]}
+        style={[
+          styles.card,
+          !isExpanded && styles.cardCollapsed,
+          isDark && styles.cardDark
+        ]}
       >
-        <View style={styles.badgeRow}>
+        <View style={[styles.badgeRow, !isExpanded && styles.badgeRowCollapsed]}>
           <View style={styles.regionBadge}>
             <Text style={styles.regionBadgeText}>
               {post.region_code === '00000' ? '전국 공통' : post.region_sigungu}
@@ -134,44 +142,65 @@ export function WelfareCard({
         </View>
 
       <Text
-        style={[styles.title, largeText && styles.titleLarge, isDark && styles.textDark, keepAllStyle]}
+        style={[
+          styles.title,
+          !isExpanded && styles.titleCollapsed,
+          largeText && styles.titleLarge,
+          isDark && styles.textDark,
+          keepAllStyle
+        ]}
         numberOfLines={2}
       >
         {post.app_title}
       </Text>
 
-      <View style={[styles.summaryList, largeText && styles.summaryListLarge]}>
-        {summaryRows.map((row, idx) => (
-          <View key={`${row.label ?? 'line'}-${idx}`} style={styles.summaryRow}>
-            {row.label ? (
-              <Text
-                style={[
-                  styles.summaryLabel,
-                  largeText && styles.summaryLabelLarge,
-                  isDark && styles.summaryLabelDark
-                ]}
-              >
-                {row.label}
-              </Text>
-            ) : null}
-            <Text
-              style={[
-                styles.summaryValue,
-                largeText && styles.summaryLarge,
-                isDark && styles.textMutedDark,
-                keepAllStyle
-              ]}
-            >
-              {row.value}
-            </Text>
+      {isExpanded ? (
+        <>
+          <View style={[styles.summaryList, largeText && styles.summaryListLarge]}>
+            {summaryRows.map((row, idx) => (
+              <View key={`${row.label ?? 'line'}-${idx}`} style={styles.summaryRow}>
+                {row.label ? (
+                  <Text
+                    style={[
+                      styles.summaryLabel,
+                      largeText && styles.summaryLabelLarge,
+                      isDark && styles.summaryLabelDark
+                    ]}
+                  >
+                    {row.label}
+                  </Text>
+                ) : null}
+                <Text
+                  style={[
+                    styles.summaryValue,
+                    largeText && styles.summaryLarge,
+                    isDark && styles.textMutedDark,
+                    keepAllStyle
+                  ]}
+                >
+                  {row.value}
+                </Text>
+              </View>
+            ))}
           </View>
-        ))}
-      </View>
 
-        <View style={[styles.footerRow, isDark && styles.footerRowDark]}>
-          <Text style={[styles.orgText, isDark && styles.textMutedDark]}>{post.org_name}</Text>
-          <Text style={styles.moreText}>자세히 보기 →</Text>
-        </View>
+          <View style={[styles.footerRow, isDark && styles.footerRowDark]}>
+            <Text style={[styles.orgText, isDark && styles.textMutedDark]}>{post.org_name}</Text>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                (onOpenDetail ?? onPress)();
+              }}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              style={[styles.detailBtn, isDark && styles.detailBtnDark]}
+              accessibilityLabel="상세 화면으로 이동"
+            >
+              <Text style={[styles.moreText, isDark && styles.moreTextDark]}>자세히 보기 →</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      ) : null}
       </TouchableOpacity>
 
       {isMenuOpen ? (
@@ -227,6 +256,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#1e222a',
     borderColor: '#323844'
   },
+  cardCollapsed: {
+    borderRadius: 12,
+    padding: 16
+  },
   textDark: {
     color: '#f1f3f4'
   },
@@ -239,6 +272,9 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 6,
     marginBottom: 10
+  },
+  badgeRowCollapsed: {
+    marginBottom: 8
   },
   regionBadge: {
     backgroundColor: '#e8f0fe',
@@ -321,6 +357,11 @@ const styles = StyleSheet.create({
     lineHeight: 25,
     marginBottom: 12
   },
+  titleCollapsed: {
+    fontSize: 16,
+    lineHeight: 23,
+    marginBottom: 0
+  },
   titleLarge: {
     fontSize: 20,
     lineHeight: 29
@@ -377,10 +418,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#5f6368'
   },
+  detailBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#e8f0fe',
+    borderWidth: 1,
+    borderColor: '#c2d7fa'
+  },
+  detailBtnDark: {
+    backgroundColor: '#1f324d',
+    borderColor: '#365885'
+  },
   moreText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: '#1a73e8'
+  },
+  moreTextDark: {
+    color: '#8ab4f8'
   },
   dropdownMenu: {
     position: 'absolute',

@@ -1,12 +1,17 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import Script from 'next/script';
 import './globals.css';
 
+const adsenseClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT || 'ca-pub-4015448951330614';
+
 export const metadata: Metadata = {
+  metadataBase: new URL('https://wooldongne.com'),
   title: '울동네 - 우리 동네 생활·복지·지원금 매거진',
   description:
-    '로그인 없이 우리 동네와 중앙 정부의 보조금·돌봄·생활 혜택 소식을 쉽고 빠르게 확인하세요.'
+    '로그인 없이 우리 동네와 중앙 정부의 보조금·돌봄·생활 혜택 소식을 쉽고 빠르게 확인하세요.',
+  other: {
+    'google-adsense-account': adsenseClient
+  }
 };
 
 export default function RootLayout({
@@ -14,19 +19,16 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const adsenseClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
-
   return (
     <html lang="ko">
+      <head>
+        <script
+          async
+          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClient}`}
+          crossOrigin="anonymous"
+        />
+      </head>
       <body className="min-h-screen bg-[#eff2f6] text-[#202124] antialiased">
-        {adsenseClient ? (
-          <Script
-            async
-            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClient}`}
-            crossOrigin="anonymous"
-            strategy="afterInteractive"
-          />
-        ) : null}
 
         <header className="border-b border-[#e3e7ed] bg-white">
           <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
@@ -39,15 +41,6 @@ export default function RootLayout({
                 <div className="text-xs text-[#5f6368]">생활밀착 복지·지원금 매거진</div>
               </div>
             </Link>
-
-            <nav className="flex items-center gap-4 text-sm font-medium text-[#5f6368]">
-              <Link href="/" className="hover:text-[#1a73e8]">
-                전체 소식
-              </Link>
-              <Link href="/admin" className="hover:text-[#1a73e8]">
-                관리자
-              </Link>
-            </nav>
           </div>
         </header>
 
@@ -64,29 +57,25 @@ export default function RootLayout({
               반드시 각 공고에 안내된 공식 기관 원문에서 확인해 주세요.
             </p>
             <div className="mt-4 flex flex-wrap gap-4 text-xs">
+              <Link href="/about" className="text-[#1a73e8] hover:underline">
+                서비스 소개
+              </Link>
+              <Link href="/privacy" className="text-[#1a73e8] hover:underline">
+                개인정보처리방침
+              </Link>
+              <Link href="/terms" className="text-[#1a73e8] hover:underline">
+                이용약관
+              </Link>
+              <a href="mailto:contact@yjstudio.app" className="text-[#1a73e8] hover:underline">
+                문의하기
+              </a>
               <a
                 href="https://yjstudio.app"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#1a73e8] hover:underline"
+                className="text-[#5f6368] hover:text-[#1a73e8] hover:underline"
               >
-                YJ 스튜디오 공식 홈페이지
-              </a>
-              <a
-                href="https://yjstudio.app/privacy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#1a73e8] hover:underline"
-              >
-                개인정보처리방침
-              </a>
-              <a
-                href="https://yjstudio.app/terms"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#1a73e8] hover:underline"
-              >
-                이용약관
+                YJ 스튜디오
               </a>
             </div>
           </div>

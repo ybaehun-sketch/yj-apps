@@ -7,15 +7,19 @@ const COOLDOWN_MS = 3 * 60 * 1000; // 3분 쿨타임
 const SHOW_PROBABILITY = 0.45; // 45% 확률
 const STORAGE_KEY = 'uldongne_web_last_interstitial_ms';
 
-export function SourceLinkWithInterstitial({ sourceUrl }: { sourceUrl: string }) {
+export function SourceLinkWithInterstitial({
+  sourceUrl,
+  slotId
+}: {
+  sourceUrl: string;
+  slotId?: string;
+}) {
   const [adModalOpen, setAdModalOpen] = useState(false);
-  const isAdsenseConnected = Boolean(process.env.NEXT_PUBLIC_ADSENSE_CLIENT);
+  const isAdsenseConnected = Boolean(process.env.NEXT_PUBLIC_ADSENSE_CLIENT && slotId);
 
   function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
-    // 애드센스 심사·연결 전까지는 항상 목업 모달을 먼저 띄워 흐름과 배치를 확인함
-    if (!isAdsenseConnected || sourceUrl.includes('mockup')) {
-      e.preventDefault();
-      setAdModalOpen(true);
+    // 정식 애드센스 슬롯이 연결되기 전에는 빈 팝업 없이 즉시 공식 원문으로 이동함
+    if (!isAdsenseConnected) {
       return;
     }
 
@@ -74,7 +78,7 @@ export function SourceLinkWithInterstitial({ sourceUrl }: { sourceUrl: string })
             </div>
 
             <div className="my-4">
-              <AdSenseSlot position="middle" />
+              <AdSenseSlot position="middle" slotId={slotId} />
             </div>
 
             <button

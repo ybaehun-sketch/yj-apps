@@ -1,7 +1,18 @@
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 import { getLastInterstitialTime, setLastInterstitialTime } from './storageService';
 
 const COOLDOWN_MS = 3 * 60 * 1000; // 최소 3분 쿨타임
 const FALLBACK_OPEN_TIMEOUT_MS = 45 * 1000; // 광고 콜백 누락 대비 최후 안전 타이머
+
+/**
+ * 실제 AdMob 네이티브 광고 단위 ID가 설정된 네이티브 앱 환경인지 확인
+ */
+export function hasNativeAdConfigured(): boolean {
+  if (Platform.OS === 'web') return false;
+  const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string | undefined>;
+  return Boolean((extra.admobNativeUnitId ?? '').trim());
+}
 
 interface InterstitialDriver {
   isLoaded: () => boolean;

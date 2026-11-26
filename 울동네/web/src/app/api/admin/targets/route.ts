@@ -116,14 +116,29 @@ export async function POST(request: Request) {
   const orgName =
     body.org_name?.trim() || (await inferBoardName(trimmedUrl, sigungu, isFamilynet));
 
-  const created = await createCrawlTargetAdmin({
-    region_sido: sido,
-    region_sigungu: sigungu,
-    region_code: regionCode,
-    org_name: orgName,
-    source_type: sourceType,
-    target_url: trimmedUrl
-  });
+  let created: CrawlTarget;
+  try {
+    created = await createCrawlTargetAdmin({
+      region_sido: sido,
+      region_sigungu: sigungu,
+      region_code: regionCode,
+      org_name: orgName,
+      source_type: sourceType,
+      target_url: trimmedUrl
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('409') || msg.includes('23505') || msg.includes('duplicate key')) {
+      return NextResponse.json(
+        { error: '이미 등록되어 있는 게시판 주소입니다. 목록에서 해당 주소를 확인해 주세요.' },
+        { status: 409 }
+      );
+    }
+    return NextResponse.json(
+      { error: '게시판을 추가하는 중 오류가 발생했습니다.' },
+      { status: 500 }
+    );
+  }
 
   let extraTarget: CrawlTarget | null = null;
   const isFamilynetNotice = isFamilynet && !trimmedUrl.includes('/receipt/list.do');

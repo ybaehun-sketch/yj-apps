@@ -40,4 +40,5 @@ export interface UserPreferences {
   largeText: boolean;
   cardLimit: 20 | 30 | 40;
   theme: AppTheme;
+  notificationsEnabled?: boolean;
 }

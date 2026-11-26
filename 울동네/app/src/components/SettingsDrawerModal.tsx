@@ -1,7 +1,10 @@
+import Constants from 'expo-constants';
+import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -25,35 +28,35 @@ interface SettingsDrawerModalProps {
   onSavePrefs: (next: UserPreferences) => void;
 }
 
-type LegalModalType = 'terms' | 'privacy' | 'howto' | null;
+type LegalModalType = 'howto' | null;
 
-const LEGAL_MOCKUP_CONTENT: Record<
-  Exclude<LegalModalType, null>,
-  { title: string; body: string }
-> = {
-  terms: {
-    title: '이용약관 (목업)',
-    body:
-      '1. 본 서비스(울동네)는 중앙부처 및 지방자치단체의 공개 공고를 수집·요약하여 안내하는 민간 생활정보 큐레이션 서비스입니다.\n\n' +
-      '2. 회원가입이나 본인인증 없이 기기 내 설정만으로 이용할 수 있습니다.\n\n' +
-      '3. 공고 내용의 최종 확인 및 신청은 반드시 해당 기관의 공식 안내 페이지에서 진행해 주시기 바랍니다. (정식 출시 시 회사 공식 약관으로 연결됩니다.)'
-  },
-  privacy: {
-    title: '개인정보처리방침 (목업)',
-    body:
-      '1. 울동네는 별도의 회원가입, 이름, 전화번호, 이메일 등 개인식별정보를 수집하거나 서버에 저장하지 않습니다.\n\n' +
-      '2. 선택하신 관심 지역, 키워드, 테마 및 정렬 설정은 모두 사용자 기기 내부에만 안전하게 저장됩니다.\n\n' +
-      '3. 알림 수신은 익명 토픽 구독 방식으로 동작하며, 설정 화면에서 언제든 해제할 수 있습니다. (정식 출시 시 회사 공식 개인정보처리방침으로 연결됩니다.)'
-  },
-  howto: {
-    title: '이용방법 (목업)',
-    body:
-      '1. 슬라이드 설정에서 내 동네(관심 지역)와 관심 키워드를 선택하세요.\n\n' +
-      '2. 메인 화면에 내 동네와 전국 공통 혜택이 3~4줄 요약 카드로 자동 정리되어 나타납니다.\n\n' +
-      '3. 설정에서 카드 나열 순서(내 지역 우선·최신순·기한 임박순), 노출 개수, 앱 테마를 자유롭게 바꿀 수 있습니다.\n\n' +
-      '4. 마음에 드는 카드를 눌러 상세 내용을 보고 [신청하러 가기]로 공식 페이지에 바로 이동하세요.'
-  }
+const HOWTO_CONTENT = {
+  title: '이용방법',
+  body:
+    '1. 슬라이드 설정에서 내 동네(관심 지역)와 관심 키워드를 선택하세요.\n\n' +
+    '2. 메인 화면에 내 동네와 전국 공통 혜택이 3~4줄 요약 카드로 자동 정리되어 나타납니다.\n\n' +
+    '3. 설정에서 카드 나열 순서(내 지역 우선·최신순·기한 임박순), 노출 개수, 앱 테마를 자유롭게 바꿀 수 있습니다.\n\n' +
+    '4. 마음에 드는 카드를 눌러 상세 내용을 보고 [신청하러 가기]로 공식 페이지에 바로 이동하세요.'
 };
+
+function getWebBaseUrl(): string {
+  const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string | undefined>;
+  const raw = (extra.webBlogBaseUrl || 'https://wooldongne.com').trim();
+  return raw.replace(/\/+$/, '');
+}
+
+async function openOfficialPolicyUrl(path: '/terms' | '/privacy') {
+  const url = `${getWebBaseUrl()}${path}`;
+  try {
+    await WebBrowser.openBrowserAsync(url);
+  } catch {
+    try {
+      await Linking.openURL(url);
+    } catch {
+      // 외부 브라우저 열기 실패 시 앱 크래시 방지
+    }
+  }
+}
 
 const MAX_KEYWORDS = 3;
 
@@ -519,23 +522,47 @@ export function SettingsDrawerModal({
                           {prefs.hideExpired ? '☑ 마감 공고 숨김' : '☐ 마감 공고 포함'}
                         </Text>
                       </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={() =>
+                          onSavePrefs({
+                            ...prefs,
+                            notificationsEnabled: !(prefs.notificationsEnabled ?? true)
+                          })
+                        }
+                        style={[
+                          styles.chip,
+                          isDark && styles.chipDark,
+                          (prefs.notificationsEnabled ?? true) && styles.chipActive
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.chipText,
+                            isDark && styles.textMutedDark,
+                            (prefs.notificationsEnabled ?? true) && styles.chipTextActive
+                          ]}
+                        >
+                          {(prefs.notificationsEnabled ?? true) ? '🔔 새 소식 알림 켜짐' : '🔕 새 소식 알림 꺼짐'}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 ) : null}
               </View>
 
-              {/* 6. 설정칸 하단 목업 안내 (약관·개인정보처리방침·이용방법 모달) */}
+              {/* 6. 설정칸 하단 공식 약관·개인정보처리방침·이용방법 안내 */}
               <View style={[styles.legalSection, isDark && styles.borderDark]}>
                 <Text style={[styles.legalTitle, isDark && styles.textMutedDark]}>안내 및 정책</Text>
                 <View style={styles.legalRow}>
                   <TouchableOpacity
-                    onPress={() => setLegalModal('terms')}
+                    onPress={() => void openOfficialPolicyUrl('/terms')}
                     style={[styles.legalBtn, isDark && styles.chipDark]}
                   >
                     <Text style={[styles.legalBtnText, isDark && styles.textDark]}>이용약관</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={() => setLegalModal('privacy')}
+                    onPress={() => void openOfficialPolicyUrl('/privacy')}
                     style={[styles.legalBtn, isDark && styles.chipDark]}
                   >
                     <Text style={[styles.legalBtnText, isDark && styles.textDark]}>
@@ -556,17 +583,17 @@ export function SettingsDrawerModal({
         </View>
       ) : null}
 
-      {/* 약관·개인정보처리방침·이용방법 목업 모달 */}
-      {legalModal !== null ? (
+      {/* 이용방법 안내 모달 */}
+      {legalModal === 'howto' ? (
         <View style={styles.legalOverlayRoot}>
           <View style={styles.legalModalBackdrop}>
             <View style={[styles.legalModalCard, isDark && styles.drawerDark]}>
               <Text style={[styles.legalModalTitle, isDark && styles.textDark]}>
-                {LEGAL_MOCKUP_CONTENT[legalModal].title}
+                {HOWTO_CONTENT.title}
               </Text>
               <ScrollView style={styles.legalModalScroll}>
                 <Text style={[styles.legalModalBody, isDark && styles.textMutedDark]}>
-                  {LEGAL_MOCKUP_CONTENT[legalModal].body}
+                  {HOWTO_CONTENT.body}
                 </Text>
               </ScrollView>
               <TouchableOpacity

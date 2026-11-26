@@ -39,6 +39,40 @@ export async function fetchFeedPosts(
   return (await res.json()) as WelfarePost[];
 }
 
+/**
+ * 푸시 알림 클릭 시 전달된 post_id 또는 external_id로 해당 공고 1건 조회
+ */
+export async function fetchPostByNotificationPayload(payload: {
+  postId?: string;
+  externalId?: string;
+}): Promise<WelfarePost | null> {
+  const { url, anonKey } = getSupabaseConfig();
+  if (!url || !anonKey) return null;
+
+  let filter = '';
+  if (payload.postId) {
+    filter = `id=eq.${encodeURIComponent(payload.postId)}`;
+  } else if (payload.externalId) {
+    filter = `external_id=eq.${encodeURIComponent(payload.externalId)}`;
+  } else {
+    return null;
+  }
+
+  const query =
+    `${url}/rest/v1/uldongne_welfare_posts` +
+    `?${filter}&app_status=eq.published&limit=1`;
+
+  const res = await fetch(query, {
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`
+    }
+  });
+  if (!res.ok) return null;
+  const rows = (await res.json()) as WelfarePost[];
+  return rows[0] ?? null;
+}
+
 function getSamplePosts(regionCode: string): WelfarePost[] {
   const regionName = regionCode === '51720' ? '홍천군' : '우리 동네';
   return [

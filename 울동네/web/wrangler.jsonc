@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "uldongne-web",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-02-14",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "routes": [
+    {
+      "pattern": "wooldongne.com",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.wooldongne.com",
+      "custom_domain": true
+    }
+  ]
+}

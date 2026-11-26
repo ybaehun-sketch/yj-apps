@@ -1,9 +1,11 @@
 node_modules/
 .next/
+.open-next/
 .expo/
 .wrangler/
 dist/
 out/
+*.tsbuildinfo
 
 # Local secrets (never commit)
 .env
@@ -14,3 +16,5 @@ out/
 *.pem
 *.key
 firebase-service-account.json
+google-services.json
+GoogleService-Info.plist

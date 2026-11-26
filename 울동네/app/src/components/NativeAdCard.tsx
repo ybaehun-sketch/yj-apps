@@ -7,7 +7,7 @@ interface NativeAdCardProps {
 }
 
 /**
- * 심사 전 앱 형태 구성용 목업 네이티브 광고 카드.
+ * 네이티브 광고 카드 영역.
  * 일반 소식 카드와 비슷한 결을 유지하되, 좌측 상단 [AD] 배지로 광고임을 명확히 구분.
  */
 export function NativeAdCard({ largeText, isDark = false }: NativeAdCardProps) {
@@ -18,15 +18,15 @@ export function NativeAdCard({ largeText, isDark = false }: NativeAdCardProps) {
           <Text style={[styles.adBadgeText, isDark && styles.adBadgeTextDark]}>AD</Text>
         </View>
         <Text style={[styles.sponsorText, isDark && styles.textMutedDark]}>
-          스폰서 추천 정보 (목업 광고)
+          스폰서 추천 정보
         </Text>
       </View>
 
       <Text style={[styles.title, largeText && styles.titleLarge, isDark && styles.textDark]}>
-        우리 동네 알뜰 생활 혜택·금융 파트너 안내
+        우리 동네 알뜰 생활 혜택 안내
       </Text>
       <Text style={[styles.body, largeText && styles.bodyLarge, isDark && styles.textMutedDark]}>
-        스토어 심사 및 애드몹 연동 전까지 앱 화면 구성을 확인하기 위한 목업 광고 카드입니다.
+        스폰서 안내 영역입니다.
       </Text>
     </View>
   );

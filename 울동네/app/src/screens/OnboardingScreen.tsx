@@ -68,7 +68,8 @@ export function OnboardingScreen({ initialPrefs, onComplete }: OnboardingScreenP
       hideExpired: initialPrefs?.hideExpired ?? true,
       largeText: initialPrefs?.largeText ?? true,
       cardLimit: initialPrefs?.cardLimit === 20 || initialPrefs?.cardLimit === 30 || initialPrefs?.cardLimit === 40 ? initialPrefs.cardLimit : 30,
-      theme: initialPrefs?.theme ?? 'light'
+      theme: initialPrefs?.theme ?? 'light',
+      notificationsEnabled: initialPrefs?.notificationsEnabled ?? true
     });
   }
 

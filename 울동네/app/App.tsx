@@ -5,8 +5,12 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { DetailScreen } from './src/screens/DetailScreen';
 import { FeedScreen } from './src/screens/FeedScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
-import { syncFcmTopicSubscriptions } from './src/services/fcmService';
+import {
+  registerNotificationTapHandler,
+  syncFcmTopicSubscriptions
+} from './src/services/fcmService';
 import { loadUserPreferences, saveUserPreferences } from './src/services/storageService';
+import { fetchPostByNotificationPayload } from './src/services/supabaseService';
 import type { UserPreferences, WelfarePost } from './src/types/welfare';
 
 export default function App() {
@@ -18,11 +22,18 @@ export default function App() {
   useEffect(() => {
     loadUserPreferences().then((saved) => {
       if (saved) {
-        setPrefs({
+        const normalized: UserPreferences = {
           ...saved,
           cardLimit: saved.cardLimit ?? 40,
-          theme: saved.theme ?? 'light'
-        });
+          theme: saved.theme ?? 'light',
+          notificationsEnabled: saved.notificationsEnabled ?? true
+        };
+        setPrefs(normalized);
+        void syncFcmTopicSubscriptions(
+          normalized.regionCode,
+          normalized.keywords,
+          normalized.notificationsEnabled
+        );
       } else {
         setPrefs(null);
       }
@@ -30,11 +41,29 @@ export default function App() {
     });
   }, []);
 
+  useEffect(() => {
+    return registerNotificationTapHandler((payload) => {
+      void fetchPostByNotificationPayload(payload).then((post) => {
+        if (post) {
+          setSelectedPost(post);
+        }
+      });
+    });
+  }, []);
+
   async function handleSavePrefs(next: UserPreferences) {
-    setPrefs(next);
+    const normalized: UserPreferences = {
+      ...next,
+      notificationsEnabled: next.notificationsEnabled ?? true
+    };
+    setPrefs(normalized);
     setEditingOnboarding(false);
-    await saveUserPreferences(next);
-    await syncFcmTopicSubscriptions(next.regionCode, next.keywords);
+    await saveUserPreferences(normalized);
+    await syncFcmTopicSubscriptions(
+      normalized.regionCode,
+      normalized.keywords,
+      normalized.notificationsEnabled
+    );
   }
 
   const isDark = prefs?.theme === 'dark';

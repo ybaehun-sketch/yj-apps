@@ -46,7 +46,11 @@ function getTargetDot(target: CrawlTarget): { label: string; dotClass: string } 
 }
 
 function isCommonTarget(target: CrawlTarget) {
-  return target.region_sigungu === '전체' || target.region_code === '00000';
+  return (
+    target.region_sigungu === '전체' ||
+    target.region_sido === '전국' ||
+    (target.region_code === '00000' && !target.region_sigungu)
+  );
 }
 
 function sortTargetsBySeverity(items: CrawlTarget[]) {
@@ -230,7 +234,7 @@ export function PatrolStatusModal({
           target_url: trimmed
         })
       });
-      const data = (await res.json()) as {
+      const data = (await res.json().catch(() => ({}))) as {
         ok?: boolean;
         target?: CrawlTarget;
         extraTarget?: CrawlTarget | null;

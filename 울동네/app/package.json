@@ -7,11 +7,15 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "deploy": "npx expo export -p web && wrangler deploy",
+    "preview": "npx expo export -p web && wrangler dev"
   },
   "dependencies": {
     "@expo/metro-runtime": "~4.0.1",
     "@react-native-async-storage/async-storage": "2.1.0",
+    "@react-native-firebase/app": "^27.2.0",
+    "@react-native-firebase/messaging": "^27.2.0",
     "expo": "~52.0.0",
     "expo-sharing": "~13.0.1",
     "expo-status-bar": "~2.0.0",
@@ -25,6 +29,7 @@
   },
   "devDependencies": {
     "@types/react": "~18.3.12",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "wrangler": "^4.168.0"
   }
 }

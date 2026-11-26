@@ -15,6 +15,7 @@ import { SettingsDrawerModal } from '../components/SettingsDrawerModal';
 import { ShareCardModal } from '../components/ShareCardModal';
 import { getDdayLabel, WelfareCard } from '../components/WelfareCard';
 import { findMatchedUserKeywords } from '../constants/keywords';
+import { hasNativeAdConfigured } from '../services/adService';
 import {
   loadFavoritePosts,
   loadHiddenPostIds,
@@ -48,6 +49,7 @@ export function FeedScreen({
   const [favoritePosts, setFavoritePosts] = useState<WelfarePost[]>([]);
   const [hiddenPostIds, setHiddenPostIds] = useState<string[]>([]);
   const [openMenuPostId, setOpenMenuPostId] = useState<string | null>(null);
+  const [expandedPostIds, setExpandedPostIds] = useState<Set<string>>(() => new Set());
   const [shareTargetPost, setShareTargetPost] = useState<WelfarePost | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -208,7 +210,7 @@ export function FeedScreen({
 
     const limited = sorted.slice(0, cardLimit);
 
-    // 심사 전 앱 형태 구성용 목업 AD 카드를 3개당 1개 비율로 자연스럽게 배치
+    const showNativeAds = hasNativeAdConfigured();
     const rows: FeedRow[] = [];
     limited.forEach((item, index) => {
       rows.push({
@@ -217,7 +219,7 @@ export function FeedScreen({
         isMatch: item.isMatch,
         matchedKeywords: item.matchedKeywords
       });
-      if ((index + 1) % 3 === 0) {
+      if (showNativeAds && (index + 1) % 3 === 0) {
         rows.push({ type: 'ad', key: `ad-${index}` });
       }
     });
@@ -351,8 +353,21 @@ export function FeedScreen({
                   largeText={prefs.largeText}
                   isDark={isDark}
                   isFavorite={favoriteIdSet.has(item.post.id)}
+                  isExpanded={expandedPostIds.has(item.post.id)}
                   isMenuOpen={openMenuPostId === item.post.id}
                   onPress={() => {
+                    if (openMenuPostId) {
+                      setOpenMenuPostId(null);
+                      return;
+                    }
+                    setExpandedPostIds((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(item.post.id)) next.delete(item.post.id);
+                      else next.add(item.post.id);
+                      return next;
+                    });
+                  }}
+                  onOpenDetail={() => {
                     if (openMenuPostId) {
                       setOpenMenuPostId(null);
                       return;
