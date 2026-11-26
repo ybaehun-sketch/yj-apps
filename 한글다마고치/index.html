@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>한글 다마고치 - 말랑이의 방</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- 유아 친화적인 둥글둥글 폰트 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jua&family=Gaegu:wght@700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- 1. 초단순 헤더 (좌측 말랑이 배지 클릭 시 부모님 공간 진입) -->
+    <header class="toddler-header">
+      <button class="pet-badge parent-entry-btn" id="btn-parent-gate" title="부모님 공간 (설정)">
+        <span class="badge-icon"><img src="assets/char_malrang.png" alt="말랑이" class="game-icon icon-malrang"></span>
+        <span class="pet-title" id="pet-title">말랑이</span>
+        <span class="parent-gear"><img src="assets/icons/gear.png" alt="설정" class="game-icon icon-gear"></span>
+      </button>
+      
+      <div class="reward-pill">
+        <div class="item">
+          <span class="emoji"><img src="assets/icons/star.png" alt="별" class="game-icon icon-star"></span>
+          <span id="star-count" class="num">10</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 2. 캐릭터가 살아 숨 쉬는 포근한 3D 입체 방 (실시간 3D 공간) -->
+    <main class="cozy-room has-three-mode" id="room">
+      <!-- 푸른 하늘 + 하얀 구름/그림자가 천천히 흘러가는 배경 -->
+      <div class="sky-backdrop" aria-hidden="true">
+        <div class="sky-cloud c1"></div>
+        <div class="sky-cloud c2"></div>
+        <div class="sky-cloud c3"></div>
+        <div class="sky-cloud c4"></div>
+      </div>
+
+      <!-- 3단계: 실시간 3D 입체 방 캔버스 컨테이너 -->
+      <div class="three-room-container" id="three-room-container"></div>
+
+      <!-- 밤 모드 어두운 장막 -->
+      <div class="room-night-curtain" id="night-overlay"></div>
+
+      <!-- 아이소메트릭 3D 방 장면 -->
+      <div class="iso-scene">
+        <!-- 왼쪽 벽면 -->
+        <div class="iso-wall iso-wall-left">
+          <!-- 둥근 햇살 창문 -->
+          <div class="wall-window">
+            <div class="window-frame">
+              <span class="sky-object" id="sky-body">☀️</span>
+              <div class="cloud cloud-1">☁️</div>
+            </div>
+          </div>
+          <!-- 벽시계 -->
+          <div class="wall-clock">⏰</div>
+        </div>
+
+        <!-- 오른쪽 벽면 -->
+        <div class="iso-wall iso-wall-right">
+          <!-- 한글 낱말 액자 -->
+          <div class="wall-frame">
+            <div class="frame-content">
+              <span class="frame-char">ㄱ ㄴ ㄷ</span>
+              <span class="frame-sub">말랑이의 한글방</span>
+            </div>
+          </div>
+          <!-- 장식용 선반과 화분 -->
+          <div class="wall-shelf">
+            <span class="shelf-plant">🪴</span>
+            <span class="shelf-book">📚</span>
+          </div>
+        </div>
+
+        <!-- 아이소메트릭 방 바닥 및 가구들 -->
+        <div class="iso-floor" id="iso-floor">
+          <!-- 포근한 러그 카펫 (중앙) -->
+          <div class="floor-rug">
+            <div class="rug-pattern">⭐</div>
+          </div>
+
+          <!-- 가구 1: 포근한 침대 (뒤쪽 코너) -->
+          <div class="iso-furniture furniture-bed" id="cozy-bed" title="말랑이 침대 (누르면 코~ 자요)">
+            <div class="furn-tag">침대 💤</div>
+            <div class="bed-structure has-3d-img">
+              <img src="assets/furn_bed.png" alt="포근한 침대" class="furn-3d-img" />
+            </div>
+          </div>
+
+          <!-- 가구 2: 맘마 먹이통 (좌측 앞쪽) -->
+          <div class="iso-furniture furniture-foodbowl" id="furn-foodbowl" title="사과 먹이통 (누르면 맘마 먹어요)">
+            <div class="furn-tag">먹이통 🍎</div>
+            <div class="bowl-plate has-3d-img">
+              <img src="assets/furn_bowl.png" alt="사과 먹이통" class="furn-3d-img" />
+              <div class="bowl-inner overlay-contents" id="bowl-contents">
+                <!-- 사과 아이템이 학습할 때마다 채워짐 -->
+                <span class="empty-hint">텅 빔</span>
+              </div>
+            </div>
+            <div class="furn-count-badge" id="bowl-count-badge">0개</div>
+          </div>
+
+          <!-- 가구 3: 뽀송 세면도구 (우측 뒤/중앙) -->
+          <div class="iso-furniture furniture-washstand" id="furn-washstand" title="세면도구 (누르면 목욕해요)">
+            <div class="furn-tag">세면도구 🧼</div>
+            <div class="wash-tub has-3d-img">
+              <img src="assets/furn_wash.png" alt="세면도구" class="furn-3d-img" />
+              <div class="wash-inner overlay-contents" id="wash-contents">
+                <!-- 비누/거품 아이템이 학습할 때마다 채워짐 -->
+                <span class="empty-hint">텅 빔</span>
+              </div>
+            </div>
+            <div class="furn-count-badge" id="wash-count-badge">0개</div>
+          </div>
+
+          <!-- 가구 4: 장난감 놀이상자 (우측 앞쪽) -->
+          <div class="iso-furniture furniture-toychest" id="furn-toychest" title="놀이상자 (누르면 놀아요)">
+            <div class="furn-tag">놀이상자 ⚽</div>
+            <div class="chest-box has-3d-img">
+              <img src="assets/furn_chest.png" alt="놀이상자" class="furn-3d-img" />
+              <div class="chest-inner overlay-contents" id="chest-contents">
+                <!-- 장난감이 학습할 때마다 채워짐 -->
+                <span class="empty-hint">텅 빔</span>
+              </div>
+            </div>
+            <div class="furn-count-badge" id="chest-count-badge">0개</div>
+          </div>
+
+          <!-- 바닥 탭 가이드 안내선 -->
+          <div class="tap-ripple" id="tap-ripple" style="display: none;"></div>
+        </div>
+
+        <!-- 슬라임 캐릭터 레이어 -->
+        <div class="roam-stage" id="roam-stage">
+          <!-- 캐릭터 말풍선 -->
+          <div class="speech-bubble" id="speech-bubble">
+            <span class="bubble-text" id="bubble-text">배고파요~ 🍎</span>
+          </div>
+
+          <!-- 슬라임 몸체 -->
+          <div class="slime-character" id="slime">
+            <!-- 2단계: Lottie 60fps 벡터 케어 이펙트 레이어 -->
+            <div class="lottie-care-fx" id="lottie-care-fx"></div>
+            <!-- 모션 전용 소품 레이어 (먹이 사과, 비누 & 거품, 샤워기 물줄기, 공) -->
+            <div class="action-props" id="action-props">
+              <!-- 1. 먹이 먹는 소품 -->
+              <div class="prop-apple" id="prop-apple" style="display: none;">🍎</div>
+
+              <!-- 2. 목욕 소품 (움직이는 비누 + 보글보글 거품 구름 + 헹굼 물줄기) -->
+              <div class="prop-soap" id="prop-soap" style="display: none;">🧼</div>
+              <div class="prop-foam-cloud" id="prop-foam" style="display: none;">
+                <span class="foam f1"></span>
+                <span class="foam f2"></span>
+                <span class="foam f3"></span>
+                <span class="foam f4"></span>
+                <span class="foam-bubble b1">🫧</span>
+                <span class="foam-bubble b2">🫧</span>
+              </div>
+              <div class="prop-shower" id="prop-shower" style="display: none;">
+                <span class="drop d1">💧</span>
+                <span class="drop d2">💧</span>
+                <span class="drop d3">💧</span>
+                <span class="drop d4">💧</span>
+              </div>
+
+              <!-- 3. 놀아주기 소품 (통통 튀는 공) -->
+              <div class="prop-ball" id="prop-ball" style="display: none;">⚽</div>
+            </div>
+
+            <div class="slime-body">
+              <div class="blush left"></div>
+              <div class="blush right"></div>
+              <!-- 볼 빵빵 먹기 효과용 -->
+              <div class="cheek-puff left" id="cheek-left" style="display: none;"></div>
+              <div class="cheek-puff right" id="cheek-right" style="display: none;"></div>
+
+              <!-- 꾀재재한 상태 얼룩 & 먼지 -->
+              <div class="dirty-spots" id="dirty-spots" style="display: none;">
+                <span class="spot s1"></span>
+                <span class="spot s2"></span>
+                <span class="spot s3"></span>
+                <span class="dirty-fly">🪰</span>
+              </div>
+
+              <!-- 배고픔 꼬르륵 진동 -->
+              <div class="hungry-rumble" id="hungry-rumble" style="display: none;">꼬르륵~ 💭</div>
+
+              <!-- 심심함 한숨 -->
+              <div class="bored-sigh" id="bored-sigh" style="display: none;">휴우... 💧</div>
+
+              <!-- 졸림 콧방울 -->
+              <div class="sleepy-snot" id="sleepy-snot" style="display: none;"></div>
+
+              <div class="eyes" id="eyes">
+                <div class="eye left"><div class="pupil"></div></div>
+                <div class="eye right"><div class="pupil"></div></div>
+              </div>
+              <div class="mouth happy" id="mouth"></div>
+              <div class="accessory crown" id="crown" style="display: none;">👑</div>
+              <div class="sleep-zzz" id="sleep-zzz" style="display: none;">Zzz...</div>
+              <!-- 목욕 후 반짝반짝 광채 -->
+              <div class="clean-sparkle" id="clean-sparkle" style="display: none;">✨</div>
+            </div>
+            <div class="slime-shadow"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 파티클 이펙트 레이어 (하트, 사과, 비누방울, 별) -->
+      <div class="fx-layer" id="fx-layer"></div>
+    </main>
+
+    <!-- 3. 유아용 초단순 상태 하트 인디케이터 (글자/숫자 대신 직관적인 하트 게이지) -->
+    <div class="toddler-status-bar">
+      <div class="status-heart-item" id="status-hunger" title="배부름 (누르면 배고픈 모습 보기)">
+        <span class="icon"><img src="assets/icons/apple.png" alt="배부름" class="game-icon icon-status"></span>
+        <div class="heart-bar"><div class="heart-fill" id="bar-hunger" style="width: 50%;"></div></div>
+      </div>
+      <div class="status-heart-item" id="status-clean" title="깨끗함 (누르면 꾀재재한 모습 보기)">
+        <span class="icon"><img src="assets/icons/soap.png" alt="깨끗함" class="game-icon icon-status"></span>
+        <div class="heart-bar"><div class="heart-fill clean" id="bar-clean" style="width: 70%;"></div></div>
+      </div>
+      <div class="status-heart-item" id="status-energy" title="기운 (누르면 졸린 모습 보기)">
+        <span class="icon"><img src="assets/icons/lightning.png" alt="기운" class="game-icon icon-status"></span>
+        <div class="heart-bar"><div class="heart-fill energy" id="bar-energy" style="width: 80%;"></div></div>
+      </div>
+      <div class="status-heart-item" id="status-fun" title="행복 (누르면 심심한 모습 보기)">
+        <span class="icon"><img src="assets/icons/heart.png" alt="행복" class="game-icon icon-status"></span>
+        <div class="heart-bar"><div class="heart-fill fun" id="bar-fun" style="width: 60%;"></div></div>
+      </div>
+    </div>
+
+    <!-- 5. 유아 눈높이 초간단 퀴즈 모달 (큰 그림 + 2~3개 큰 글자 블록) -->
+    <div class="modal-backdrop" id="quiz-modal" style="display: none;">
+      <div class="toddler-quiz-card">
+        <button class="close-x-btn" id="btn-close-quiz">✕</button>
+        
+        <div class="quiz-title-badge">어떤 글자일까요?</div>
+
+        <!-- 큼직한 그림 -->
+        <div class="quiz-visual-box">
+          <div class="giant-emoji" id="quiz-emoji"><img src="assets/icons/apple.png" alt="퀴즈 그림" class="game-icon icon-quiz"></div>
+          <div class="quiz-target-word" id="quiz-word">
+            <span class="blank-slot">?</span> 과
+          </div>
+        </div>
+
+        <div class="quiz-hint-voice" id="quiz-hint">달콤한 사과! 첫 글자는?</div>
+
+        <!-- 유아가 쿡 누르기 쉬운 큼직한 3개 블록 -->
+        <div class="toddler-options-grid" id="quiz-options">
+          <!-- 동적 생성 -->
+        </div>
+
+        <!-- 정답 축하 배너 -->
+        <div class="congrats-banner" id="quiz-result" style="display: none;">
+          <div class="congrats-face"><img src="assets/icons/party.png" alt="축하" class="game-icon icon-inline"> 야호! 정답이야!</div>
+          <div class="congrats-gifts">사과 1개 획득! <img src="assets/icons/apple.png" alt="사과" class="game-icon icon-inline"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. 오늘의 학습 완주 & 4대 케어 보물상자 지급 모달 -->
+    <div class="modal-backdrop" id="reward-box-modal" style="display: none;">
+      <div class="reward-box-card">
+        <div class="reward-sparkle"><img src="assets/icons/sparkle.png" alt="반짝" class="game-icon icon-md"><img src="assets/icons/gift.png" alt="선물" class="game-icon icon-lg"><img src="assets/icons/sparkle.png" alt="반짝" class="game-icon icon-md"></div>
+        <h2 class="reward-title">오늘의 한글 놀이 완료!</h2>
+        <p class="reward-desc">말랑이를 돌봐줄 수 있는 선물이 도착했어요!</p>
+        
+        <div class="reward-items-grid">
+          <div class="reward-item-pill">
+            <span class="pill-icon"><img src="assets/icons/apple.png" alt="사과" class="game-icon icon-md"></span>
+            <span class="pill-amount">+3</span>
+            <span class="pill-label">하루치 맘마</span>
+          </div>
+          <div class="reward-item-pill">
+            <span class="pill-icon"><img src="assets/icons/soap.png" alt="비누" class="game-icon icon-md"></span>
+            <span class="pill-amount">+1</span>
+            <span class="pill-label">뽀송 비누</span>
+          </div>
+          <div class="reward-item-pill">
+            <span class="pill-icon"><img src="assets/icons/soccer.png" alt="공" class="game-icon icon-md"></span>
+            <span class="pill-amount">+1</span>
+            <span class="pill-label">재밌는 공</span>
+          </div>
+        </div>
+
+        <button class="reward-claim-btn" id="btn-claim-reward">
+          말랑이 돌봐주러 가기! <img src="assets/icons/two_hearts.png" alt="하트" class="game-icon icon-inline">
+        </button>
+      </div>
+    </div>
+
+    <!-- 7. 취침 모드 시 안심 자장가 오버레이 (스마트폰 과몰입 방지) -->
+    <div class="sleep-curtain-overlay" id="sleep-overlay" style="display: none;">
+      <div class="sleep-content">
+        <div class="moon-icon"><img src="assets/icons/moon.png" alt="달" class="game-icon icon-xl"></div>
+        <h3>말랑이가 코~ 자고 있어요</h3>
+        <p>오늘 한글 공부도 하고 참 잘했어요.<br>내일 또 만나요! 쉿~</p>
+        <button class="wake-parent-btn" id="btn-wake-up" title="부모님용 깨우기">
+          <img src="assets/icons/sun.png" alt="해" class="game-icon icon-inline"> 아침이 되었어요 (깨우기)
+        </button>
+      </div>
+    </div>
+
+    <!-- 8. 부모님 비밀번호 입력 모달 -->
+    <div class="modal-backdrop" id="parent-pin-modal" style="display: none;">
+      <div class="pin-card" id="pin-card">
+        <button class="close-x-btn" id="btn-close-pin">✕</button>
+        <div class="pin-lock-icon"><img src="assets/icons/lock.png" alt="잠금" class="game-icon icon-lg"></div>
+        <h3 class="pin-title">부모님 확인</h3>
+        <p class="pin-desc">어린이가 실수로 설정을 바꾸지 못하도록<br>비밀번호 4자리를 입력해 주세요. (초기: <strong>0000</strong>)</p>
+
+        <div class="pin-dots" id="pin-dots">
+          <span class="pin-dot"></span>
+          <span class="pin-dot"></span>
+          <span class="pin-dot"></span>
+          <span class="pin-dot"></span>
+        </div>
+        <p class="pin-error-msg" id="pin-error-msg" style="display: none;">비밀번호가 맞지 않아요! 다시 눌러주세요.</p>
+
+        <div class="pin-keypad" id="pin-keypad">
+          <button class="pin-key" data-num="1">1</button>
+          <button class="pin-key" data-num="2">2</button>
+          <button class="pin-key" data-num="3">3</button>
+          <button class="pin-key" data-num="4">4</button>
+          <button class="pin-key" data-num="5">5</button>
+          <button class="pin-key" data-num="6">6</button>
+          <button class="pin-key" data-num="7">7</button>
+          <button class="pin-key" data-num="8">8</button>
+          <button class="pin-key" data-num="9">9</button>
+          <button class="pin-key pin-action" data-action="clear">전체삭제</button>
+          <button class="pin-key" data-num="0">0</button>
+          <button class="pin-key pin-action" data-action="back">⌫</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 9. 부모님 공간 슬라이드 설정창 -->
+    <aside class="parent-drawer" id="parent-settings-drawer" aria-hidden="true">
+      <div class="drawer-header">
+        <button class="drawer-back-btn" id="btn-close-drawer">← 돌아가기</button>
+        <h2 class="drawer-title">⚙️ 부모님 공간</h2>
+        <div style="width: 68px;"></div>
+      </div>
+
+      <div class="drawer-scroll-body">
+        <!-- (1) 앱 구독 및 결제 -->
+        <section class="settings-section">
+          <div class="section-head">
+            <span class="sec-icon">💎</span>
+            <h3>구독 및 결제 관리</h3>
+            <span class="plan-badge" id="plan-status-badge">무료 체험 중</span>
+          </div>
+          <div class="subscription-card">
+            <div class="sub-info">
+              <div class="sub-name">한글 마스터 9개월 프리미엄 패스</div>
+              <div class="sub-desc">자음·모음·받침·문장까지 모든 학습 콘텐츠 무제한!</div>
+            </div>
+            <div class="sub-plans-row">
+              <button class="sub-plan-btn active" data-plan="monthly" id="btn-plan-monthly">
+                <span class="p-title">월간 구독</span>
+                <span class="p-price">₩6,900 / 월</span>
+              </button>
+              <button class="sub-plan-btn" data-plan="yearly" id="btn-plan-yearly">
+                <span class="p-badge">30% 할인</span>
+                <span class="p-title">연간 구독</span>
+                <span class="p-price">₩58,000 / 년</span>
+              </button>
+            </div>
+            <button class="sub-pay-btn" id="btn-subscribe-mock">구독 시작하기 (결제 창 미리보기)</button>
+          </div>
+        </section>
+
+        <!-- (2) 아이 학습 진도 확인 -->
+        <section class="settings-section">
+          <div class="section-head">
+            <span class="sec-icon">📊</span>
+            <h3>아이 학습 진도 확인</h3>
+          </div>
+          <div class="progress-card">
+            <div class="progress-summary-row">
+              <div class="prog-stat">
+                <span class="prog-label">현재 커리큘럼</span>
+                <span class="prog-val" id="prog-stage-text">1단계: 자음 14자</span>
+              </div>
+              <div class="prog-stat">
+                <span class="prog-label">오늘 푼 문제</span>
+                <span class="prog-val" id="prog-today-count">0문제</span>
+              </div>
+              <div class="prog-stat">
+                <span class="prog-label">모은 황금별</span>
+                <span class="prog-val" id="prog-total-stars">10 ⭐</span>
+              </div>
+            </div>
+            <div class="prog-bar-wrap">
+              <div class="prog-bar-label">
+                <span>9개월 한글 정복 진도율</span>
+                <span id="prog-percent-text">15%</span>
+              </div>
+              <div class="prog-bar-track">
+                <div class="prog-bar-fill" id="prog-bar-fill" style="width: 15%;"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- (3) 아이 사용시간 & 취침시간 설정 -->
+        <section class="settings-section">
+          <div class="section-head">
+            <span class="sec-icon">⏰</span>
+            <h3>사용시간 및 취침시간 설정</h3>
+          </div>
+          <div class="settings-card">
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="s-title">하루 최대 사용시간</div>
+                <div class="s-desc" id="usage-today-desc">오늘 사용: 2분</div>
+              </div>
+              <select class="setting-select" id="select-usage-limit">
+                <option value="10">10분 (권장)</option>
+                <option value="15" selected>15분</option>
+                <option value="20">20분</option>
+                <option value="30">30분</option>
+                <option value="0">제한 없음</option>
+              </select>
+            </div>
+
+            <div class="setting-divider"></div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="s-title">자동 취침 모드 예약 🌙</div>
+                <div class="s-desc">설정한 시간에 말랑이가 코~ 잠들어요</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggle-bedtime" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-row" id="bedtime-time-row">
+              <div class="setting-info">
+                <div class="s-title">취침 예약 시각</div>
+              </div>
+              <select class="setting-select" id="select-bedtime">
+                <option value="20:30">오후 8:30</option>
+                <option value="21:00" selected>오후 9:00</option>
+                <option value="21:30">오후 9:30</option>
+                <option value="22:00">오후 10:00</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <!-- (4) 사용자 설정 -->
+        <section class="settings-section">
+          <div class="section-head">
+            <span class="sec-icon">👤</span>
+            <h3>사용자 설정</h3>
+          </div>
+          <div class="settings-card">
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="s-title">말랑이 이름(애칭)</div>
+              </div>
+              <div class="inline-input-wrap">
+                <input type="text" class="setting-input" id="input-pet-name" value="말랑이" maxlength="6">
+                <button class="mini-save-btn" id="btn-save-name">저장</button>
+              </div>
+            </div>
+
+            <div class="setting-divider"></div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="s-title">효과음 소리</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggle-sound" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-divider"></div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="s-title">부모님 비밀번호 변경</div>
+                <div class="s-desc" id="current-pin-desc">현재: 0000</div>
+              </div>
+              <div class="inline-input-wrap">
+                <input type="password" class="setting-input pin-chg-input" id="input-new-pin" placeholder="4자리" maxlength="4" inputmode="numeric">
+                <button class="mini-save-btn" id="btn-save-pin">변경</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- (5) 하단 안내 링크 (목업 모달 연결) -->
+        <footer class="drawer-footer-links">
+          <button class="footer-link-btn" data-policy="terms">이용약관</button>
+          <span class="link-sep">|</span>
+          <button class="footer-link-btn" data-policy="privacy">개인정보처리방침</button>
+          <span class="link-sep">|</span>
+          <button class="footer-link-btn" data-policy="guide">이용방법 안내</button>
+          <div class="app-version-tag">한글 다마고치 v1.0 · YJ 스튜디오</div>
+        </footer>
+      </div>
+    </aside>
+
+    <!-- 10. 약관 / 개인정보 / 이용방법 목업 모달 -->
+    <div class="modal-backdrop" id="policy-mockup-modal" style="display: none;">
+      <div class="policy-modal-card">
+        <button class="close-x-btn" id="btn-close-policy">✕</button>
+        <div class="policy-badge">안내 미리보기</div>
+        <h3 class="policy-title" id="policy-modal-title">이용약관</h3>
+        <div class="policy-body" id="policy-modal-body">
+          <!-- 동적 채움 -->
+        </div>
+        <button class="policy-ok-btn" id="btn-ok-policy">확인했어요</button>
+      </div>
+    </div>
+
+    <!-- 2단계: 화면 전체 축하 폭죽 Lottie 레이어 -->
+    <div class="lottie-celebrate-fx" id="lottie-celebrate-fx"></div>
+
+    <!-- 토스트 알림 (유아 친화적 말풍선) -->
+    <div class="floating-alert" id="toast" style="display: none;"></div>
+  </div>
+
+  <script src="assets/lottie/lottie.min.js"></script>
+  <script src="assets/three/three.min.js"></script>
+  <script src="app.js"></script>
+  <script src="three-room.js"></script>
+</body>
+</html>

@@ -313,6 +313,16 @@
             padding: 4px 12px 2px;
             letter-spacing: 0.02em;
         }
+        .drawer-legal-footer {
+            margin-top: auto;
+            padding-top: 14px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
 
         /* 메인 뷰 */
         .main-content {
@@ -799,13 +809,20 @@
         .btn-metro-off { flex: 1; background: var(--surface-variant); color: #3c4043; border: none; border-radius: 8px; padding: 7px 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
         .btn-metro-on { flex: 1; background: var(--red); color: #ffffff; border: none; border-radius: 8px; padding: 7px 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
 
-        .rank-tabs { display: flex; gap: 6px; }
-        .rank-mode-btn {
-            background: #ffffff; border: 1px solid var(--border); color: var(--muted); border-radius: 999px;
-            padding: 6px 13px; min-width: 40px; min-height: 34px; font-size: 12px; font-weight: 600; cursor: pointer;
-            display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+        .rank-tabs {
+            display: inline-flex; align-items: center; gap: 2px; width: fit-content;
+            background: var(--surface-variant); padding: 3px; border-radius: 999px;
         }
-        .rank-mode-btn.active { background: var(--orange-soft); color: #174ea6; border-color: transparent; font-weight: 700; }
+        .rank-mode-btn {
+            background: transparent; border: none; color: var(--muted); border-radius: 999px;
+            padding: 6px 12px; min-width: 40px; min-height: 30px; font-size: 12px; font-weight: 600; cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+        .rank-mode-btn.active {
+            background: #ffffff; color: #174ea6; font-weight: 700;
+            box-shadow: 0 1px 2px rgba(32, 33, 36, 0.08);
+        }
 
         .podium-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
         .podium-card { background: #ffffff; border: 1px solid var(--border); border-radius: 14px; padding: 12px 6px; text-align: center; display: flex; flex-direction: column; gap: 3px; }
@@ -1123,18 +1140,18 @@
             background: #ffffff;
             border-top: 1px solid var(--border);
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             z-index: 20;
         }
         .nav-btn {
             background: transparent; border: none; min-width: 40px; min-height: 40px;
             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-            color: var(--muted); font-size: 11.5px; font-weight: 600; cursor: pointer; position: relative;
+            color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer; position: relative;
         }
         .nav-btn .nav-ico {
             font-size: 21px;
             line-height: 1;
-            padding: 3px 16px;
+            padding: 3px 12px;
             border-radius: 999px;
             transition: background 0.15s ease;
         }
@@ -1176,6 +1193,29 @@
         .modal-footer { display: flex; gap: 8px; margin-top: 6px; }
         .btn-modal-cancel { flex: 1; min-height: 40px; background: var(--surface-variant); color: #3c4043; border: none; border-radius: 8px; padding: 10px; font-size: 13.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
         .btn-modal-submit { flex: 2; min-height: 40px; background: var(--orange); color: #ffffff; border: none; border-radius: 8px; padding: 10px; font-size: 13.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+        .settings-legal-footer {
+            margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;
+        }
+        .settings-legal-btn {
+            background: none; border: none; padding: 4px 6px; font-size: 12px; font-weight: 600;
+            color: var(--muted); cursor: pointer; border-radius: 6px; transition: color 0.15s, background 0.15s;
+        }
+        .settings-legal-btn:hover { color: var(--orange); background: var(--surface-variant); }
+        .settings-legal-sep { font-size: 11px; color: #cbd5e1; user-select: none; }
+        .info-doc-meta {
+            display: flex; align-items: center; justify-content: space-between; gap: 8px;
+            font-size: 11.5px; color: var(--muted); padding-bottom: 8px; border-bottom: 1px solid var(--border);
+        }
+        .info-doc-badge {
+            display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px;
+            background: #e8f0fe; color: #1967d2; font-size: 11px; font-weight: 700;
+        }
+        .info-doc-content { display: flex; flex-direction: column; gap: 10px; font-size: 13px; line-height: 1.55; color: #3c4043; }
+        .info-doc-section { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 11px 12px; }
+        .info-doc-section h4 { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+        .info-doc-section p, .info-doc-section li { font-size: 12.5px; color: #475569; }
+        .info-doc-section ul { padding-left: 16px; display: flex; flex-direction: column; gap: 3px; }
 
         .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
         .stat-box { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 9px 6px; text-align: center; }
@@ -1286,6 +1326,13 @@
                     </button>
                 </div>
                 <nav id="drawer-menu-list" class="drawer-menu-list" aria-label="개인화 및 관리 메뉴"></nav>
+                <div class="drawer-legal-footer" aria-label="서비스 약관 및 이용안내">
+                    <button type="button" class="settings-legal-btn" onclick="window.YJAllInOneUI.closeDrawer(); window.YJAllInOneUI.openInfoDocModal('terms');">이용약관</button>
+                    <span class="settings-legal-sep" aria-hidden="true">|</span>
+                    <button type="button" class="settings-legal-btn" onclick="window.YJAllInOneUI.closeDrawer(); window.YJAllInOneUI.openInfoDocModal('privacy');">개인정보처리방침</button>
+                    <span class="settings-legal-sep" aria-hidden="true">|</span>
+                    <button type="button" class="settings-legal-btn" onclick="window.YJAllInOneUI.closeDrawer(); window.YJAllInOneUI.openInfoDocModal('guide');">이용방법</button>
+                </div>
             </div>
         </aside>
 
@@ -1312,6 +1359,10 @@
             <!-- 2. 기록 · 랭킹 -->
             <section class="tab-panel" data-tab="rank">
                 <div class="tab-scroll-area">
+                    <div class="rank-tabs" role="group" aria-label="랭킹 정렬 기준 스위치">
+                        <button type="button" class="rank-mode-btn active" data-mode="distance">거리로 보기</button>
+                        <button type="button" class="rank-mode-btn" data-mode="attendance">출석으로 보기</button>
+                    </div>
                     <div class="section-top-bar">
                         <h2 class="section-heading"><span class="material-symbols-rounded ms-ico">emoji_events</span> 이달의 크루 랭킹</h2>
                     </div>
@@ -1320,14 +1371,9 @@
                 </div>
             </section>
 
-            <!-- 3. 오운완 · 공지 -->
+            <!-- 3. 오운완 -->
             <section class="tab-panel" data-tab="feed">
                 <div class="tab-scroll-area">
-                    <div class="sub-pill-bar">
-                        <button type="button" class="sub-pill-btn active" data-sub="feed"><span class="material-symbols-rounded ms-ico">photo_camera</span> 오운완 피드</button>
-                        <button type="button" class="sub-pill-btn" data-sub="notices"><span class="material-symbols-rounded ms-ico">campaign</span> 크루 공지함</button>
-                    </div>
-
                     <div id="subview-feed" class="sub-section">
                         <div class="section-top-bar">
                             <h2 class="section-heading">크루원 오운완 인증</h2>
@@ -1335,8 +1381,13 @@
                         </div>
                         <div id="feed-list-container"></div>
                     </div>
+                </div>
+            </section>
 
-                    <div id="subview-notices" class="sub-section" style="display:none;">
+            <!-- 4. 공지 -->
+            <section class="tab-panel" data-tab="notices">
+                <div class="tab-scroll-area">
+                    <div id="subview-notices" class="sub-section">
                         <div id="staff-notice-tools" style="display:flex; flex-direction:column; gap:10px;">
                             <div class="section-top-bar">
                                 <h2 class="section-heading">공지 관리 및 빠른 양식</h2>
@@ -1400,7 +1451,11 @@
             </button>
             <button type="button" class="nav-btn" data-tab="feed">
                 <span class="material-symbols-rounded nav-ico">celebration</span>
-                <span>오운완·공지</span>
+                <span>오운완</span>
+            </button>
+            <button type="button" class="nav-btn" data-tab="notices">
+                <span class="material-symbols-rounded nav-ico">campaign</span>
+                <span>공지</span>
             </button>
             <button type="button" class="nav-btn" data-tab="chat">
                 <span class="material-symbols-rounded nav-ico">chat_bubble</span>
@@ -1806,6 +1861,17 @@
         </div>
     </div>
 
+    <!-- 약관/개인정보/이용방법 목업 안내 모달 -->
+    <div id="info-doc-modal" class="crew-modal-backdrop" aria-hidden="true">
+        <div class="crew-modal-card">
+            <div class="modal-header">
+                <h2 id="info-doc-modal-title"><span class="material-symbols-rounded ms-ico">description</span> 안내</h2>
+                <button type="button" class="modal-close-btn" data-close-modal="info-doc-modal"><span class="material-symbols-rounded ms-ico">close</span></button>
+            </div>
+            <div id="info-doc-modal-body" class="modal-body"></div>
+        </div>
+    </div>
+
     <!-- 공통 확인 모달 -->
     <div id="confirm-modal" class="crew-modal-backdrop" aria-hidden="true">
         <div class="crew-modal-card">
@@ -1824,6 +1890,6 @@
     </div>
 
     <script src="modules/allinone-engine.js?v=20261119f"></script>
-    <script src="modules/allinone-ui.js?v=20261119g"></script>
+    <script src="modules/allinone-ui.js?v=20261123a"></script>
 </body>
 </html>

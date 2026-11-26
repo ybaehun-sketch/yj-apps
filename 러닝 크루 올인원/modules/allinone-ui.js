@@ -189,7 +189,7 @@
         if (!noticeBox || !schBox || !me) return;
 
         if (homeProfileBox) {
-            const byDist = E.shared.members.slice().sort((a, b) => (b.totalDistance || 0) - (a.totalDistance || 0));
+            const byDist = getSortedMembersByRankMode();
             const myRank = byDist.findIndex(m => m.id === me.id) + 1;
             const goal = Math.max(10, Number(E.extra.monthlyGoalKm) || 50);
             const pct = Math.min(100, Math.round(((me.totalDistance || 0) / goal) * 100));
@@ -480,6 +480,20 @@
         }
     }
 
+    function getSortedMembersByRankMode() {
+        const mode = E.extra.rankMode || 'distance';
+        return E.shared.members.slice().sort((a, b) => {
+            if (mode === 'attendance') {
+                const attDiff = (b.attendanceCount || 0) - (a.attendanceCount || 0);
+                if (attDiff !== 0) return attDiff;
+                return (b.totalDistance || 0) - (a.totalDistance || 0);
+            }
+            const distDiff = (b.totalDistance || 0) - (a.totalDistance || 0);
+            if (distDiff !== 0) return distDiff;
+            return (b.attendanceCount || 0) - (a.attendanceCount || 0);
+        });
+    }
+
     // ==================== 2. 기록 · 랭킹 ====================
     function renderRankAndRun() {
         const me = E.getCurrentMember();
@@ -487,14 +501,18 @@
         const listEl = document.getElementById('rank-list-box');
         if (!podiumEl || !listEl || !me) return;
 
-        const sorted = E.shared.members.slice().sort((a, b) => {
-            const distDiff = (b.totalDistance || 0) - (a.totalDistance || 0);
-            if (distDiff !== 0) return distDiff;
-            return (b.attendanceCount || 0) - (a.attendanceCount || 0);
+        const mode = E.extra.rankMode || 'distance';
+        document.querySelectorAll('.rank-mode-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === mode);
         });
 
+        const sorted = getSortedMembersByRankMode();
+        const formatMetric = m => mode === 'attendance'
+            ? `${m.attendanceCount || 0}회 · ${m.totalDistance || 0}km`
+            : `${m.totalDistance || 0}km · ${m.attendanceCount || 0}회`;
+
         podiumEl.innerHTML = sorted.slice(0, 3).map((m, idx) => {
-            const metric = `${m.attendanceCount || 0}회 · ${m.totalDistance || 0}km`;
+            const metric = formatMetric(m);
             return `
                 <div class="podium-card rank-${idx + 1} ${m.id === me.id ? 'is-me' : ''}">
                     <div class="podium-medal medal-${idx + 1}">${msIcon('military_tech', true)}</div>
@@ -506,7 +524,7 @@
         }).join('');
 
         listEl.innerHTML = sorted.map((m, idx) => {
-            const metric = `${m.attendanceCount || 0}회 · ${m.totalDistance || 0}km`;
+            const metric = formatMetric(m);
             const isMe = m.id === me.id;
             return `
                 <div class="rank-row ${isMe ? 'is-me' : ''}">
@@ -655,15 +673,12 @@
     };
 
     function renderFeedAndNotices() {
-        const sub = E.extra.feedSubTab || 'feed';
         const isStaff = E.isStaff();
         const me = E.getCurrentMember();
-        document.querySelectorAll('.sub-pill-btn').forEach(b => b.classList.toggle('active', b.dataset.sub === sub));
-
         const feedSec = document.getElementById('subview-feed');
         const noticeSec = document.getElementById('subview-notices');
-        if (feedSec) feedSec.style.display = sub === 'feed' ? 'flex' : 'none';
-        if (noticeSec) noticeSec.style.display = sub === 'notices' ? 'flex' : 'none';
+        if (feedSec) feedSec.style.display = 'flex';
+        if (noticeSec) noticeSec.style.display = 'flex';
 
         const staffNoticeTools = document.getElementById('staff-notice-tools');
         if (staffNoticeTools) staffNoticeTools.style.display = isStaff ? 'flex' : 'none';
@@ -2135,8 +2150,121 @@
                     <button type="submit" class="btn-modal-submit">설정 저장</button>
                 </div>
             </form>
+            <div class="settings-legal-footer" aria-label="서비스 안내 및 약관">
+                <button type="button" class="settings-legal-btn" onclick="window.YJAllInOneUI.openInfoDocModal('terms')">이용약관</button>
+                <span class="settings-legal-sep" aria-hidden="true">|</span>
+                <button type="button" class="settings-legal-btn" onclick="window.YJAllInOneUI.openInfoDocModal('privacy')">개인정보처리방침</button>
+                <span class="settings-legal-sep" aria-hidden="true">|</span>
+                <button type="button" class="settings-legal-btn" onclick="window.YJAllInOneUI.openInfoDocModal('guide')">이용방법</button>
+            </div>
         `;
         openModal('app-settings-modal');
+    }
+
+    const INFO_DOC_MOCKUPS = {
+        terms: {
+            title: '이용약관',
+            icon: 'gavel',
+            updated: '2026.11.23 (목업)',
+            sections: [
+                {
+                    heading: '제1조 (목적)',
+                    body: '본 약관은 러닝 크루 올인원(이하 "서비스")이 제공하는 크루 일정 관리, 현장 출석, 기록 공유 및 크루 소통 기능의 이용 조건과 절차를 안내합니다.'
+                },
+                {
+                    heading: '제2조 (크루 활동 및 안전 수칙)',
+                    body: '모든 회원은 정기런 및 번개런 참여 시 현장 운영진의 안전 안내를 준수하며, 야간 러닝 시 반사밴드 등 안전 장비를 권장합니다.'
+                },
+                {
+                    heading: '제3조 (서비스 운영 안내)',
+                    body: '본 문서는 정식 출시 전 확인용 목업 화면이며, 실제 크루 운영 정책에 맞춰 추후 정식 약관으로 업데이트됩니다.'
+                }
+            ]
+        },
+        privacy: {
+            title: '개인정보처리방침',
+            icon: 'verified_user',
+            updated: '2026.11.23 (목업)',
+            sections: [
+                {
+                    heading: '1. 수집 및 이용 항목',
+                    body: '크루 활동 관리를 위해 이름, 연락처(선택), 페이스 그룹, 출석 횟수 및 누적 러닝 거리 정보를 활용합니다.'
+                },
+                {
+                    heading: '2. 보관 및 보호',
+                    body: '현재 미리보기 버전에서는 모든 정보가 외부 서버로 전송되지 않고 사용 중인 브라우저 기기 내부에만 안전하게 저장됩니다.'
+                },
+                {
+                    heading: '3. 문의 및 변경',
+                    body: '내 정보 수정 및 데이터 초기화는 좌측 메뉴의 "내 정보 관리" 또는 운영진 문의를 통해 언제든 요청하실 수 있습니다.'
+                }
+            ]
+        },
+        guide: {
+            title: '이용방법',
+            icon: 'menu_book',
+            updated: '가이드 (목업)',
+            listMode: true,
+            sections: [
+                {
+                    heading: '홈 · 일정',
+                    items: [
+                        '상단 필독 공지를 눌러 크루 중요 안내를 확인할 수 있습니다.',
+                        '일정 카드를 누르면 상세 내용, 참석하기, QR 출석하기 버튼이 펼쳐집니다.'
+                    ]
+                },
+                {
+                    heading: '현장 QR 출석',
+                    items: [
+                        '모임 현장에서 "QR 출석하기"를 누른 뒤 운영진이 띄운 QR 코드를 찍거나 4자리 번호를 입력하면 즉시 출석 처리됩니다.'
+                    ]
+                },
+                {
+                    heading: '기록 · 랭킹 & 오운완 · 공지 · 크루채팅',
+                    items: [
+                        '기록·랭킹에서 누적 거리 기준 크루 순위와 출석 횟수를 한눈에 볼 수 있습니다.',
+                        '오운완에서 오늘 달린 인증샷과 댓글을 남기고, 공지 탭에서 크루 소식을 확인할 수 있습니다.'
+                    ]
+                }
+            ]
+        }
+    };
+
+    function openInfoDocModal(docKey) {
+        const doc = INFO_DOC_MOCKUPS[docKey] || INFO_DOC_MOCKUPS.guide;
+        const titleEl = document.getElementById('info-doc-modal-title');
+        const bodyEl = document.getElementById('info-doc-modal-body');
+        if (!titleEl || !bodyEl) return;
+
+        titleEl.innerHTML = `${msIcon(doc.icon)} ${esc(doc.title)}`;
+        const sectionsHtml = doc.sections.map(sec => {
+            if (doc.listMode && Array.isArray(sec.items)) {
+                return `
+                    <div class="info-doc-section">
+                        <h4>${esc(sec.heading)}</h4>
+                        <ul>${sec.items.map(item => `<li>${esc(item)}</li>`).join('')}</ul>
+                    </div>
+                `;
+            }
+            return `
+                <div class="info-doc-section">
+                    <h4>${esc(sec.heading)}</h4>
+                    <p>${esc(sec.body)}</p>
+                </div>
+            `;
+        }).join('');
+
+        bodyEl.innerHTML = `
+            <div class="info-doc-meta">
+                <span class="info-doc-badge">${msIcon('info')} 미리보기 목업</span>
+                <span>최종 안내: ${esc(doc.updated)}</span>
+            </div>
+            <div class="info-doc-content">${sectionsHtml}</div>
+            <div class="modal-footer">
+                <button type="button" class="btn-modal-submit" onclick="document.getElementById('info-doc-modal').classList.remove('open')">확인</button>
+            </div>
+        `;
+        openModal('info-doc-modal');
     }
 
     function saveAppSettingsForm(ev) {
@@ -2194,14 +2322,6 @@
     function wireEvents() {
         document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
 
-        document.querySelectorAll('.sub-pill-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                E.extra.feedSubTab = btn.dataset.sub;
-                E.saveExtra();
-                renderFeedAndNotices();
-            });
-        });
-
         document.querySelectorAll('.room-chip').forEach(btn => {
             btn.addEventListener('click', () => {
                 E.extra.activeChatRoom = btn.dataset.room;
@@ -2215,7 +2335,7 @@
             btn.addEventListener('click', () => {
                 E.extra.rankMode = btn.dataset.mode;
                 E.saveExtra();
-                renderRankAndRun();
+                renderAll();
             });
         });
 
@@ -2298,7 +2418,7 @@
         openDrawer,
         closeDrawer,
         openPinnedNoticeModal,
-        openNoticesSubTab: () => { E.extra.feedSubTab = 'notices'; switchTab('feed'); },
+        openNoticesSubTab: () => { switchTab('notices'); },
         toggleScheduleCard,
         toggleHomeNoticeCard,
         toggleScheduleMoreMenu,
@@ -2375,6 +2495,7 @@
         saveMyInfoForm,
         openAppSettingsModal,
         saveAppSettingsForm,
+        openInfoDocModal,
         selectMember
     };
 
