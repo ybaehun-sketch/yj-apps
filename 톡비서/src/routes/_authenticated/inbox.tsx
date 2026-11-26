@@ -145,6 +145,10 @@ function Inbox() {
     void syncPushIfEnabled(prefs.alarm);
   }, [prefs.alarm]);
 
+  useEffect(() => {
+    void fetch("/api/warmup", { cache: "no-store" }).catch(() => {});
+  }, []);
+
   const [user, setUser] = useState<{ email: string; created: string | null; exempt?: boolean }>({ email: "local@talk-secretary", created: null });
   useEffect(() => {
     void supabase.auth.getUser().then(({ data: u }) => {

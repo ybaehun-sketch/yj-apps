@@ -190,6 +190,15 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     applyEnv(env);
     const reqUrl = new URL(request.url);
+    if (reqUrl.pathname === "/api/warmup") {
+      try {
+        const proxy = (env as { GEMINI_PROXY?: { fetch: typeof fetch } } | undefined)?.GEMINI_PROXY;
+        if (proxy?.fetch) {
+          await proxy.fetch("https://proxy.local/health");
+        }
+      } catch { /* ignore warmup failure */ }
+      return new Response("ok", { status: 200, headers: { "Cache-Control": "no-store" } });
+    }
     if (reqUrl.pathname === "/api/log-client" && request.method === "POST") {
       const text = await request.text().catch(() => "");
       console.warn("[client-log]", text.slice(0, 1000));
