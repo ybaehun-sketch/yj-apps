@@ -1,0 +1,49 @@
+name: 울동네 무료 일반 접속 예비순찰대
+
+on:
+  schedule:
+    # 본순찰대(12:00, 18:00, 05:00 KST) 직후 막힌 곳 수습 및 앱 즉시 반영
+    - cron: '20 3 * * 1-5'
+    - cron: '20 9 * * 1-5'
+    - cron: '20 20 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      sigungu:
+        description: '특정 시·군·구만 점검할 경우 입력 (비워두면 전체 예비순찰 대상 점검)'
+        required: false
+        default: ''
+
+jobs:
+  reserve-patrol:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 울동네/worker
+    steps:
+      - name: 코드 내려받기
+        uses: actions/checkout@v4
+
+      - name: Node.js 준비
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: 울동네/worker/package-lock.json
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: 무료 일반 접속 예비순찰대 실행
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOV24_API_KEY: ${{ secrets.GOV24_API_KEY }}
+          WELFARE_API_KEY: ${{ secrets.WELFARE_API_KEY }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "${{ github.event.inputs.sigungu }}" ]; then
+            npm run reserve-patrol -- --sigungu="${{ github.event.inputs.sigungu }}"
+          else
+            npm run reserve-patrol
+          fi
