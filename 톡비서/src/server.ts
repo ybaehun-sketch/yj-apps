@@ -49,6 +49,10 @@ function isH3SwallowedErrorBody(body: string): boolean {
 
 function applyEnv(env: unknown) {
   if (env && typeof env === "object") {
+    const proxy = (env as { GEMINI_PROXY?: unknown }).GEMINI_PROXY;
+    if (proxy && typeof (proxy as { fetch?: unknown }).fetch === "function") {
+      (globalThis as { __GEMINI_PROXY__?: unknown }).__GEMINI_PROXY__ = proxy;
+    }
     for (const [k, v] of Object.entries(env)) {
       if (typeof v === "string" && !process.env[k]) {
         process.env[k] = v;

@@ -32,6 +32,10 @@ interface ProxyBinding {
 }
 
 async function getGeminiProxyBinding(): Promise<ProxyBinding | null> {
+  const fromGlobal = (globalThis as { __GEMINI_PROXY__?: ProxyBinding }).__GEMINI_PROXY__;
+  if (fromGlobal && typeof fromGlobal.fetch === "function") {
+    return fromGlobal;
+  }
   try {
     const cfMod = ["cloudflare", "workers"].join(":");
     const mod = await import(/* @vite-ignore */ cfMod);
