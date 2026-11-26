@@ -57,7 +57,7 @@ function getTableName(adapter: BlogAdapterKind): string {
     case "bamboo_stories":
       return "bamboo_stories";
     case "welfare_posts":
-      return "welfare_posts";
+      return "uldongne_welfare_posts";
   }
 }
 
@@ -77,12 +77,12 @@ export async function remoteListPosts(appKey: string): Promise<{
   if (block.blogAdapter === "welfare_posts") {
     const [{ data: posts, error }, { data: targets }] = await Promise.all([
       client
-        .from("welfare_posts")
+        .from("uldongne_welfare_posts")
         .select("id, region_sido, region_sigungu, org_name, app_title, blog_title, blog_content_md, blog_status, created_at")
         .in("blog_status", ["draft", "published"])
         .order("created_at", { ascending: false })
         .limit(40),
-      client.from("crawl_targets").select("id, status"),
+      client.from("uldongne_crawl_targets").select("id, status"),
     ]);
 
     if (error) throw new Error(`울동네 데이터를 불러오지 못했어요: ${error.message}`);
@@ -152,7 +152,7 @@ export async function remoteGetBlogFreshness(
 
         if (block.blogAdapter === "welfare_posts") {
           const { data } = await client
-            .from("welfare_posts")
+            .from("uldongne_welfare_posts")
             .select("blog_published_at, created_at")
             .eq("blog_status", "published")
             .order("blog_published_at", { ascending: false })
@@ -210,7 +210,7 @@ export async function remoteSavePost(
       throw new Error("울동네는 수집된 복지 초안을 선택해 수정·발행할 수 있어요.");
     }
     const { error } = await client
-      .from("welfare_posts")
+      .from("uldongne_welfare_posts")
       .update({
         blog_title: input.title,
         blog_content_md: input.body,
@@ -251,7 +251,7 @@ export async function remoteDeletePost(appKey: string, id: string): Promise<{ ok
 
   if (block.blogAdapter === "welfare_posts") {
     const { error } = await client
-      .from("welfare_posts")
+      .from("uldongne_welfare_posts")
       .update({ blog_status: "rejected", publish_to_blog: false })
       .eq("id", id);
     if (error) throw new Error(`울동네 초안 숨김 실패: ${error.message}`);
@@ -315,4 +315,33 @@ export async function remoteAdjustTarotLeaves(userId: string, delta: number, rea
   });
 
   return { leaves: next };
+}
+
+export interface UldongneCrawlTarget {
+  id: string;
+  region_sido: string;
+  region_sigungu: string;
+  region_code: string;
+  org_name: string;
+  source_type: string;
+  target_url: string;
+  status: "active" | "error" | "paused";
+  fail_count: number;
+  last_item_title: string | null;
+  last_checked_at: string | null;
+}
+
+export async function remoteListUldongneTargets(): Promise<UldongneCrawlTarget[]> {
+  const client = createRemoteSupabase("ULDONGNE");
+  if (!client) return [];
+
+  const { data, error } = await client
+    .from("uldongne_crawl_targets")
+    .select("id, region_sido, region_sigungu, region_code, org_name, source_type, target_url, status, fail_count, last_item_title, last_checked_at")
+    .order("status", { ascending: true })
+    .order("region_code", { ascending: true })
+    .order("org_name", { ascending: true });
+
+  if (error) throw new Error(`울동네 순찰 목록을 불러오지 못했어요: ${error.message}`);
+  return (data ?? []) as UldongneCrawlTarget[];
 }

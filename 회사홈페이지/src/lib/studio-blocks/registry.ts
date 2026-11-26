@@ -20,6 +20,7 @@ export interface StudioAppBlock {
   tagline: string;
   platform: AppPlatform;
   publicUrl?: string;
+  adminUrl?: string;
   playStorePackage?: string;
   /** 원격 저장소 환경 변수 접두사 (예: TEACUPTAROT -> REMOTE_TEACUPTAROT_URL, REMOTE_TEACUPTAROT_SERVICE_KEY) */
   remoteEnvPrefix?: string;
@@ -43,6 +44,8 @@ export const STUDIO_APP_BLOCKS: StudioAppBlock[] = [
     name: "울동네",
     tagline: "우리 동네 복지 혜택 알림 & 블로그",
     platform: "hybrid",
+    publicUrl: "https://wooldongne.com",
+    adminUrl: "https://wooldongne.com/admin",
     remoteEnvPrefix: "ULDONGNE",
     blogAdapter: "welfare_posts",
     specialFeatureLabel: "복지 순찰 현황",
@@ -65,6 +68,7 @@ export const STUDIO_APP_BLOCKS: StudioAppBlock[] = [
     tagline: "따뜻한 AI 타로 심리 상담",
     platform: "web",
     publicUrl: "https://teacuptarot.com",
+    adminUrl: "https://teacuptarot.com/admin",
     remoteEnvPrefix: "TEACUPTAROT",
     blogAdapter: "guides",
     specialFeatureLabel: "회원·찻잎 관리",
@@ -92,6 +96,7 @@ export const STUDIO_APP_BLOCKS: StudioAppBlock[] = [
     tagline: "간밤의 꿈을 풀어주는 AI 꿈해몽",
     platform: "web",
     publicUrl: "https://dreamsoban.app",
+    adminUrl: "https://dreamsoban.app/admin",
     remoteEnvPrefix: "DREAMSOBAN",
     blogAdapter: "dream_guides",
     features: {
@@ -118,6 +123,7 @@ export const STUDIO_APP_BLOCKS: StudioAppBlock[] = [
     tagline: "마음속 고민을 비우는 속풀이 공간",
     platform: "web",
     publicUrl: "https://bambooforest.app",
+    adminUrl: "https://bambooforest.app/admin",
     remoteEnvPrefix: "BAMBOOFOREST",
     blogAdapter: "bamboo_stories",
     features: {

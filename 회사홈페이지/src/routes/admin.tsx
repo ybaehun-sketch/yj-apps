@@ -19,7 +19,8 @@ export const Route = createFileRoute("/admin")({
     meta: [
       { title: "YJ Studio · 통합 관제 본부" },
       { name: "description", content: "YJ 스튜디오 대표님 전용 3-Zone 모듈식 통합 관제 UI" },
-      { name: "robots", content: "noindex, nofollow" },
+      { name: "robots", content: "noindex, nofollow, noarchive" },
+      { name: "googlebot", content: "noindex, nofollow, noarchive" },
     ],
   }),
   component: AdminControlCenter,

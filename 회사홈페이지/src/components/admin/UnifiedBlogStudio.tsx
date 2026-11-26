@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Sparkles, Send, Trash2, RefreshCw, FileText, CheckCircle2, AlertCircle } from "lucide-react";
+import { Sparkles, Send, Trash2, RefreshCw, FileText, CheckCircle2, AlertCircle, ExternalLink, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,8 +12,10 @@ import {
   hubGenerateBlogDraft,
   hubGetBlogFreshness,
   hubListRemotePosts,
+  hubListUldongneTargets,
   hubSaveRemotePost,
 } from "@/lib/admin-hub.functions";
+import { UldongnePatrolModal } from "./UldongnePatrolModal";
 
 function formatElapsedBadge(lastPublishedAt: string | null | undefined, connected?: boolean) {
   if (!connected) return { text: "미연결", urgent: false };
@@ -43,9 +45,11 @@ const emptyForm = {
 
 export function UnifiedBlogStudio({ blogApps, geminiConfigured }: Props) {
   const [selectedKey, setSelectedKey] = useState(blogApps[0]?.key ?? "uldongne");
+  const [patrolModalOpen, setPatrolModalOpen] = useState(false);
   const activeApp = blogApps.find((a) => a.key === selectedKey) ?? blogApps[0];
 
   const listFn = useServerFn(hubListRemotePosts);
+  const listTargetsFn = useServerFn(hubListUldongneTargets);
   const freshnessFn = useServerFn(hubGetBlogFreshness);
   const saveFn = useServerFn(hubSaveRemotePost);
   const deleteFn = useServerFn(hubDeleteRemotePost);
@@ -63,6 +67,16 @@ export function UnifiedBlogStudio({ blogApps, geminiConfigured }: Props) {
     queryKey: ["hub-remote-posts", selectedKey],
     queryFn: () => listFn({ data: { appKey: selectedKey } }),
     enabled: Boolean(selectedKey),
+  });
+
+  const {
+    data: uldongneTargets = [],
+    isLoading: targetsLoading,
+    error: targetsError,
+  } = useQuery({
+    queryKey: ["hub-uldongne-targets"],
+    queryFn: () => listTargetsFn(),
+    enabled: selectedKey === "uldongne" && patrolModalOpen,
   });
 
   const [form, setForm] = useState(emptyForm);
@@ -184,10 +198,28 @@ export function UnifiedBlogStudio({ blogApps, geminiConfigured }: Props) {
             );
           })}
         </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
-          <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
-          새로고침
-        </Button>
+        <div className="flex items-center gap-2">
+          {activeApp?.publicUrl && (
+            <Button variant="outline" size="sm" asChild>
+              <a href={activeApp.publicUrl} target="_blank" rel="noreferrer">
+                <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                사이트 바로가기
+              </a>
+            </Button>
+          )}
+          {activeApp?.adminUrl && (
+            <Button variant="outline" size="sm" asChild>
+              <a href={activeApp.adminUrl} target="_blank" rel="noreferrer">
+                <Shield className="mr-1.5 h-3.5 w-3.5" />
+                전용 관리자 페이지
+              </a>
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
+            <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
+            새로고침
+          </Button>
+        </div>
       </div>
 
       {/* 연결 상태 안내 배너 */}
@@ -207,7 +239,7 @@ export function UnifiedBlogStudio({ blogApps, geminiConfigured }: Props) {
 
       {/* 울동네 순찰 요약 */}
       {isUldongne && data?.patrolSummary && (
-        <div className="flex items-center gap-6 rounded-lg border border-border bg-card px-4 py-3 text-sm">
+        <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-card px-4 py-3 text-sm">
           <span>
             전체 복지 수집처: <strong className="text-foreground">{data.patrolSummary.total}곳</strong>
           </span>
@@ -217,6 +249,13 @@ export function UnifiedBlogStudio({ blogApps, geminiConfigured }: Props) {
               {data.patrolSummary.errorCount}곳
             </strong>
           </span>
+          <button
+            type="button"
+            onClick={() => setPatrolModalOpen(true)}
+            className="rounded-lg border border-[#d2e3fc] bg-[#f8fbff] px-3.5 py-1.5 text-xs font-semibold text-[#1a73e8] transition hover:bg-[#e8f0fe]"
+          >
+            순찰지역 테이블 보기 ({data.patrolSummary.total}곳)
+          </button>
         </div>
       )}
 
@@ -393,6 +432,14 @@ export function UnifiedBlogStudio({ blogApps, geminiConfigured }: Props) {
           </div>
         </div>
       </div>
+
+      <UldongnePatrolModal
+        open={patrolModalOpen}
+        targets={uldongneTargets}
+        loading={targetsLoading}
+        errorMessage={targetsError instanceof Error ? targetsError.message : undefined}
+        onClose={() => setPatrolModalOpen(false)}
+      />
     </div>
   );
 }

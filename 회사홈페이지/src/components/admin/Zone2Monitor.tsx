@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { ArrowUpDown, Check, X as XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AiKeyMonitorCard } from "@/components/admin/AiKeyMonitorCard";
 import { UnifiedBlogStudio } from "@/components/admin/UnifiedBlogStudio";
 import { TarotMemberBlock } from "@/components/admin/TarotMemberBlock";
 import type { StudioAppBlock } from "@/lib/studio-blocks/registry";
@@ -407,6 +408,9 @@ export function Zone2Monitor({
             </div>
           </div>
         )}
+
+        {/* AI 열쇠 연결 현황 & 예상 잔액 게이지 */}
+        <AiKeyMonitorCard />
 
         {/* 하단: 수익군별 일별 추이 비교 차트 */}
         <div className="rounded-xl border border-slate-200 bg-white p-5">

@@ -107,7 +107,7 @@ export const hubGenerateBlogDraft = createServerFn({ method: "POST" })
     const userPrompt = `${data.prompt}\n\n주제: ${data.topic?.trim() || "오늘 독자들이 가장 궁금해할 만한 실용적인 주제"}\n\n반드시 아래 JSON 형식으로만 답해 주세요:\n{"slug":"english-url-slug","title":"제목","description":"한줄요약(120자 이내)","body":"마크다운 본문"}`;
 
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -126,6 +126,8 @@ export const hubGenerateBlogDraft = createServerFn({ method: "POST" })
     if (!raw) throw new Error("AI 응답이 비어 있어요.");
 
     const parsed = JSON.parse(raw) as { slug?: string; title?: string; description?: string; body?: string };
+    const { recordEstimatedAiSpend } = await import("./ai-key-monitor.server");
+    await recordEstimatedAiSpend("studio", 3);
     return {
       slug: (parsed.slug || `draft-${Date.now()}`).toLowerCase().replace(/[^a-z0-9-]/g, "-"),
       title: parsed.title || "AI 초안 제목",
@@ -176,4 +178,57 @@ export const hubSendTestAlert = createServerFn({ method: "POST" })
       },
       { bypassCooldown: true },
     );
+  });
+
+export const hubListUldongneTargets = createServerFn({ method: "GET" })
+  .middleware([requireAdmin])
+  .handler(async () => {
+    const { ensureLocalEnvLoaded } = await import("./server-env.server");
+    await ensureLocalEnvLoaded();
+    const { remoteListUldongneTargets } = await import("./studio-blocks/remote-bridge.server");
+    return remoteListUldongneTargets();
+  });
+
+export const hubGetAiKeyMonitor = createServerFn({ method: "GET" })
+  .middleware([requireAdmin])
+  .handler(async () => {
+    const { ensureLocalEnvLoaded } = await import("./server-env.server");
+    await ensureLocalEnvLoaded();
+    const { checkAllAiKeys } = await import("./ai-key-monitor.server");
+    return checkAllAiKeys();
+  });
+
+export const hubTestAiKeyDeep = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
+  .inputValidator((d: unknown) =>
+    z.object({ groupId: z.enum(["service", "patrol", "studio"]) }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const { ensureLocalEnvLoaded } = await import("./server-env.server");
+    await ensureLocalEnvLoaded();
+    const { runDeepAiKeyTest } = await import("./ai-key-monitor.server");
+    return runDeepAiKeyTest(data.groupId);
+  });
+
+export const hubUpdateAiBudget = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        groupId: z.enum(["service", "patrol", "studio"]),
+        monthlyBudgetKrw: z.number().min(0).max(100000000),
+        estimatedSpentKrw: z.number().min(0).max(100000000),
+        alertThresholdPercent: z.number().min(5).max(80),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data }) => {
+    const { ensureLocalEnvLoaded } = await import("./server-env.server");
+    await ensureLocalEnvLoaded();
+    const { updateAiKeyBudget } = await import("./ai-key-monitor.server");
+    return updateAiKeyBudget(data.groupId, {
+      monthlyBudgetKrw: data.monthlyBudgetKrw,
+      estimatedSpentKrw: data.estimatedSpentKrw,
+      alertThresholdPercent: data.alertThresholdPercent,
+    });
   });
