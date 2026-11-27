@@ -277,15 +277,15 @@ body {
 }
 
 .btn-mastered-compact {
-  min-height: 36px;
-  height: 36px;
-  padding: 0 10px;
-  font-size: 12px;
-  gap: 4px;
+  min-height: 38px;
+  height: 38px;
+  padding: 0 12px;
+  font-size: 13.5px;
+  gap: 5px;
 }
 
 .btn-mastered-compact .ms-icon {
-  font-size: 17px;
+  font-size: 18px;
 }
 
 .header-actions {
@@ -410,28 +410,28 @@ body {
   border: 1px solid var(--border);
   background: var(--surface-dim);
   color: var(--text-sub);
-  min-width: 40px;
-  min-height: 40px;
-  padding: 0 14px;
+  min-width: 42px;
+  min-height: 42px;
+  padding: 0 16px;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, transform 0.12s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 6px;
 }
 
 .subject-pill-count {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
   opacity: 0.78;
 }
 
 .subject-total-summary {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text-sub);
   white-space: nowrap;
@@ -474,7 +474,7 @@ body {
 
 .subject-modal-hint {
   margin: 0 0 12px;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.55;
   color: var(--text-sub);
   word-break: keep-all;
@@ -501,9 +501,9 @@ body {
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 9px 11px;
+  padding: 10px 12px;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 15.5px;
   background: var(--bg);
 }
 
@@ -519,9 +519,9 @@ body {
   color: var(--primary);
   min-width: 40px;
   min-height: 40px;
-  padding: 0 9px;
+  padding: 0 10px;
   border-radius: 10px;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 700;
   cursor: pointer;
   display: inline-flex;
@@ -546,9 +546,9 @@ body {
   color: var(--danger);
   min-width: 40px;
   min-height: 40px;
-  padding: 0 9px;
+  padding: 0 10px;
   border-radius: 10px;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 700;
   cursor: pointer;
   display: inline-flex;
@@ -569,7 +569,7 @@ body {
 }
 
 .criteria-title {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
   margin-bottom: 8px;
 }
@@ -607,7 +607,7 @@ body {
 
 .criteria-desc {
   margin: 0 0 10px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-sub);
 }
 
@@ -619,7 +619,7 @@ body {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 12px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
 }
 
@@ -681,13 +681,13 @@ body {
 
 .criteria-radio-card strong {
   display: block;
-  font-size: 13px;
-  margin-bottom: 2px;
+  font-size: 15px;
+  margin-bottom: 3px;
 }
 
 .criteria-radio-card span {
   display: block;
-  font-size: 11px;
+  font-size: 13.5px;
   color: var(--text-sub);
 }
 
@@ -894,11 +894,11 @@ body {
 
 .settings-menu-item {
   width: 100%;
-  min-height: 52px;
+  min-height: 58px;
   border: 1px solid var(--border);
   background: var(--bg);
   border-radius: 14px;
-  padding: 12px 14px;
+  padding: 14px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -922,7 +922,7 @@ body {
 
 .settings-menu-item strong {
   display: block;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
@@ -942,7 +942,7 @@ body {
 }
 
 .settings-arrow {
-  font-size: 20px !important;
+  font-size: 22px !important;
   font-weight: 700;
   color: var(--text-sub);
 }
@@ -1107,10 +1107,10 @@ body {
 
 /* 오답 카드 목록 */
 .problem-list {
-  padding: 4px 16px 96px;
+  padding: 6px 16px 104px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   flex: 1;
 }
 
@@ -1119,10 +1119,11 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 12px 14px;
+  padding: 16px 16px;
+  min-height: 100px;
   box-shadow: var(--shadow);
   display: flex;
-  gap: 12px;
+  gap: 14px;
   align-items: center;
   cursor: pointer;
   transition: transform 0.14s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.16s ease, border-color 0.16s ease;
@@ -1142,9 +1143,9 @@ body {
 }
 
 .problem-thumb {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
+  width: 74px;
+  height: 74px;
+  border-radius: 14px;
   object-fit: cover;
   background: var(--bg);
   border: 1px solid var(--border);
@@ -1152,14 +1153,14 @@ body {
 }
 
 .problem-thumb-text {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
+  width: 74px;
+  height: 74px;
+  border-radius: 14px;
   background: var(--primary-soft);
   color: var(--primary);
   display: grid;
   place-items: center;
-  font-size: 22px;
+  font-size: 26px;
   flex-shrink: 0;
 }
 
@@ -1172,34 +1173,34 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 5px;
+  margin-bottom: 7px;
   flex-wrap: wrap;
 }
 
 .badge-subject {
   background: var(--primary-soft);
   color: var(--primary);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 3px 10px;
   border-radius: 999px;
 }
 
 .badge-wrong {
   background: var(--danger-soft);
   color: var(--danger);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 3px 10px;
   border-radius: 999px;
 }
 
 .badge-mastered {
   background: var(--success-soft);
   color: var(--success);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 3px 10px;
   border-radius: 999px;
 }
 
@@ -1207,18 +1208,18 @@ body {
   background: var(--bg);
   color: var(--text-sub);
   border: 1px solid var(--border);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 3px 10px;
   border-radius: 999px;
 }
 
 .badge-streak {
   background: var(--surface-dim);
   color: var(--text-sub);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 3px 10px;
   border-radius: 999px;
 }
 
@@ -1228,10 +1229,10 @@ body {
 }
 
 .problem-title {
-  font-size: 14px;
+  font-size: 16.5px;
   font-weight: 600;
   color: var(--text);
-  line-height: 1.38;
+  line-height: 1.45;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -1240,9 +1241,9 @@ body {
 }
 
 .problem-sub {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-sub);
-  margin-top: 2px;
+  margin-top: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1412,10 +1413,10 @@ body {
 .btn-bottom-add {
   border: none;
   min-width: 40px;
-  min-height: 48px;
-  padding: 13px 12px;
+  min-height: 52px;
+  padding: 14px 12px;
   border-radius: 16px;
-  font-size: 15px;
+  font-size: 16.5px;
   font-weight: 800;
   cursor: pointer;
   display: flex;
@@ -1880,14 +1881,14 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 22px;
-  padding: 16px;
+  padding: 20px;
   box-shadow: var(--shadow);
 }
 
 .review-meta-row {
   display: flex;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .review-problem-content img {
@@ -1898,9 +1899,10 @@ body {
 }
 
 .review-problem-text {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
-  margin-top: 10px;
+  line-height: 1.6;
+  margin-top: 12px;
   white-space: pre-wrap;
 }
 
@@ -1923,8 +1925,9 @@ body {
 }
 
 .review-answer-content {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
+  line-height: 1.6;
 }
 
 .review-answer-content img {
@@ -1953,7 +1956,7 @@ body {
 }
 
 .curtain-title {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
 }
 
@@ -1988,13 +1991,13 @@ body {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 800;
   line-height: 1.2;
 }
 
 .review-btn-hint {
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 600;
   opacity: 0.85;
   line-height: 1.2;
