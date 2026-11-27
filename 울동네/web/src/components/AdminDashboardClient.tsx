@@ -1,8 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { CrawlTarget, WelfarePost } from '@/lib/types';
+import type { CrawlTarget, PatrolBriefing, WelfarePost } from '@/lib/types';
 import { AppPublishCalendarModal } from './AppPublishCalendarModal';
+import { PatrolBriefingModal } from './PatrolBriefingModal';
 import { PatrolStatusModal, type PatrolFilterTab } from './PatrolStatusModal';
 
 interface AdminDashboardClientProps {
@@ -11,6 +12,7 @@ interface AdminDashboardClientProps {
   initialAppPendingPosts: WelfarePost[];
   initialAppPosts: WelfarePost[];
   initialTargets: CrawlTarget[];
+  initialBriefings?: PatrolBriefing[];
 }
 
 export function AdminDashboardClient({
@@ -18,7 +20,8 @@ export function AdminDashboardClient({
   initialDrafts,
   initialAppPendingPosts,
   initialAppPosts,
-  initialTargets
+  initialTargets,
+  initialBriefings = []
 }: AdminDashboardClientProps) {
   const [authenticated, setAuthenticated] = useState(initialAuthenticated);
   const [password, setPassword] = useState('');
@@ -32,6 +35,7 @@ export function AdminDashboardClient({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [toast, setToast] = useState<string>('');
   const [patrolModalOpen, setPatrolModalOpen] = useState(false);
+  const [briefingModalOpen, setBriefingModalOpen] = useState(false);
   const [patrolModalTab, setPatrolModalTab] = useState<PatrolFilterTab>('all');
   const [patrolModalRegion, setPatrolModalRegion] = useState<string>('ALL');
   const [calendarModalOpen, setCalendarModalOpen] = useState(false);
@@ -308,13 +312,22 @@ export function AdminDashboardClient({
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-bold text-[#202124]">AI 순찰대 현황</h2>
-          <button
-            type="button"
-            onClick={() => openPatrolModal('all', 'ALL')}
-            className="rounded-lg border border-[#d2e3fc] bg-[#f8fbff] px-3.5 py-1.5 text-xs font-semibold text-[#1a73e8] hover:bg-[#e8f0fe]"
-          >
-            순찰지역 테이블 보기 ({targets.length}곳)
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setBriefingModalOpen(true)}
+              className="rounded-lg border border-[#1a73e8] bg-[#1a73e8] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#1557b0]"
+            >
+              순찰 현황 브리핑
+            </button>
+            <button
+              type="button"
+              onClick={() => openPatrolModal('all', 'ALL')}
+              className="rounded-lg border border-[#d2e3fc] bg-[#f8fbff] px-3.5 py-1.5 text-xs font-semibold text-[#1a73e8] hover:bg-[#e8f0fe]"
+            >
+              순찰지역 테이블 보기 ({targets.length}곳)
+            </button>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <button
@@ -824,6 +837,12 @@ export function AdminDashboardClient({
           setTargets((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
         }
         onTargetDeleted={(id) => setTargets((prev) => prev.filter((t) => t.id !== id))}
+      />
+
+      <PatrolBriefingModal
+        open={briefingModalOpen}
+        briefings={initialBriefings}
+        onClose={() => setBriefingModalOpen(false)}
       />
 
       <AppPublishCalendarModal

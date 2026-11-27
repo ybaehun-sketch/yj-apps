@@ -1,4 +1,4 @@
-import type { CrawlTarget, WelfarePost } from './types';
+import type { CrawlTarget, PatrolBriefing, WelfarePost } from './types';
 
 function getPublicConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -389,5 +389,32 @@ export async function deleteCrawlTargetAdmin(id: string): Promise<void> {
 
   if (!res.ok) {
     throw new Error(`deleteCrawlTargetAdmin failed: ${res.status}`);
+  }
+}
+
+/**
+ * 어드민: 최근 순찰 브리핑 이력 조회 (최대 180건 = 약 30~60일치)
+ * 테이블 생성 전이거나 일시 오류 시 빈 배열을 반환해 검수실 화면이 깨지지 않게 보호
+ */
+export async function fetchPatrolBriefingsAdmin(limit = 180): Promise<PatrolBriefing[]> {
+  const cfg = getAdminConfig();
+  if (!cfg) return [];
+
+  try {
+    const query =
+      `${cfg.url}/rest/v1/uldongne_patrol_briefings` +
+      `?select=*&order=patrol_date.desc,slot.asc,patrol_type.asc&limit=${limit}`;
+    const res = await fetch(query, {
+      headers: {
+        apikey: cfg.serviceKey,
+        Authorization: `Bearer ${cfg.serviceKey}`
+      },
+      cache: 'no-store'
+    });
+    if (!res.ok) return [];
+    const rows = (await res.json()) as PatrolBriefing[];
+    return Array.isArray(rows) ? rows : [];
+  } catch {
+    return [];
   }
 }

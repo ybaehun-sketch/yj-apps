@@ -3,7 +3,12 @@ import http from 'node:http';
 import https from 'node:https';
 import path from 'node:path';
 import { collectFromWebBoard } from './index';
-import { fetchReserveTargets, updateCrawlTargetState } from './supabase';
+import {
+  fetchReserveTargets,
+  recordPatrolBriefing,
+  updateCrawlTargetState,
+  type PatrolBriefingTargetItem
+} from './supabase';
 import type { Env } from './types';
 
 function fetchViaNodeHttp(urlStr: string, headers: Record<string, string>, redirectsLeft = 5): Promise<Response> {
@@ -148,6 +153,9 @@ async function main(): Promise<void> {
   let createdPosts = 0;
   let skippedByHash = 0;
   let failed = 0;
+  const roundStartedAt = new Date().toISOString();
+  const recoveredTargets: PatrolBriefingTargetItem[] = [];
+  const failedTargets: PatrolBriefingTargetItem[] = [];
 
   for (const target of targets) {
     const nowIso = new Date().toISOString();
@@ -165,6 +173,12 @@ async function main(): Promise<void> {
         last_checked_at: nowIso
       });
       recovered++;
+      recoveredTargets.push({
+        org_name: target.org_name,
+        region_sido: target.region_sido,
+        region_sigungu: target.region_sigungu,
+        target_url: target.target_url
+      });
       console.log(
         `  [성공] ${target.org_name} (${target.region_sigungu}) -> 새 글 ${result.created}건${result.skippedByHash ? ' (변동 없음 0원)' : ''}`
       );
@@ -183,8 +197,27 @@ async function main(): Promise<void> {
         status: isInvalidBoard || nextFailCount >= 3 ? 'error' : target.status,
         last_checked_at: nowIso
       });
+      failedTargets.push({
+        org_name: target.org_name,
+        region_sido: target.region_sido,
+        region_sigungu: target.region_sigungu,
+        target_url: target.target_url,
+        reason: failureLabel
+      });
       console.error(`  [실패] ${target.org_name} (${target.region_sigungu}): ${errMessage}`);
     }
+  }
+
+  if (!sigungu && targets.length > 0) {
+    await recordPatrolBriefing(env, {
+      patrolType: 'reserve',
+      roundStartedAt,
+      checkedCount: targets.length,
+      successCount: recovered,
+      createdPosts,
+      recoveredTargets,
+      failedTargets
+    });
   }
 
   console.log(

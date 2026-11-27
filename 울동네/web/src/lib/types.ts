@@ -52,3 +52,26 @@ export interface CrawlTarget {
   last_item_title: string | null;
   last_checked_at: string | null;
 }
+
+export interface PatrolBriefingTargetItem {
+  org_name: string;
+  region_sido: string;
+  region_sigungu: string;
+  target_url: string;
+  reason?: string;
+}
+
+export interface PatrolBriefing {
+  id: string;
+  patrol_date: string;
+  slot: 'slot_1' | 'slot_2' | 'slot_3';
+  patrol_type: 'main' | 'reserve';
+  round_started_at: string;
+  checked_count: number;
+  success_count: number;
+  created_posts: number;
+  problem_targets: PatrolBriefingTargetItem[];
+  recovered_targets: PatrolBriefingTargetItem[];
+  failed_targets: PatrolBriefingTargetItem[];
+  updated_at: string;
+}

@@ -5,7 +5,8 @@ import {
   fetchAppPendingPosts,
   fetchAppPublishedPosts,
   fetchCrawlTargetsAdmin,
-  fetchDraftPosts
+  fetchDraftPosts,
+  fetchPatrolBriefingsAdmin
 } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -21,14 +22,15 @@ export const metadata: Metadata = {
 export default async function AdminPage() {
   const authed = await isAdminAuthenticated();
 
-  const [drafts, appPendingPosts, appPosts, targets] = authed
+  const [drafts, appPendingPosts, appPosts, targets, briefings] = authed
     ? await Promise.all([
         fetchDraftPosts(),
         fetchAppPendingPosts(),
         fetchAppPublishedPosts(),
-        fetchCrawlTargetsAdmin()
+        fetchCrawlTargetsAdmin(),
+        fetchPatrolBriefingsAdmin()
       ])
-    : [[], [], [], []];
+    : [[], [], [], [], []];
 
   return (
     <AdminDashboardClient
@@ -37,6 +39,7 @@ export default async function AdminPage() {
       initialAppPendingPosts={appPendingPosts}
       initialAppPosts={appPosts}
       initialTargets={targets}
+      initialBriefings={briefings}
     />
   );
 }

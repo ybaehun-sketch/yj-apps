@@ -142,7 +142,7 @@ export async function countTodayBlogDrafts(env: Env): Promise<number> {
 
   const url =
     `${env.SUPABASE_URL}/rest/v1/uldongne_welfare_posts` +
-    `?blog_status=in.(draft,published)&created_at=gte.${encodeURIComponent(kstStartIso)}&select=id`;
+    `?or=(blog_status.eq.draft,and(blog_status.eq.published,blog_published_at.gte.${encodeURIComponent(kstStartIso)}))&select=id`;
 
   const res = await fetch(url, { headers: getHeaders(env) });
   if (!res.ok) {
@@ -150,6 +150,42 @@ export async function countTodayBlogDrafts(env: Env): Promise<number> {
   }
   const rows = (await res.json()) as Array<{ id: string }>;
   return rows.length;
+}
+
+/**
+ * 현재 검수 대기 중인 블로그 초안 목록 조회 (점수 낮은 순 정렬: 밀어내기 비교용)
+ */
+export async function fetchActiveBlogDrafts(
+  env: Env
+): Promise<Array<{ id: string; ai_confidence: number; created_at: string }>> {
+  const url =
+    `${env.SUPABASE_URL}/rest/v1/uldongne_welfare_posts` +
+    `?blog_status=eq.draft&select=id,ai_confidence,created_at&order=ai_confidence.asc,created_at.asc`;
+
+  const res = await fetch(url, { headers: getHeaders(env) });
+  if (!res.ok) {
+    throw new Error(`Supabase fetchActiveBlogDrafts failed: ${res.status} ${await res.text()}`);
+  }
+  return (await res.json()) as Array<{ id: string; ai_confidence: number; created_at: string }>;
+}
+
+/**
+ * 더 높은 점수의 후보로 교체될 때 기존 블로그 초안을 대기열에서 내림
+ */
+export async function demoteBlogDraftToNone(env: Env, postId: string): Promise<void> {
+  const url = `${env.SUPABASE_URL}/rest/v1/uldongne_welfare_posts?id=eq.${encodeURIComponent(postId)}`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: getHeaders(env),
+    body: JSON.stringify({
+      blog_status: 'none',
+      publish_to_blog: false
+    })
+  });
+
+  if (!res.ok) {
+    throw new Error(`Supabase demoteBlogDraftToNone failed: ${res.status} ${await res.text()}`);
+  }
 }
 
 /**
@@ -272,4 +308,116 @@ export async function cleanupOldWelfarePosts(env: Env): Promise<number> {
 
   const deleted = (await res.json()) as Array<{ id: string }>;
   return deleted.length;
+}
+
+export interface PatrolBriefingTargetItem {
+  org_name: string;
+  region_sido: string;
+  region_sigungu: string;
+  target_url: string;
+  reason?: string;
+}
+
+export function resolveKstPatrolSlot(isoTimestamp: string): {
+  patrolDate: string;
+  slot: 'slot_1' | 'slot_2' | 'slot_3';
+} {
+  const baseMs = new Date(isoTimestamp).getTime();
+  const kstDateObj = new Date((Number.isNaN(baseMs) ? Date.now() : baseMs) + 9 * 60 * 60 * 1000);
+  const patrolDate = kstDateObj.toISOString().slice(0, 10);
+  const kstHour = kstDateObj.getUTCHours();
+
+  const slot: 'slot_1' | 'slot_2' | 'slot_3' =
+    kstHour < 10 ? 'slot_3' : kstHour < 16 ? 'slot_1' : 'slot_2';
+  return { patrolDate, slot };
+}
+
+function mergeTargetItems(
+  existing: PatrolBriefingTargetItem[],
+  incoming: PatrolBriefingTargetItem[]
+): PatrolBriefingTargetItem[] {
+  const map = new Map<string, PatrolBriefingTargetItem>();
+  for (const item of [...existing, ...incoming]) {
+    const key = `${item.org_name}::${item.target_url}`;
+    map.set(key, item);
+  }
+  return Array.from(map.values()).slice(0, 200);
+}
+
+/**
+ * 순찰 회차별(1차/2차/3차 · 본순찰/예비순찰) 브리핑 이력 저장 및 이어달리기 배치 합산
+ */
+export async function recordPatrolBriefing(
+  env: Env,
+  params: {
+    patrolType: 'main' | 'reserve';
+    roundStartedAt: string;
+    checkedCount: number;
+    successCount: number;
+    createdPosts: number;
+    problemTargets?: PatrolBriefingTargetItem[];
+    recoveredTargets?: PatrolBriefingTargetItem[];
+    failedTargets?: PatrolBriefingTargetItem[];
+  }
+): Promise<void> {
+  try {
+    const { patrolDate, slot } = resolveKstPatrolSlot(params.roundStartedAt);
+    const selectUrl =
+      `${env.SUPABASE_URL}/rest/v1/uldongne_patrol_briefings` +
+      `?patrol_date=eq.${patrolDate}&slot=eq.${slot}&patrol_type=eq.${params.patrolType}&limit=1`;
+
+    const existingRes = await fetch(selectUrl, { headers: getHeaders(env) });
+    if (!existingRes.ok) {
+      return;
+    }
+
+    const existingRows = (await existingRes.json()) as Array<{
+      round_started_at: string;
+      checked_count: number;
+      success_count: number;
+      created_posts: number;
+      problem_targets: PatrolBriefingTargetItem[];
+      recovered_targets: PatrolBriefingTargetItem[];
+      failed_targets: PatrolBriefingTargetItem[];
+    }>;
+
+    const existing = existingRows[0];
+    const isSameRound = existing && existing.round_started_at === params.roundStartedAt;
+
+    const payload = {
+      patrol_date: patrolDate,
+      slot,
+      patrol_type: params.patrolType,
+      round_started_at: params.roundStartedAt,
+      checked_count: (isSameRound ? existing.checked_count : 0) + params.checkedCount,
+      success_count: (isSameRound ? existing.success_count : 0) + params.successCount,
+      created_posts: (isSameRound ? existing.created_posts : 0) + params.createdPosts,
+      problem_targets: mergeTargetItems(
+        isSameRound && Array.isArray(existing.problem_targets) ? existing.problem_targets : [],
+        params.problemTargets ?? []
+      ),
+      recovered_targets: mergeTargetItems(
+        isSameRound && Array.isArray(existing.recovered_targets) ? existing.recovered_targets : [],
+        params.recoveredTargets ?? []
+      ),
+      failed_targets: mergeTargetItems(
+        isSameRound && Array.isArray(existing.failed_targets) ? existing.failed_targets : [],
+        params.failedTargets ?? []
+      ),
+      updated_at: new Date().toISOString()
+    };
+
+    const upsertUrl =
+      `${env.SUPABASE_URL}/rest/v1/uldongne_patrol_briefings?on_conflict=patrol_date,slot,patrol_type`;
+    await fetch(upsertUrl, {
+      method: 'POST',
+      headers: {
+        ...getHeaders(env),
+        Prefer: 'resolution=merge-duplicates,return=minimal'
+      },
+      body: JSON.stringify(payload)
+    });
+  } catch (err) {
+    console.warn('[순찰 브리핑 기록 실패 - 순찰 흐름은 계속 진행]:', err);
+  }
 }

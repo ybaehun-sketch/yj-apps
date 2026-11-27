@@ -7,13 +7,17 @@ import {
   cleanupOldWelfarePosts,
   clearRemainingBlogCandidates,
   countTodayBlogDrafts,
+  demoteBlogDraftToNone,
+  fetchActiveBlogDrafts,
   fetchBlogCandidates,
   fetchOldestActiveTargets,
   fetchStoppedTargets,
   fetchTargetById,
   insertWelfarePost,
   promoteCandidateToBlogDraft,
-  updateCrawlTargetState
+  recordPatrolBriefing,
+  updateCrawlTargetState,
+  type PatrolBriefingTargetItem
 } from './supabase';
 import type { CrawlTarget, Env, GeneratedWelfarePost, ScannedNotice } from './types';
 import {
@@ -315,7 +319,7 @@ export async function collectFromWebBoard(
   target: CrawlTarget,
   maxNewPosts: number
 ): Promise<{ created: number; latestTitle: string | null; pageHash: string; skippedByHash: boolean }> {
-  const res = await fetchWithTimeout(target.target_url, 30000);
+  const res = await fetchWithTimeout(target.target_url, 7000);
   if (!res.ok) {
     throw new Error(`HTTP ${res.status} from ${target.target_url}`);
   }
@@ -384,7 +388,7 @@ export async function collectFromWebBoard(
     let hasAttachmentOnly = false;
 
     try {
-      const detailRes = await fetchWithTimeout(notice.detail_url, 30000);
+      const detailRes = await fetchWithTimeout(notice.detail_url, 7000);
       if (detailRes.ok) {
         const detailHtml = await detailRes.text();
         detailBody = extractDetailBodyText(detailHtml, 5000);
@@ -429,15 +433,20 @@ export async function collectFromWebBoard(
 }
 
 /**
- * 새벽 5시 전용: 낮 12:30 ~ 오후 6:00 ~ 새벽 5:00까지 모인 블로그 후보 중
- * 가장 검색 가치·정확도가 높은 최상위 최대 3건만 골라 심층 블로그 초안 작성 후,
- * 나머지 후보는 다음 날과 섞이지 않도록 정리
+ * 새벽 5시 전용: 모아둔 블로그 후보 중 가장 검색 가치·정확도가 높은 최상위 최대 3건으로 심층 블로그 초안 작성
+ * - clearRemaining=false (1조 시작 시): 빈 자리만 먼저 채워 순찰 중 돌발 상황에도 3편 보장
+ * - clearRemaining=true (마지막 조 완료 시): 이미 3편이 있더라도 아직 발행 전인 초안 중 점수가 더 낮은 글이 있으면 밀어내고 더 좋은 후보의 글 작성 후 나머지 후보 정리
  */
-export async function finalizeDailyBlogDrafts(env: Env): Promise<{
+export async function finalizeDailyBlogDrafts(
+  env: Env,
+  options: { clearRemaining?: boolean } = {}
+): Promise<{
   candidatesFound: number;
   draftsCreated: number;
+  replacedDrafts: number;
   clearedCandidates: number;
 }> {
+  const clearRemaining = options.clearRemaining ?? true;
   const maxBlogPerDay = Number(env.MAX_BLOG_DRAFTS_PER_DAY || '3');
   let todayBlogCount = 0;
   try {
@@ -449,13 +458,14 @@ export async function finalizeDailyBlogDrafts(env: Env): Promise<{
   const remaining = Math.max(0, maxBlogPerDay - todayBlogCount);
   const candidates = await fetchBlogCandidates(env);
   if (candidates.length === 0) {
-    return { candidatesFound: 0, draftsCreated: 0, clearedCandidates: 0 };
+    return { candidatesFound: 0, draftsCreated: 0, replacedDrafts: 0, clearedCandidates: 0 };
   }
 
   const selected = candidates.slice(0, remaining);
-  const discarded = candidates.slice(remaining);
+  const leftover = candidates.slice(remaining);
 
   let draftsCreated = 0;
+  let replacedDrafts = 0;
   let lastPersonaId: number | null = null;
 
   for (const candidate of selected) {
@@ -476,7 +486,47 @@ export async function finalizeDailyBlogDrafts(env: Env): Promise<{
     }
   }
 
-  if (discarded.length > 0) {
+  const discarded: typeof leftover = [];
+  if (clearRemaining && leftover.length > 0) {
+    let activeDrafts: Array<{ id: string; ai_confidence: number; created_at: string }> = [];
+    try {
+      activeDrafts = await fetchActiveBlogDrafts(env);
+    } catch (err) {
+      console.warn('기존 블로그 초안 목록 조회 실패 (밀어내기 스킵):', err);
+    }
+
+    for (const candidate of leftover) {
+      const lowestDraft = activeDrafts[0];
+      if (lowestDraft && candidate.ai_confidence > lowestDraft.ai_confidence) {
+        const persona = pickPersonaStyle(lastPersonaId ?? candidate.persona_style_id);
+        lastPersonaId = persona.id;
+        try {
+          const article = await generateBlogDraftArticle(env, candidate, persona);
+          await promoteCandidateToBlogDraft(
+            env,
+            candidate.id,
+            article.blog_title,
+            article.blog_content_md
+          );
+          await demoteBlogDraftToNone(env, lowestDraft.id);
+          activeDrafts.shift();
+          activeDrafts.push({
+            id: candidate.id,
+            ai_confidence: candidate.ai_confidence,
+            created_at: new Date().toISOString()
+          });
+          activeDrafts.sort((a, b) => a.ai_confidence - b.ai_confidence);
+          replacedDrafts++;
+          continue;
+        } catch (err) {
+          console.error(`[블로그 고득점 교체 실패] ${candidate.app_title}:`, err);
+        }
+      }
+      discarded.push(candidate);
+    }
+  }
+
+  if (clearRemaining && discarded.length > 0) {
     try {
       await clearRemainingBlogCandidates(
         env,
@@ -490,7 +540,8 @@ export async function finalizeDailyBlogDrafts(env: Env): Promise<{
   return {
     candidatesFound: candidates.length,
     draftsCreated,
-    clearedCandidates: discarded.length
+    replacedDrafts,
+    clearedCandidates: clearRemaining ? discarded.length : 0
   };
 }
 
@@ -530,16 +581,27 @@ export async function runPatrol(
   blogSummary?: {
     candidatesFound: number;
     draftsCreated: number;
+    replacedDrafts: number;
     clearedCandidates: number;
   };
 }> {
-  const maxTargets = Number(env.MAX_TARGETS_PER_RUN || '50');
+  const maxTargets = Number(env.MAX_TARGETS_PER_RUN || '12');
   const maxNewPosts = Number(env.MAX_NEW_POSTS_PER_TARGET || '5');
-  const relayDelayMs = Math.max(1000, Number(env.PATROL_RELAY_DELAY_MS || '5000'));
-  const maxBatches = Math.max(1, Number(env.PATROL_MAX_BATCHES || '20'));
+  const relayDelayMs = Math.max(1000, Number(env.PATROL_RELAY_DELAY_MS || '2000'));
+  const maxBatches = Math.max(1, Number(env.PATROL_MAX_BATCHES || '35'));
   const batchIndex = Math.max(1, options.batchIndex ?? 1);
   const roundStartedAt = options.roundStartedAt || new Date().toISOString();
   const workerBaseUrl = (options.workerBaseUrl || env.WORKER_PUBLIC_URL || '').replace(/\/$/, '');
+
+  // 새벽 5시 1조 출발 시 어제까지 모인 후보로 먼저 3편을 안전하게 보장 (순찰 중 돌발 상황 대비)
+  if (finalizeBlogDrafts && batchIndex === 1 && !options.targetId && !options.sigungu) {
+    try {
+      const preSummary = await finalizeDailyBlogDrafts(env, { clearRemaining: false });
+      console.log('[울동네 새벽 1조 선제 블로그 보장]', JSON.stringify(preSummary));
+    } catch (err) {
+      console.warn('[울동네 새벽 1조 선제 블로그 보장 실패] 마지막 조에서 재시도:', err);
+    }
+  }
 
   const targets = options.targetId
     ? await fetchTargetById(env, options.targetId)
@@ -550,18 +612,9 @@ export async function runPatrol(
   let createdPosts = 0;
   let skippedByHash = 0;
   let errors = 0;
-  let lastHostname = '';
+  const problemTargets: PatrolBriefingTargetItem[] = [];
 
-  for (const target of targets) {
-    try {
-      const hostname = new URL(target.target_url).hostname;
-      if (lastHostname && hostname === lastHostname) {
-        await sleep(1500);
-      }
-      lastHostname = hostname;
-    } catch {
-      lastHostname = '';
-    }
+  const processTarget = async (target: CrawlTarget): Promise<void> => {
     const nowIso = new Date().toISOString();
     try {
       if (target.source_type === 'API_GOV24') {
@@ -622,7 +675,32 @@ export async function runPatrol(
         status: nextStatus,
         last_checked_at: nowIso
       });
+      problemTargets.push({
+        org_name: target.org_name,
+        region_sido: target.region_sido,
+        region_sigungu: target.region_sigungu,
+        target_url: target.target_url,
+        reason: failureLabel
+      });
     }
+  };
+
+  // 3곳씩 묶어 동시 처리해 타임아웃·지연에도 한 조가 30초 안에 안전하게 종료되도록 보장
+  const CHUNK_SIZE = 3;
+  for (let i = 0; i < targets.length; i += CHUNK_SIZE) {
+    const chunk = targets.slice(i, i + CHUNK_SIZE);
+    await Promise.all(chunk.map((target) => processTarget(target)));
+  }
+
+  if (!options.targetId && !options.sigungu && targets.length > 0) {
+    await recordPatrolBriefing(env, {
+      patrolType: 'main',
+      roundStartedAt,
+      checkedCount: targets.length,
+      successCount: Math.max(0, targets.length - errors),
+      createdPosts,
+      problemTargets
+    });
   }
 
   const canRelay =
@@ -713,6 +791,16 @@ export default {
         service: 'uldongne-patrol-worker',
         status: 'ok'
       });
+    }
+
+    if (request.method === 'POST' && url.pathname === '/finalize-blog') {
+      const auth = request.headers.get('Authorization') ?? '';
+      if (!env.WORKER_ADMIN_SECRET || auth !== `Bearer ${env.WORKER_ADMIN_SECRET}`) {
+        return Response.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      const clearRemaining = url.searchParams.get('clear') !== 'false';
+      const summary = await finalizeDailyBlogDrafts(env, { clearRemaining });
+      return Response.json({ ok: true, summary });
     }
 
     if (request.method === 'POST' && url.pathname === '/run') {
