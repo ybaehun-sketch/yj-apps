@@ -130,6 +130,17 @@ export function extractCleanTextFromHtml(html: string, baseUrl: string, maxChars
 }
 
 /**
+ * 게시판 본문에서 공고 제목 + [URL:...] 쌍만 추려 해시 지문을 생성 (조회수·날짜·방문자수 변동으로 인한 불필요한 AI 재호출 방지)
+ */
+export function buildBoardListFingerprint(cleanListText: string): string {
+  const matches = cleanListText.match(/[^\s[\]]+(?:\s+[^\s[\]]+){0,15}\s+\[URL:[^\]]+\]/g);
+  if (matches && matches.length >= 2) {
+    return matches.join('\n');
+  }
+  return cleanListText;
+}
+
+/**
  * 상세 페이지 HTML에서 본문 텍스트만 추출 (링크 마커 없이 순수 가독 텍스트)
  */
 export function extractDetailBodyText(html: string, maxChars = 5000): string {

@@ -21,6 +21,7 @@ import {
 } from './supabase';
 import type { CrawlTarget, Env, GeneratedWelfarePost, ScannedNotice } from './types';
 import {
+  buildBoardListFingerprint,
   detectAttachmentOnlyNotice,
   extractCleanTextFromHtml,
   extractDetailBodyText,
@@ -350,7 +351,7 @@ export async function collectFromWebBoard(
   }
 
   const cleanListText = extractCleanTextFromHtml(sourceHtml, target.target_url, 3000);
-  const pageHash = await sha256Hex(cleanListText);
+  const pageHash = await sha256Hex(buildBoardListFingerprint(cleanListText));
 
   // 해시 기반 0원 방어: 페이지 변경 없으면 AI 호출 없이 즉시 종료
   if (target.last_page_hash && target.last_page_hash === pageHash) {
