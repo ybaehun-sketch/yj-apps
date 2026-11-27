@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CheckoutDialog, resumePendingPayment, won } from "@/components/CheckoutDialog";
 import { getMembership, setMembership, syncWallet } from "@/lib/membership";
+import { AD_ONLY_MODE } from "@/lib/access";
 import { SUB, SUB_BONUS_LEAVES, PACKS, portoneReady, type Product } from "@/lib/products";
 
 export const Route = createFileRoute("/membership")({
@@ -56,6 +57,24 @@ function MembershipPage() {
     setMembership(next);
     setState(next);
     toast.success(p.kind === "sub" ? `티룸 멤버십이 시작됐어요 🍵 보너스 찻잎 ${SUB_BONUS_LEAVES}개를 드렸어요` : `찻잎 ${p.leaves}개가 충전됐어요 🌿`);
+  }
+
+  if (AD_ONLY_MODE) {
+    return (
+      <main className="mx-auto max-w-2xl space-y-6 px-4 py-12 text-center">
+        <div className="rounded-3xl border border-border bg-card p-8 shadow-warm">
+          <p className="text-4xl">🍵</p>
+          <h1 className="mt-3 font-serif text-2xl font-bold">지금은 모든 상담이 무료예요</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            별도 결제 없이 매일 무료 새 상담과 짧은 광고 보상으로 대화를 이어가실 수 있어요.
+          </p>
+          <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
+            <Button onClick={() => navigate({ to: "/new" })}>새 타로 상담 시작하기</Button>
+            <Button variant="outline" onClick={() => navigate({ to: "/" })}>홈으로 돌아가기</Button>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   return (

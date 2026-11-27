@@ -19,6 +19,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
 import { AccountMenu } from "@/components/AccountMenu";
+import { AD_ONLY_MODE } from "@/lib/access";
 
 function NotFoundComponent() {
   return (
@@ -97,13 +98,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&display=swap",
       },
     ],
-    scripts: [
-      {
-        async: true,
-        src: "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1356528417680958",
-        crossOrigin: "anonymous",
-      },
-    ],
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -111,11 +105,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+const ADSENSE_BOOT_SCRIPT = `if(!/[?&]app=1/.test(location.search)&&!window.ReactNativeWebView){var s=document.createElement("script");s.async=true;s.src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1356528417680958";s.crossOrigin="anonymous";document.head.appendChild(s);}`;
+
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="ko">
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: ADSENSE_BOOT_SCRIPT }} />
       </head>
       <body>
         {children}
@@ -160,7 +157,7 @@ function Header() {
       : "이전으로";
   const goBack = () => {
     if (pathname.startsWith("/reading/")) {
-      window.location.assign("/readings");
+      window.location.assign(AD_ONLY_MODE ? "/" : "/readings");
     } else if (window.history.length > 1) {
       window.history.back();
     } else {
@@ -188,15 +185,19 @@ function Header() {
         <Link to="/guide" className="hover:text-foreground">
           타로 이야기
         </Link>
-        <Link to="/membership" className="hover:text-foreground">
-          멤버십
-        </Link>
-        {user ? (
-          <AccountMenu user={user} />
-        ) : (
-          <Link to="/auth" className="hover:text-foreground">
-            로그인
+        {!AD_ONLY_MODE && (
+          <Link to="/membership" className="hover:text-foreground">
+            멤버십
           </Link>
+        )}
+        {!AD_ONLY_MODE && (
+          user ? (
+            <AccountMenu user={user} />
+          ) : (
+            <Link to="/auth" className="hover:text-foreground">
+              로그인
+            </Link>
+          )
         )}
       </nav>
     </header>

@@ -6,10 +6,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { CardBack, FlipCard, PersonaAvatar } from "@/components/TarotCardView";
 import { CardSpread } from "@/components/CardSpread";
 import { DECK, PERSONAS, POSITIONS, shuffle, type PersonaId } from "@/lib/tarot";
-import { DAILY_LIMIT_CODE, getStartStatus, startReading } from "@/lib/tarot.functions";
+import { DAILY_LIMIT_CODE, getGuestStartStatus, getStartStatus, startGuestReading, startReading } from "@/lib/tarot.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { FixedAdBanner, RewardedAdDialog } from "@/components/MockAds";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { getMembership, syncWallet } from "@/lib/membership";
+import { AD_ONLY_MODE } from "@/lib/access";
 import { cn } from "@/lib/utils";
 import { sfx } from "@/lib/sound";
 
@@ -42,10 +44,25 @@ function NewReading() {
   const [gateOpen, setGateOpen] = useState(false);
   const [adOpen, setAdOpen] = useState(false);
   const [leaves, setLeaves] = useState(0);
+  const [isGuest, setIsGuest] = useState(false);
   useEffect(() => {
-    getStartStatus().then(setStatus).catch(() => {});
-    setLeaves(getMembership().leaves);
-    syncWallet().then((w) => setLeaves(w.leaves)).catch(() => {});
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        setIsGuest(false);
+        getStartStatus().then(setStatus).catch(() => {});
+        setLeaves(getMembership().leaves);
+        syncWallet().then((w) => setLeaves(w.leaves)).catch(() => {});
+      } else {
+        setIsGuest(true);
+        const dayToken = localStorage.getItem("teacup-guest-day") ?? undefined;
+        getGuestStartStatus({ data: { dayToken } })
+          .then((res) => {
+            localStorage.setItem("teacup-guest-day", res.dayToken);
+            setStatus({ freeLeft: res.freeLeft, adOpensLeft: res.adOpensLeft });
+          })
+          .catch(() => {});
+      }
+    });
   }, []);
   const needsUnlock = !!status && status.freeLeft <= 0 && !unlock;
   function goDraw() {
@@ -87,11 +104,42 @@ function NewReading() {
     if (!persona || pickedCards.length !== 3 || !concern.trim()) return;
     setBusy(true);
     try {
+      const cards = pickedCards.map((c, i) => ({ id: c.id, position: POSITIONS[i] }));
+      if (isGuest) {
+        const dayToken = localStorage.getItem("teacup-guest-day") ?? undefined;
+        const res = await startGuestReading({
+          data: {
+            concern: concern.trim(),
+            persona,
+            cards,
+            unlock: unlock === "ad" ? "ad" : undefined,
+            dayToken,
+          },
+        });
+        localStorage.setItem("teacup-guest-day", res.dayToken);
+        localStorage.setItem(
+          `teacup-guest-reading-${res.id}`,
+          JSON.stringify({
+            reading: {
+              id: res.id,
+              concern: concern.trim(),
+              persona,
+              cards,
+              prescription: null,
+            },
+            messages: [{ id: "m0", role: "assistant", content: res.reply }],
+            turnToken: res.turnToken,
+          }),
+        );
+        sessionStorage.removeItem("pending-concern");
+        navigate({ to: "/reading/$id", params: { id: res.id } });
+        return;
+      }
       const { id } = await startReading({
         data: {
           concern: concern.trim(),
           persona,
-          cards: pickedCards.map((c, i) => ({ id: c.id, position: POSITIONS[i] })),
+          cards,
           unlock,
         },
       });
@@ -155,7 +203,11 @@ function NewReading() {
         </Button>
         {status && status.freeLeft <= 0 && (
           <p className="mt-2 text-center text-xs text-muted-foreground">
-            {unlock ? "새 상담이 열렸어요 🍵" : "오늘의 무료 상담은 이미 썼어요 · 광고나 찻잎으로 새 상담을 열 수 있어요"}
+            {unlock
+              ? "새 상담이 열렸어요 🍵"
+              : AD_ONLY_MODE
+                ? "오늘의 무료 상담은 이미 썼어요 · 짧은 광고를 보고 새 상담을 열 수 있어요"
+                : "오늘의 무료 상담은 이미 썼어요 · 광고나 찻잎으로 새 상담을 열 수 있어요"}
           </p>
         )}
         <Dialog open={gateOpen} onOpenChange={setGateOpen}>
@@ -163,19 +215,21 @@ function NewReading() {
             <DialogTitle className="font-serif">오늘의 무료 찻잔을 이미 비웠어요 🍵</DialogTitle>
             <p className="text-sm text-muted-foreground">새로운 고민을 더 나누고 싶다면, 차를 한 잔 더 우려볼까요?</p>
             <div className="grid gap-2 pt-2">
-              <Button
-                onClick={() => {
-                  if (leaves < 1) { navigate({ to: "/membership" }); return; }
-                  setUnlock("leaf");
-                  setGateOpen(false);
-                  toast.success("찻잎 1개로 새 상담을 열어요 🌿", { description: "상담이 시작될 때 찻잎이 쓰여요" });
-                  if (persona && concern.trim().length >= 5) goDraw();
-                }}
-              >
-                {leaves < 1 ? "🌿 찻잎 충전하러 가기" : `🌿 찻잎 1개로 새 상담 열기 (보유 ${leaves}개)`}
-              </Button>
+              {!AD_ONLY_MODE && (
+                <Button
+                  onClick={() => {
+                    if (leaves < 1) { navigate({ to: "/membership" }); return; }
+                    setUnlock("leaf");
+                    setGateOpen(false);
+                    toast.success("찻잎 1개로 새 상담을 열어요 🌿", { description: "상담이 시작될 때 찻잎이 쓰여요" });
+                    if (persona && concern.trim().length >= 5) goDraw();
+                  }}
+                >
+                  {leaves < 1 ? "🌿 찻잎 충전하러 가기" : `🌿 찻잎 1개로 새 상담 열기 (보유 ${leaves}개)`}
+                </Button>
+              )}
               {(status?.adOpensLeft ?? 0) > 0 && (
-                <Button variant="outline" onClick={() => { setGateOpen(false); setAdOpen(true); }}>
+                <Button variant={AD_ONLY_MODE ? "default" : "outline"} onClick={() => { setGateOpen(false); setAdOpen(true); }}>
                   📺 짧은 광고 보고 새 상담 열기 (오늘 {status?.adOpensLeft}번)
                 </Button>
               )}

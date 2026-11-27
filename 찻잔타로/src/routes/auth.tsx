@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { AD_ONLY_MODE } from "@/lib/access";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -261,34 +262,38 @@ function AuthPage() {
             }`}
           />
         </div>
-        <div className="my-4 text-center text-xs text-muted-foreground">또는 이메일로</div>
-        <form onSubmit={submit} className="space-y-3">
-          <Input type="email" required placeholder="이메일" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <Input
-            type="password"
-            required
-            minLength={6}
-            placeholder="비밀번호 (6자 이상)"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <Button type="submit" className="w-full" disabled={busy || (mode === "up" && !consented)}>
-            {mode === "in" ? "로그인" : "회원가입"}
-          </Button>
-        </form>
-        {mode === "in" && (
-          <p className="mt-3 text-center text-[11px] leading-relaxed text-muted-foreground">
-            만 14세 이상만 이용할 수 있어요. 계속하면 찻잔 타로의{" "}
-            <Link to="/terms" className="underline">이용약관</Link>과{" "}
-            <Link to="/privacy" className="underline">개인정보처리방침</Link>에 동의하는 것으로 봐요.
-          </p>
+        {!AD_ONLY_MODE && (
+          <>
+            <div className="my-4 text-center text-xs text-muted-foreground">또는 이메일로</div>
+            <form onSubmit={submit} className="space-y-3">
+              <Input type="email" required placeholder="이메일" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input
+                type="password"
+                required
+                minLength={6}
+                placeholder="비밀번호 (6자 이상)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <Button type="submit" className="w-full" disabled={busy || (mode === "up" && !consented)}>
+                {mode === "in" ? "로그인" : "회원가입"}
+              </Button>
+            </form>
+            {mode === "in" && (
+              <p className="mt-3 text-center text-[11px] leading-relaxed text-muted-foreground">
+                만 14세 이상만 이용할 수 있어요. 계속하면 찻잔 타로의{" "}
+                <Link to="/terms" className="underline">이용약관</Link>과{" "}
+                <Link to="/privacy" className="underline">개인정보처리방침</Link>에 동의하는 것으로 봐요.
+              </p>
+            )}
+            <button
+              className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-foreground"
+              onClick={() => setMode(mode === "in" ? "up" : "in")}
+            >
+              {mode === "in" ? "계정이 없나요? 회원가입" : "이미 계정이 있나요? 로그인"}
+            </button>
+          </>
         )}
-        <button
-          className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-foreground"
-          onClick={() => setMode(mode === "in" ? "up" : "in")}
-        >
-          {mode === "in" ? "계정이 없나요? 회원가입" : "이미 계정이 있나요? 로그인"}
-        </button>
       </div>
     </main>
   );

@@ -24,7 +24,7 @@ export const isPremium = () => getMembership().premium;
 // 대화 턴 제한 (상담 1회당)
 export const FREE_TURNS = 2;
 export const LEAF_TURNS = 4;
-export const AD_TURNS = 1;
+export const AD_TURNS = 2;
 
 const extraKey = (id: string) => `teacup-extra-${id}`;
 export function getExtraTurns(readingId: string): number {

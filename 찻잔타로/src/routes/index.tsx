@@ -13,6 +13,7 @@ import { PRODUCTS } from "@/lib/products";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { listGuides } from "@/lib/guides.functions";
 import { LatestGuides } from "@/components/HomeExtras";
+import { AD_ONLY_MODE } from "@/lib/access";
 
 const guidesQ = queryOptions({ queryKey: ["guides"], queryFn: () => listGuides() });
 
@@ -50,11 +51,12 @@ function DailyTarot() {
   useEffect(() => {
     localStorage.removeItem("daily-tarot");
     const load = (id: string | null) => {
-      setUid(id);
+      const targetId = id || (AD_ONLY_MODE ? "guest" : null);
+      setUid(targetId);
       setCard(null);
       setFlipped(false);
-      if (id) {
-        const saved = localStorage.getItem(`daily-tarot:${id}`);
+      if (targetId) {
+        const saved = localStorage.getItem(`daily-tarot:${targetId}`);
         if (saved) {
           const { date, seed } = JSON.parse(saved) as { date: string; seed: string };
           if (date === todayKey()) {
@@ -72,14 +74,14 @@ function DailyTarot() {
 
   function draw() {
     if (flipped) return;
-    if (!uid) {
+    if (!uid && !AD_ONLY_MODE) {
       toast("로그인하면 매일 1장 무료 행운 타로를 볼 수 있어요 🍵");
       navigate({ to: "/auth", search: { redirect: "/" } });
       return;
     }
     const seed = Math.random().toString(36).slice(2);
     const date = todayKey();
-    localStorage.setItem(`daily-tarot:${uid}`, JSON.stringify({ date, seed }));
+    localStorage.setItem(`daily-tarot:${uid || "guest"}`, JSON.stringify({ date, seed }));
     setCard(dailyCardFor(date, seed));
     requestAnimationFrame(() => setFlipped(true));
   }
@@ -140,10 +142,12 @@ function Index() {
       return;
     }
     sessionStorage.setItem("pending-concern", concern.trim());
-    const { data } = await supabase.auth.getUser();
-    if (!data.user) {
-      navigate({ to: "/auth", search: { redirect: "/new" } });
-      return;
+    if (!AD_ONLY_MODE) {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) {
+        navigate({ to: "/auth", search: { redirect: "/new" } });
+        return;
+      }
     }
     navigate({ to: "/new" });
   }
@@ -181,41 +185,63 @@ function Index() {
 
       <LatestGuides guides={guides} />
 
-      <section className="mt-10 rounded-3xl border border-border bg-card p-6 shadow-warm">
-        <h2 className="font-serif text-xl font-bold">🍵 이용 요금 안내</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          매일 1장 행운 카드와 상담마다 2번의 대화는 무료예요. 더 깊이 이야기하고 싶을 때만 결제해요.
-        </p>
-        <ul className="mt-4 divide-y divide-border/60 text-sm">
-          {PRODUCTS.map((p) => (
-            <li key={p.id} className="flex items-center justify-between gap-3 py-2.5">
+      {AD_ONLY_MODE ? (
+        <section className="mt-10 rounded-3xl border border-border bg-card p-6 shadow-warm">
+          <h2 className="font-serif text-xl font-bold">🍵 무료 이용 안내</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            별도 결제 없이 누구나 무료로 타로 상담을 이용하실 수 있어요.
+          </p>
+          <ul className="mt-4 divide-y divide-border/60 text-sm">
+            <li className="flex items-center justify-between gap-3 py-2.5">
               <div>
-                <p className="font-semibold">{p.kind === "sub" ? `👑 ${p.name}` : `🌿 ${p.name}`}</p>
-                <p className="text-xs text-muted-foreground">
-                  {p.kind === "sub" ? "30일 이용권 · 매일 찻잎 1개 충전 · 자동 결제 없음" : p.desc}
-                </p>
+                <p className="font-semibold">🌅 매일 무료 새 상담</p>
+                <p className="text-xs text-muted-foreground">하루 1회 무료 새 상담 + 짧은 광고 보고 하루 3회 추가 상담</p>
               </div>
-              <p className="shrink-0 font-bold">{p.price.toLocaleString("ko-KR")}원</p>
+              <p className="shrink-0 font-bold text-primary">무료</p>
             </li>
-          ))}
-        </ul>
-        <p className="mt-3 text-xs text-muted-foreground">
-          찻잎 1개로 한 상담에서 대화를 4번 더 이어갈 수 있어요. 구매 후 7일 이내 미사용 시 전액 환불돼요.
-        </p>
-        <Button variant="outline" className="mt-4 w-full" onClick={() => navigate({ to: "/membership" })}>
-          멤버십 · 찻잎 충전 보러 가기
-        </Button>
-      </section>
+            <li className="flex items-center justify-between gap-3 py-2.5">
+              <div>
+                <p className="font-semibold">💬 대화 더 이어가기</p>
+                <p className="text-xs text-muted-foreground">상담당 2번 무료 대화 후, 짧은 광고를 보면 2번씩 더 대화 가능</p>
+              </div>
+              <p className="shrink-0 font-bold text-primary">무료</p>
+            </li>
+          </ul>
+        </section>
+      ) : (
+        <section className="mt-10 rounded-3xl border border-border bg-card p-6 shadow-warm">
+          <h2 className="font-serif text-xl font-bold">🍵 이용 요금 안내</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            매일 1장 행운 카드와 상담마다 2번의 대화는 무료예요. 더 깊이 이야기하고 싶을 때만 결제해요.
+          </p>
+          <ul className="mt-4 divide-y divide-border/60 text-sm">
+            {PRODUCTS.map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-3 py-2.5">
+                <div>
+                  <p className="font-semibold">{p.kind === "sub" ? `👑 ${p.name}` : `🌿 ${p.name}`}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {p.kind === "sub" ? "30일 이용권 · 매일 찻잎 1개 충전 · 자동 결제 없음" : p.desc}
+                  </p>
+                </div>
+                <p className="shrink-0 font-bold">{p.price.toLocaleString("ko-KR")}원</p>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs text-muted-foreground">
+            찻잎 1개로 한 상담에서 대화를 4번 더 이어갈 수 있어요. 구매 후 7일 이내 미사용 시 전액 환불돼요.
+          </p>
+          <Button variant="outline" className="mt-4 w-full" onClick={() => navigate({ to: "/membership" })}>
+            멤버십 · 찻잎 충전 보러 가기
+          </Button>
+        </section>
+      )}
 
 
 
       <footer className="mt-10 border-t border-border/60 pt-5 text-[11px] leading-relaxed text-muted-foreground">
         <LegalLinks />
         <div className="mt-3 space-y-0.5">
-          <p>상호 {BUSINESS.name} · 대표 {BUSINESS.ceo}</p>
-          <p>사업자등록번호 {BUSINESS.regNo} · 통신판매업신고 {BUSINESS.mailOrderNo}</p>
-          <p>주소 {BUSINESS.address}</p>
-          <p>문의 {BUSINESS.email} · 전화 {BUSINESS.phone} · 개인정보보호책임자 {BUSINESS.privacyOfficer}</p>
+          <p>{BUSINESS.name} · 문의 {BUSINESS.email}</p>
           <p className="pt-1">© 2026 {BUSINESS.name}. All rights reserved.</p>
         </div>
       </footer>

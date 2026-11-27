@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { AD_ONLY_MODE } from "@/lib/access";
 
 // 애드센스 심사용 탐색/콘텐츠 노출 영역 — 승인 후 필요시 이 파일 사용처만 지우면 원복됩니다.
 export function SiteNav() {
@@ -8,7 +9,9 @@ export function SiteNav() {
       <div className="flex gap-4 text-sm text-muted-foreground">
         <Link to="/" activeOptions={{ exact: true }} activeProps={{ className: "text-foreground font-semibold" }}>홈</Link>
         <Link to="/guide" activeProps={{ className: "text-foreground font-semibold" }}>타로 이야기</Link>
-        <Link to="/membership" activeProps={{ className: "text-foreground font-semibold" }}>요금 안내</Link>
+        {!AD_ONLY_MODE && (
+          <Link to="/membership" activeProps={{ className: "text-foreground font-semibold" }}>요금 안내</Link>
+        )}
       </div>
     </nav>
   );

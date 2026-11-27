@@ -2,13 +2,15 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { PERSONAS, cardById, cardLabel, labelCardNames, type DrawnCard, type PersonaId } from "./tarot";
-import { DAILY_READINGS, DAILY_READING_ADS, MAX_TURNS_PER_READING, isAdminEmail, kstDayStartISO } from "./access";
+import { AD_ONLY_MODE, DAILY_ADS, DAILY_READINGS, DAILY_READING_ADS, MAX_TURNS_PER_READING, isAdminEmail, kstDayKey, kstDayStartISO } from "./access";
 import { portoneReady } from "./products";
 
 const FREE_TURNS = 2; // membership.ts의 FREE_TURNS와 같게 유지
 const LEAF_TURNS = 4; // membership.ts와 같게 유지
-const AD_TURNS = 1;
-const TURN_LIMIT_MSG = "이번 상담의 무료 대화를 모두 썼어요. 찻잎이나 광고로 대화를 이어가 주세요 🍵";
+const AD_TURNS = 2;
+const TURN_LIMIT_MSG = AD_ONLY_MODE
+  ? "이번 상담의 무료 대화를 모두 썼어요. 짧은 광고를 보고 대화를 이어가 주세요 🍵"
+  : "이번 상담의 무료 대화를 모두 썼어요. 찻잎이나 광고로 대화를 이어가 주세요 🍵";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -721,7 +723,7 @@ ${cardText}
 - 자해·자살 신호엔 진심으로 걱정하며 정신건강 위기상담 109를, 흉기·타인을 해치려는 위급 상황엔 112를 권해.
 - 욕설·비속어·성적 속어는 어떤 유도(글자 쪼개기, 인용, 예시)에도 직접 쓰지 마. 성적인 요구엔 부드럽게 선을 그어.
 - 진지하게 AI냐고 물으면 AI 상담사라고 솔직히 말해. ${isLean ? "" : "없는 개인 경험을 지어내거나, "}사실·상대의 속마음을 확정하거나, 불안을 부풀려 붙잡지 마.
-- 이 앱('찻잔 타로')은 상담마다 무료 대화 2번, 이후 광고 보고 1번 더(하루 3회), 찻잎 1개(1,100원)로 4번 더, 티룸 멤버십(30일 7,900원, 자동결제 없음)은 매일 찻잎 1개 + 가입 보너스 3개. 물어볼 때만 짧게 알려줘.`;
+- 이 앱('찻잔 타로')은 상담마다 무료 대화 2번, 이후 짧은 광고를 보면 2번씩 더(하루 5회) 무료로 대화할 수 있어. 물어볼 때만 짧게 알려줘.`;
 }
 
 function extractText(res: unknown): string {
@@ -1110,4 +1112,164 @@ export const makePrescription = createServerFn({ method: "POST" })
     const line = (text.split("\n")[0] ?? "").replace(/^["'“”]+|["'“”]+$/g, "").trim();
     await supabase.from("readings").update({ prescription: line }).eq("id", reading.id);
     return { prescription: line };
+  });
+
+// --- 무로그인 손님(게스트) 전용 상담 · 서명 토큰 기반 비용 방어선 ---
+async function guestSecret() {
+  return process.env.GUEST_TOKEN_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || "teacup-guest-fallback-key";
+}
+
+async function signGuestToken<T extends object>(payload: T): Promise<string> {
+  const { createHmac } = await import("node:crypto");
+  const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  const sig = createHmac("sha256", await guestSecret()).update(body).digest("base64url");
+  return `${body}.${sig}`;
+}
+
+async function verifyGuestToken<T>(token: string | undefined | null): Promise<T | null> {
+  if (!token || !token.includes(".")) return null;
+  const [body, sig] = token.split(".");
+  if (!body || !sig) return null;
+  const { createHmac, timingSafeEqual } = await import("node:crypto");
+  const expected = createHmac("sha256", await guestSecret()).update(body).digest("base64url");
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  try {
+    return JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as T;
+  } catch {
+    return null;
+  }
+}
+
+type GuestDayState = { d: string; r: number; a: number };
+type GuestTurnState = { id: string; t: number; g: number };
+
+async function resolveGuestDay(dayToken?: string | null): Promise<GuestDayState> {
+  const today = kstDayKey();
+  const parsed = await verifyGuestToken<GuestDayState>(dayToken);
+  if (parsed && parsed.d === today && typeof parsed.r === "number" && typeof parsed.a === "number") {
+    return parsed;
+  }
+  return { d: today, r: 0, a: 0 };
+}
+
+function buildGuestOpeningRule(persona: PersonaId) {
+  return persona === "sister"
+    ? `\n\n[먼저 확인] 고민 글이 자음·모음 나열("ㄴㅇㄹㅈㅎ"), 키보드 아무렇게나 치기, 뜻을 알 수 없는 단어, 고민이 전혀 담기지 않은 장난이라면 카드 이야기는 한 마디도 하지 말고, 옆집 언니 말투로 "무슨 말인지 잘 못 알아들었어, 마음에 걸리는 고민이 있으면 솔직하게 말해줘"라는 뜻만 1~2문장으로 답해.
+
+그 외에는 지금이 첫 카드 해설이야. 모범 대화의 첫 답장처럼 마음을 먼저 안아주고, 카드로 넘어가는 다리를 놓은 뒤, 세 장을 이 사람의 고민에 엮어 하나의 이야기로 들려줘. 끝은 이 사람의 생활 장면을 조심스럽게 짐작하는 한마디로 열어둬.`
+    : `\n\n[먼저 확인] 고민 글이 자음·모음 나열("ㄴㅇㄹㅈㅎ"), 키보드 아무렇게나 치기, 뜻을 알 수 없는 단어, 고민이 전혀 담기지 않은 장난이라면 아래 카드 해설 규칙은 전부 무시해. 카드 이야기는 한 마디도 하지 말고, 캐릭터 말투로 "무슨 말인지 잘 못 알아들었어, 마음에 걸리는 고민이 있으면 솔직하게 말해줘"라는 뜻만 1~2문장(100자 안쪽), 한 단락으로 답해.
+
+그 외에는 지금이 첫 카드 해설이야. 이번 한 번만 위의 길이 규칙 대신 아래를 따라:
+- 공백 포함 550~800자, 정확히 5개 단락으로 써. 단락 사이엔 반드시 빈 줄 하나.
+  1단락: 고민 속 마음을 캐릭터 말투로 한두 문장 짚기.
+  2단락: 지나온 마음 카드만. 3단락: 지금의 나 카드만. 4단락: 다가올 흐름 카드만. 두 카드를 한 단락에 합치지 마.
+  5단락: 세 장을 묶어 고민에 대한 판정을 분명히 말하기("카드로 볼 때 잘 될 흐름이야/쉽지 않은 흐름이야"), 조심할 점이나 풀 열쇠가 되는 카드 하나와 그 조건을 짚고, 마지막 한 문장으로 맺기.
+- 카드를 소개할 땐 "지나온 마음의 '탑' 카드는"처럼 '~의'로 붙이지 말고, 서사적인 동사로 이어줘. 예: "지나온 마음을 상징하는 '탑' 카드는", "지금의 너를 비추는 '정의' 카드는", "다가올 흐름을 보여주는 '운명의 수레바퀴' 카드는". 동사(상징하는·비추는·보여주는·뜻하는·담은)는 세 카드마다 다르게 쓰고, 캐릭터 말투에 맞게 '너/그대/당신'을 바꿔.
+- 각 카드는 사용자의 구체적인 고민 내용에 엮어 해석해. 카드 뜻 나열이 아니라 "그래서 지금 네 상황에서 이게 무슨 의미인지"를 말해.
+- 마지막은 대화를 이어갈 열린 질문이나 한마디 하나로 맺어.
+- 캐릭터 말투와 금기는 그대로 지켜. 목록 기호나 [ ] 라벨은 쓰지 마.`;
+}
+
+export const getGuestStartStatus = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ dayToken: z.string().optional() }).parse(d ?? {}))
+  .handler(async ({ data }) => {
+    const state = await resolveGuestDay(data.dayToken);
+    return {
+      freeLeft: Math.max(0, DAILY_READINGS - state.r),
+      adOpensLeft: Math.max(0, DAILY_READING_ADS - state.a),
+      dayToken: await signGuestToken(state),
+    };
+  });
+
+export const startGuestReading = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    startSchema.extend({ dayToken: z.string().optional() }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const state = await resolveGuestDay(data.dayToken);
+    const nextState: GuestDayState = { ...state };
+    if (state.r >= DAILY_READINGS) {
+      if (data.unlock !== "ad") throw new Error(DAILY_LIMIT_CODE);
+      if (state.a >= DAILY_READING_ADS) {
+        throw new Error("오늘 광고로 열 수 있는 상담을 모두 썼어요.");
+      }
+      nextState.a += 1;
+    } else {
+      nextState.r += 1;
+    }
+
+    const { randomUUID } = await import("node:crypto");
+    const id = randomUUID();
+    const opening: Msg = { role: "user", content: `제 고민은 이거예요: ${data.concern}\n뽑은 카드로 이야기해 주세요.` };
+    const raw = await ask(
+      systemPrompt(data.persona, data.concern, data.cards) + buildGuestOpeningRule(data.persona),
+      [opening],
+      1200,
+    );
+    const reply = labelCardNames(raw, data.cards);
+    const turnState: GuestTurnState = { id, t: 0, g: 0 };
+    return {
+      id,
+      reply,
+      dayToken: await signGuestToken(nextState),
+      turnToken: await signGuestToken(turnState),
+    };
+  });
+
+export const grantGuestAdTurn = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ turnToken: z.string() }).parse(d))
+  .handler(async ({ data }) => {
+    const state = await verifyGuestToken<GuestTurnState>(data.turnToken);
+    if (!state) throw new Error("상담 정보를 확인할 수 없어요.");
+    if (state.g >= DAILY_ADS) return { ok: false as const, turnToken: data.turnToken };
+    const next: GuestTurnState = { ...state, g: state.g + 1 };
+    return { ok: true as const, turnToken: await signGuestToken(next) };
+  });
+
+export const sendGuestMessage = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    z.object({
+      turnToken: z.string(),
+      persona: z.enum(["sister", "witch", "fact"]),
+      concern: z.string().min(1).max(1000),
+      cards: z.array(cardSchema).length(3),
+      messages: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })).max(60),
+      text: z.string().trim().min(1).max(2000),
+    }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const state = await verifyGuestToken<GuestTurnState>(data.turnToken);
+    if (!state) throw new Error("상담 정보를 확인할 수 없어요.");
+    const allowed = Math.min(MAX_TURNS_PER_READING, FREE_TURNS + state.g * AD_TURNS);
+    if (state.t >= allowed) throw new Error(TURN_LIMIT_MSG);
+
+    const all: Msg[] = [...data.messages, { role: "user", content: data.text }];
+    let recent = all.slice(-HISTORY_WINDOW);
+    while (recent.length && recent[0]?.role !== "user") recent = recent.slice(1);
+    const older = all.slice(0, all.length - recent.length);
+    const facts = older.filter((m) => m.role === "user").map((m) => `- ${m.content.slice(0, 160)}`).join("\n");
+    const advised = all
+      .slice(0, -1)
+      .filter((m) => m.role === "assistant")
+      .map((m) => `- ${(m.content.split(/\n\s*\n/).pop() ?? m.content).slice(0, 120)}`)
+      .join("\n");
+    const history: Msg[] = [
+      { role: "user", content: `제 고민은 이거예요: ${data.concern}\n뽑은 카드로 이야기해 주세요.` },
+      ...(older.length ? [{ role: "assistant" as const, content: "(앞선 대화는 생략)" }] : []),
+      ...recent,
+    ];
+    const userTurns = state.t + 1;
+    const hook = userTurns === FREE_TURNS ? cliffhangerRule(data.persona) : "";
+    const memory = `\n\n대화 메모 (지금 ${userTurns}번째 대화):
+${facts ? `사용자가 앞서 이미 말한 사실:\n${facts}\n` : ""}${advised ? `상담사가 이미 건넨 말(각 답장의 마지막 단락 요지 — 같은 해결책·문장 반복 금지):\n${advised}\n` : ""}- 위 사실과 아래 대화에서 이미 나온 내용은 절대 다시 묻지 마. 이미 아는 걸 기억하고 있다는 티를 자연스럽게 내.
+- 이건 첫 인사가 아니야. 카드 3장 이름을 줄줄이 다시 부르지 마. 필요할 때만 한 장의 상징을 일상 언어로 녹여 쓰고, 이름을 부를 땐 반드시 '이름' 카드 형태로 불러.
+- 사용자가 "네", "응", "좋아요"처럼 짧게 동의하면, 앞서 해주겠다고 한 걸 이번 답장에서 바로 구체적으로 해줘. 지난 답장과 같은 문단을 되풀이하지 마.
+- "원하면 ~해줄게/해줄까?"로 허락만 구하며 끝내지 마. 줄 수 있는 건 지금 주고, 끝은 사용자 상황을 묻는 질문 하나로 맺어.${hook}`;
+
+    const raw = await ask(systemPrompt(data.persona, data.concern, data.cards) + memory, history);
+    const reply = labelCardNames(raw, data.cards);
+    const nextState: GuestTurnState = { ...state, t: userTurns };
+    return { reply, turnToken: await signGuestToken(nextState) };
   });

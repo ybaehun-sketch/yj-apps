@@ -20,7 +20,7 @@ import {
   turnsLeft,
 } from "@/lib/membership";
 import { toast } from "sonner";
-import { adsLeftToday, isAdminEmail, recordAdWatched } from "@/lib/access";
+import { AD_ONLY_MODE, adsLeftToday, isAdminEmail, recordAdWatched } from "@/lib/access";
 import { sfx } from "@/lib/sound";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -28,14 +28,29 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CardFace, PersonaAvatar } from "@/components/TarotCardView";
 import { PERSONAS, cardById, type DrawnCard, type PersonaId } from "@/lib/tarot";
-import { makePrescription, sendMessage } from "@/lib/tarot.functions";
+import { grantGuestAdTurn, makePrescription, sendGuestMessage, sendMessage } from "@/lib/tarot.functions";
 
 type Msg = { id: string; role: string; content: string };
+
+type GuestStored = {
+  reading: { id: string; concern: string; persona: string; cards: DrawnCard[]; prescription: string | null };
+  messages: Msg[];
+  turnToken: string;
+};
+
+const guestStorageKey = (id: string) => `teacup-guest-reading-${id}`;
 
 const readingQuery = (id: string) =>
   queryOptions({
     queryKey: ["reading", id],
     queryFn: async () => {
+      if (typeof window !== "undefined") {
+        const raw = localStorage.getItem(guestStorageKey(id));
+        if (raw) {
+          const parsed = JSON.parse(raw) as GuestStored;
+          return { ...parsed, isGuest: true as const };
+        }
+      }
       const [r, m] = await Promise.all([
         supabase.from("readings").select("*").eq("id", id).single(),
         supabase
@@ -46,7 +61,7 @@ const readingQuery = (id: string) =>
       ]);
       if (r.error) throw r.error;
       if (m.error) throw m.error;
-      return { reading: r.data, messages: m.data as Msg[] };
+      return { reading: r.data, messages: m.data as Msg[], isGuest: false as const, turnToken: "" };
     },
   });
 
@@ -148,20 +163,49 @@ function Chat({ id }: { id: string }) {
     setMessages((m) => [...m, { id: `tmp-${Date.now()}`, role: "user", content: t }]);
     setPending(true);
     try {
-      const { reply } = await Promise.race([
-        sendMessage({ data: { readingId: id, text: t } }),
-        new Promise<never>((_, rej) =>
-          setTimeout(() => rej(new Error("TIMEOUT")), 40000),
-        ),
-      ]);
+      let reply = "";
+      let nextTurnToken = data.turnToken;
+      if (data.isGuest) {
+        const res = await Promise.race([
+          sendGuestMessage({
+            data: {
+              turnToken: data.turnToken,
+              persona: (reading.persona as PersonaId) ?? "sister",
+              concern: reading.concern,
+              cards,
+              messages: messages.map((m) => ({
+                role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",
+                content: m.content,
+              })),
+              text: t,
+            },
+          }),
+          new Promise<never>((_, rej) => setTimeout(() => rej(new Error("TIMEOUT")), 40000)),
+        ]);
+        reply = res.reply;
+        nextTurnToken = res.turnToken;
+      } else {
+        const res = await Promise.race([
+          sendMessage({ data: { readingId: id, text: t } }),
+          new Promise<never>((_, rej) => setTimeout(() => rej(new Error("TIMEOUT")), 40000)),
+        ]);
+        reply = res.reply;
+      }
       toast.dismiss("chat-error");
       const now = Date.now();
       const userMsg = { id: `tmp-u-${now}`, role: "user", content: t };
       const aiMsg = { id: `tmp-a-${now}`, role: "assistant", content: reply };
+      const nextMsgs = [...messages, userMsg, aiMsg];
       setMessages((m) => [...m, aiMsg]);
       sfx.clink();
+      if (data.isGuest) {
+        localStorage.setItem(
+          guestStorageKey(id),
+          JSON.stringify({ reading, messages: nextMsgs, turnToken: nextTurnToken }),
+        );
+      }
       qc.setQueryData(readingQuery(id).queryKey, (old) =>
-        old ? { ...old, messages: [...old.messages, userMsg, aiMsg] } : old,
+        old ? { ...old, messages: nextMsgs, turnToken: nextTurnToken } : old,
       );
       qc.invalidateQueries({ queryKey: ["readings"] });
       qc.invalidateQueries({ queryKey: ["reading", id] });
@@ -276,14 +320,14 @@ function Chat({ id }: { id: string }) {
           <p className="font-serif font-bold">준비된 차를 다 마셨어요 ☕</p>
           <p className="text-xs text-muted-foreground">이야기를 더 이어가고 싶다면 차를 한 잔 더 우려볼까요?</p>
           <div className="grid gap-2 pt-1">
-            {(
-              <Button variant="outline" onClick={openAd}>
-                📺 짧은 광고 보고 {AD_TURNS}번 더 대화하기
+            <Button variant={AD_ONLY_MODE ? "default" : "outline"} onClick={openAd}>
+              📺 짧은 광고 보고 {AD_TURNS}번 더 대화하기
+            </Button>
+            {!AD_ONLY_MODE && (
+              <Button onClick={() => setBuyLeaf(PACKS[0] ?? null)}>
+                🌿 찻잎 충전하고 {LEAF_TURNS}번 더 대화하기
               </Button>
             )}
-            <Button onClick={() => setBuyLeaf(PACKS[0] ?? null)}>
-              🌿 찻잎 충전하고 {LEAF_TURNS}번 더 대화하기
-            </Button>
           </div>
         </div>
       ) : (
@@ -323,7 +367,23 @@ function Chat({ id }: { id: string }) {
         onOpenChange={setAdOpen}
         onReward={async () => {
           recordAdWatched();
-          const ok = await grantAdTurns(id, userTurns);
+          let ok = false;
+          if (data.isGuest) {
+            const res = await grantGuestAdTurn({ data: { turnToken: data.turnToken } }).catch(() => null);
+            if (res?.ok) {
+              ok = true;
+              addExtraTurns(id, AD_TURNS, userTurns);
+              localStorage.setItem(
+                guestStorageKey(id),
+                JSON.stringify({ reading, messages, turnToken: res.turnToken }),
+              );
+              qc.setQueryData(readingQuery(id).queryKey, (old) =>
+                old ? { ...old, turnToken: res.turnToken } : old,
+              );
+            }
+          } else {
+            ok = await grantAdTurns(id, userTurns);
+          }
           refreshLimits();
           if (ok) toast.success(`대화 ${AD_TURNS}번이 추가됐어요 🍵`);
           else toast.error("오늘 광고로 받을 수 있는 대화를 모두 썼어요.");
