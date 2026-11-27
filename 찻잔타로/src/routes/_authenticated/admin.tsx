@@ -70,7 +70,7 @@ function AdminPage() {
   };
 
   return (
-    <div className="mx-auto max-w-xl space-y-6 p-5">
+    <div className="mx-auto max-w-3xl space-y-6 px-5 pb-16 pt-4">
       <header className="flex items-center justify-between">
         <h1 className="font-display text-2xl">운영자 화면</h1>
         <Link to="/" className="text-sm text-muted-foreground underline">홈</Link>
