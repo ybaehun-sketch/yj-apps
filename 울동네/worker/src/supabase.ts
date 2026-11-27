@@ -36,6 +36,30 @@ export async function fetchOldestActiveTargets(
 }
 
 /**
+ * 한국 중계 순찰용: 해외 접속이 차단되는 가족센터(familynet.or.kr) 및 해외 차단·인증서 오류 기관 조회
+ */
+export async function fetchKoreanRelayTargets(env: Env): Promise<CrawlTarget[]> {
+  const url =
+    `${env.SUPABASE_URL}/rest/v1/uldongne_crawl_targets` +
+    `?status=in.(active,error)&order=last_checked_at.asc.nullsfirst&limit=1000`;
+
+  const res = await fetch(url, { headers: getHeaders(env) });
+  if (!res.ok) {
+    throw new Error(`Supabase fetch korean relay targets failed: ${res.status} ${await res.text()}`);
+  }
+  const rows = (await res.json()) as CrawlTarget[];
+  return rows.filter((t) => {
+    const urlLower = (t.target_url ?? '').toLowerCase();
+    const lastMsg = t.last_item_title ?? '';
+    return (
+      urlLower.includes('familynet.or.kr') ||
+      lastMsg.startsWith('HTTP 400') ||
+      lastMsg.includes('unable to verify')
+    );
+  });
+}
+
+/**
  * 특정 타겟 ID 1건 조회 (개별 주소 재순찰용)
  */
 export async function fetchTargetById(env: Env, targetId: string): Promise<CrawlTarget[]> {

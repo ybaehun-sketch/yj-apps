@@ -6,6 +6,7 @@
     "dev": "wrangler dev --test-scheduled",
     "deploy": "wrangler deploy",
     "full-patrol": "node scripts/run-full-patrol.mjs",
+    "korean-relay": "node scripts/run-full-patrol.mjs --korean-relay --no-finalize-blog",
     "reserve-patrol": "node scripts/run-reserve-patrol.mjs",
     "typecheck": "tsc --noEmit"
   },

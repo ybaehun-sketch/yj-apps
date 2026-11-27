@@ -11,6 +11,7 @@ import {
 } from './nodeRunner';
 import {
   cleanupOldWelfarePosts,
+  fetchKoreanRelayTargets,
   fetchOldestActiveTargets,
   recordPatrolBriefing,
   updateCrawlTargetState,
@@ -18,9 +19,10 @@ import {
 } from './supabase';
 import type { CrawlTarget, Env } from './types';
 
-function parseCliArgs(argv: string[]): { sigungu?: string; finalizeBlog?: boolean } {
+function parseCliArgs(argv: string[]): { sigungu?: string; finalizeBlog?: boolean; koreanRelay: boolean } {
   let sigungu: string | undefined;
   let finalizeBlog: boolean | undefined;
+  let koreanRelay = false;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -32,10 +34,12 @@ function parseCliArgs(argv: string[]): { sigungu?: string; finalizeBlog?: boolea
       finalizeBlog = true;
     } else if (arg === '--no-finalize-blog') {
       finalizeBlog = false;
+    } else if (arg === '--korean-relay') {
+      koreanRelay = true;
     }
   }
 
-  return { sigungu, finalizeBlog };
+  return { sigungu, finalizeBlog, koreanRelay };
 }
 
 function isKstDawnWindow(date = new Date()): boolean {
@@ -105,8 +109,8 @@ async function main(): Promise<void> {
     throw new Error('필수 환경 변수(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY)가 없습니다.');
   }
 
-  const { sigungu, finalizeBlog: cliFinalize } = parseCliArgs(process.argv.slice(2));
-  const shouldFinalizeBlog = cliFinalize ?? isKstDawnWindow();
+  const { sigungu, finalizeBlog: cliFinalize, koreanRelay } = parseCliArgs(process.argv.slice(2));
+  const shouldFinalizeBlog = koreanRelay ? false : (cliFinalize ?? isKstDawnWindow());
   const maxNewPosts = Number(env.MAX_NEW_POSTS_PER_TARGET || '5');
   const roundStartedAt = new Date().toISOString();
 
@@ -119,9 +123,11 @@ async function main(): Promise<void> {
     }
   }
 
-  const targets = await fetchOldestActiveTargets(env, 1000, roundStartedAt, sigungu);
+  const targets = koreanRelay
+    ? await fetchKoreanRelayTargets(env)
+    : await fetchOldestActiveTargets(env, 1000, roundStartedAt, sigungu);
   console.log(
-    `[울동네 통합 순찰 출동] 대상 ${targets.length}곳${sigungu ? ` (${sigungu})` : ''}, 블로그마무리=${shouldFinalizeBlog}`
+    `[${koreanRelay ? '한국 중계 순찰 출동' : '울동네 통합 순찰 출동'}] 대상 ${targets.length}곳${sigungu ? ` (${sigungu})` : ''}, 블로그마무리=${shouldFinalizeBlog}`
   );
 
   let createdPosts = 0;
@@ -194,7 +200,7 @@ async function main(): Promise<void> {
   const successCount = Math.max(0, targets.length - problemTargets.length);
   if (!sigungu && targets.length > 0) {
     await recordPatrolBriefing(env, {
-      patrolType: 'main',
+      patrolType: koreanRelay ? 'reserve' : 'main',
       roundStartedAt,
       checkedCount: targets.length,
       successCount,
