@@ -725,10 +725,10 @@ body {
 
 .dialog-message {
   margin: 0 0 18px;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-sub);
   white-space: pre-line;
-  line-height: 1.5;
+  line-height: 1.65;
 }
 
 .dialog-actions {
@@ -1928,6 +1928,22 @@ body {
   font-size: 17px;
   font-weight: 600;
   line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.review-answer-lead {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--primary);
+  line-height: 1.5;
+}
+
+.review-answer-lead + .review-answer-desc {
+  margin-top: 14px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--text);
 }
 
 .review-answer-content img {

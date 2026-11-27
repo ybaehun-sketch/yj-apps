@@ -1,7 +1,7 @@
 import { loadState, saveState, compressImageFile, isSafeImageDataUrl } from './modules/storage.js?v=20261125quiz';
 import { renderSubjectBar } from './modules/subjectBar.js?v=20261121free';
 import { createMagicEraser } from './modules/magicEraser.js?v=20261121idle';
-import { buildReviewQueue, renderReviewCard } from './modules/reviewDeck.js?v=20261121free';
+import { buildReviewQueue, renderReviewCard } from './modules/reviewDeck.js?v=20261127answer1';
 import { showAlert, showConfirm } from './modules/dialog.js?v=20261121free';
 import { loadLicense, saveLicense, getLicenseStatus } from './modules/trialLicense.js?v=20261125pay';
 import {
@@ -18,7 +18,9 @@ import {
   getLangPref,
   setLangPref,
   applyStaticTranslations
-} from './modules/i18n.js?v=20261125pay';
+} from './modules/i18n.js?v=20261127welcome1';
+
+const WELCOME_GUIDE_SEEN_KEY = 'odabnote_welcome_guide_seen_v1';
 
 const MAX_SUBJECTS = 13;
 const MAX_PROBLEMS_PER_SUBJECT = 50;
@@ -153,6 +155,7 @@ const settingsEls = {
   menuTheme: document.getElementById('menu-open-theme'),
   themeBadge: document.getElementById('settings-theme-badge'),
   menuLanguage: document.getElementById('menu-open-language'),
+  menuWelcomeGuide: document.getElementById('menu-open-welcome-guide'),
   languageBadge: document.getElementById('settings-language-badge'),
   menuLicense: document.getElementById('menu-open-license'),
   licenseLabel: document.getElementById('settings-license-label'),
@@ -1661,6 +1664,25 @@ settingsEls.linkPrivacy.addEventListener('click', () => {
   window.open(`${LEGAL_URL_BASE}#privacy`, '_blank', 'noopener,noreferrer');
 });
 
+async function showWelcomeGuide({ markSeen = false } = {}) {
+  await showAlert(t('welcome.message'), {
+    title: t('welcome.title'),
+    okText: t('welcome.ok')
+  });
+  if (markSeen) {
+    try {
+      localStorage.setItem(WELCOME_GUIDE_SEEN_KEY, '1');
+    } catch {
+      // 무시
+    }
+  }
+}
+
+settingsEls.menuWelcomeGuide?.addEventListener('click', async () => {
+  closeSettingsDrawer();
+  await showWelcomeGuide({ markSeen: true });
+});
+
 licenseEls.btnBuy.addEventListener('click', async () => {
   if (licenseEls.btnBuy.disabled) return;
   licenseEls.btnBuy.disabled = true;
@@ -1726,6 +1748,14 @@ updateLicenseUI();
 updateLanguageUI();
 renderHome();
 syncPlayPurchaseSilently();
+
+try {
+  if (!localStorage.getItem(WELCOME_GUIDE_SEEN_KEY)) {
+    showWelcomeGuide({ markSeen: true });
+  }
+} catch {
+  // 무시
+}
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

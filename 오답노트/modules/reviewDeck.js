@@ -68,9 +68,24 @@ export function renderReviewCard({
   // 정답 · 해설 내용 (최대 2장 지원)
   els.answerContent.innerHTML = '';
   if (problem.answerText) {
-    const ans = document.createElement('div');
-    ans.textContent = problem.answerText;
-    els.answerContent.appendChild(ans);
+    const lines = String(problem.answerText).split(/\r?\n/);
+    const firstLine = (lines[0] || '').trim();
+    const restText = lines.slice(1).join('\n').trim();
+    if (firstLine && restText) {
+      const lead = document.createElement('div');
+      lead.className = 'review-answer-lead';
+      lead.textContent = firstLine;
+      const desc = document.createElement('div');
+      desc.className = 'review-answer-desc';
+      desc.textContent = restText;
+      els.answerContent.appendChild(lead);
+      els.answerContent.appendChild(desc);
+    } else {
+      const ans = document.createElement('div');
+      ans.className = 'review-answer-lead';
+      ans.textContent = problem.answerText;
+      els.answerContent.appendChild(ans);
+    }
   }
   const answerImgs = (Array.isArray(problem.answerImgs) && problem.answerImgs.length
     ? problem.answerImgs
