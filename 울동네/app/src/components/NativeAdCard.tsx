@@ -1,99 +1,71 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
+import Constants from 'expo-constants';
+import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
 
 interface NativeAdCardProps {
-  largeText: boolean;
+  largeText?: boolean;
   isDark?: boolean;
 }
 
-/**
- * 네이티브 광고 카드 영역.
- * 일반 소식 카드와 비슷한 결을 유지하되, 좌측 상단 [AD] 배지로 광고임을 명확히 구분.
- */
-export function NativeAdCard({ largeText, isDark = false }: NativeAdCardProps) {
-  return (
-    <View style={[styles.card, isDark && styles.cardDark]}>
-      <View style={styles.badgeRow}>
-        <View style={[styles.adBadge, isDark && styles.adBadgeDark]}>
-          <Text style={[styles.adBadgeText, isDark && styles.adBadgeTextDark]}>AD</Text>
-        </View>
-        <Text style={[styles.sponsorText, isDark && styles.textMutedDark]}>
-          스폰서 추천 정보
-        </Text>
-      </View>
+const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string | undefined>;
+const REAL_BANNER_ID = (extra.admobBannerUnitId ?? extra.admobNativeUnitId ?? '').trim();
+// 개발/디버그 단계나 ID 미지정 시에는 구글 공식 테스트 배너 ID 사용
+const AD_UNIT_ID = __DEV__ ? TestIds.BANNER : (REAL_BANNER_ID || TestIds.BANNER);
 
-      <Text style={[styles.title, largeText && styles.titleLarge, isDark && styles.textDark]}>
-        우리 동네 알뜰 생활 혜택 안내
-      </Text>
-      <Text style={[styles.body, largeText && styles.bodyLarge, isDark && styles.textMutedDark]}>
-        스폰서 안내 영역입니다.
-      </Text>
+/**
+ * 피드 카드 사이에 자연스럽게 노출되는 구글 애드몹 배너 카드 컴포넌트
+ */
+export function NativeAdCard({ isDark = false }: NativeAdCardProps) {
+  const [adLoaded, setAdLoaded] = useState(false);
+  const [adFailed, setAdFailed] = useState(false);
+
+  // 웹 브라우저 환경이거나 광고 로드 실패 시 공간을 차지하지 않도록 숨김 처리
+  if (Platform.OS === 'web' || adFailed) {
+    return null;
+  }
+
+  return (
+    <View style={[styles.container, isDark && styles.containerDark]}>
+      <View style={styles.adWrapper}>
+        <BannerAd
+          unitId={AD_UNIT_ID}
+          size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+          requestOptions={{
+            requestNonPersonalizedAdsOnly: true
+          }}
+          onAdLoaded={() => {
+            setAdLoaded(true);
+            setAdFailed(false);
+          }}
+          onAdFailedToLoad={() => {
+            setAdFailed(true);
+          }}
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
+  container: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
     backgroundColor: '#f8f9fa',
     borderWidth: 1,
-    borderColor: '#dadce0',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12
+    borderColor: '#e8eaed'
   },
-  cardDark: {
+  containerDark: {
     backgroundColor: '#1e222a',
     borderColor: '#323844'
   },
-  badgeRow: {
-    flexDirection: 'row',
+  adWrapper: {
+    minHeight: 50,
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8
-  },
-  adBadge: {
-    backgroundColor: '#e8eaed',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 4
-  },
-  adBadgeDark: {
-    backgroundColor: '#323844'
-  },
-  adBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#5f6368'
-  },
-  adBadgeTextDark: {
-    color: '#9aa0a6'
-  },
-  sponsorText: {
-    fontSize: 12,
-    color: '#5f6368'
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#202124',
-    marginBottom: 6
-  },
-  titleLarge: {
-    fontSize: 19
-  },
-  body: {
-    fontSize: 14,
-    color: '#5f6368',
-    lineHeight: 20
-  },
-  bodyLarge: {
-    fontSize: 16,
-    lineHeight: 24
-  },
-  textDark: {
-    color: '#f1f3f4'
-  },
-  textMutedDark: {
-    color: '#9aa0a6'
+    justifyContent: 'center',
+    width: '100%'
   }
 });

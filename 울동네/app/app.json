@@ -3,7 +3,7 @@
     "name": "울동네 - 우리동네 복지알림",
     "slug": "uldongne-mobile",
     "owner": "yoobh",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "newArchEnabled": true,
     "icon": "./assets/icon.png",
@@ -15,7 +15,7 @@
     },
     "android": {
       "package": "app.yjstudio.uldongne",
-      "versionCode": 2,
+      "versionCode": 3,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -24,7 +24,7 @@
     },
     "ios": {
       "bundleIdentifier": "app.yjstudio.uldongne",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "supportsTablet": true
     },
     "web": {
@@ -34,13 +34,21 @@
       "supabaseUrl": "https://zgjpszhkiblaqyrukmey.supabase.co",
       "supabaseAnonKey": "sb_publishable_GR34C0DfqqMh3kZ6Cw1FAA_zG3aclhu",
       "webBlogBaseUrl": "https://wooldongne.com",
-      "admobNativeUnitId": "",
-      "admobInterstitialUnitId": "",
+      "admobAppId": "ca-app-pub-1356528417680958~1457885348",
+      "admobBannerUnitId": "ca-app-pub-1356528417680958/5903241863",
+      "admobNativeUnitId": "ca-app-pub-1356528417680958/5903241863",
+      "admobInterstitialUnitId": "ca-app-pub-1356528417680958/8181920847",
       "eas": {
         "projectId": "93cc993b-c060-47d7-826d-770768674821"
       }
     },
     "plugins": [
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-1356528417680958~1457885348"
+        }
+      ],
       [
         "expo-build-properties",
         {

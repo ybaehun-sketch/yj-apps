@@ -1,31 +1,61 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { getLastInterstitialTime, setLastInterstitialTime } from './storageService';
+import { InterstitialAd, AdEventType, TestIds } from 'react-native-google-mobile-ads';
 
 const COOLDOWN_MS = 3 * 60 * 1000; // 최소 3분 쿨타임
-const FALLBACK_OPEN_TIMEOUT_MS = 45 * 1000; // 광고 콜백 누락 대비 최후 안전 타이머
+const FALLBACK_OPEN_TIMEOUT_MS = 15 * 1000; // 광고 콜백 지연 시 안전 타이머
+
+const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string | undefined>;
+const REAL_INTERSTITIAL_ID = (extra.admobInterstitialUnitId ?? '').trim();
+const INTERSTITIAL_ID = __DEV__
+  ? TestIds.INTERSTITIAL
+  : (REAL_INTERSTITIAL_ID || TestIds.INTERSTITIAL);
+
+let interstitialAd: InterstitialAd | null = null;
+let isLoaded = false;
+let isAdShowing = false;
 
 /**
- * 실제 AdMob 네이티브 광고 단위 ID가 설정된 네이티브 앱 환경인지 확인
+ * 전면 광고 사전 로딩 및 이벤트 리스너 연결
+ */
+export function initializeInterstitialAd(): void {
+  if (Platform.OS === 'web') return;
+
+  try {
+    interstitialAd = InterstitialAd.createForAdRequest(INTERSTITIAL_ID, {
+      requestNonPersonalizedAdsOnly: true
+    });
+
+    interstitialAd.addAdEventListener(AdEventType.LOADED, () => {
+      isLoaded = true;
+    });
+
+    interstitialAd.addAdEventListener(AdEventType.CLOSED, () => {
+      isLoaded = false;
+      isAdShowing = false;
+      // 다음 쿨타임을 위해 새 전면 광고 사전 준비
+      interstitialAd?.load();
+    });
+
+    interstitialAd.addAdEventListener(AdEventType.ERROR, () => {
+      isLoaded = false;
+      isAdShowing = false;
+    });
+
+    interstitialAd.load();
+  } catch {
+    interstitialAd = null;
+    isLoaded = false;
+  }
+}
+
+/**
+ * 실제 AdMob 광고 단위 ID가 설정된 네이티브 앱 환경인지 확인
  */
 export function hasNativeAdConfigured(): boolean {
   if (Platform.OS === 'web') return false;
-  const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string | undefined>;
-  return Boolean((extra.admobNativeUnitId ?? '').trim());
-}
-
-interface InterstitialDriver {
-  isLoaded: () => boolean;
-  show: (onDismissed: () => void) => void;
-}
-
-let registeredDriver: InterstitialDriver | null = null;
-
-/**
- * 실제 AdMob 전면광고 모듈을 앱 초기화 시 연결하기 위한 등록 함수
- */
-export function registerInterstitialDriver(driver: InterstitialDriver): void {
-  registeredDriver = driver;
+  return Boolean(REAL_INTERSTITIAL_ID || (extra.admobBannerUnitId ?? extra.admobNativeUnitId ?? '').trim());
 }
 
 /**
@@ -44,10 +74,11 @@ export async function openWithCooldownInterstitial(onOpenTarget: () => void): Pr
       clearTimeout(fallbackTimer);
       fallbackTimer = null;
     }
+    isAdShowing = false;
     try {
       onOpenTarget();
     } catch {
-      // 호출부에서 예외가 전파되지 않도록 보호
+      // 안전 방어
     }
   };
 
@@ -64,39 +95,34 @@ export async function openWithCooldownInterstitial(onOpenTarget: () => void): Pr
     try {
       await setLastInterstitialTime(now);
     } catch {
-      // 저장소 기록 실패 시에도 사이트 이동은 정상 진행
+      // 기록 실패 시에도 정상 진행
     }
     safeOpenTarget();
     return;
   }
 
-  let isDriverReady = false;
-  try {
-    isDriverReady = Boolean(registeredDriver && registeredDriver.isLoaded());
-  } catch {
-    isDriverReady = false;
-  }
-
-  if (!isDriverReady || !registeredDriver) {
-    safeOpenTarget();
-    return;
-  }
-
   const isCooldownOver = now - lastShown >= COOLDOWN_MS;
-  if (!isCooldownOver) {
+  if (!isCooldownOver || !interstitialAd || !isLoaded || isAdShowing) {
     safeOpenTarget();
     return;
   }
 
   try {
-    await setLastInterstitialTime(now);
-  } catch {
-    // 저장소 기록 실패 무시
-  }
-
-  try {
+    isAdShowing = true;
     fallbackTimer = setTimeout(safeOpenTarget, FALLBACK_OPEN_TIMEOUT_MS);
-    registeredDriver.show(safeOpenTarget);
+
+    const unsubscribeClosed = interstitialAd.addAdEventListener(AdEventType.CLOSED, () => {
+      unsubscribeClosed();
+      safeOpenTarget();
+    });
+
+    const unsubscribeError = interstitialAd.addAdEventListener(AdEventType.ERROR, () => {
+      unsubscribeError();
+      safeOpenTarget();
+    });
+
+    await setLastInterstitialTime(now);
+    await interstitialAd.show();
   } catch {
     safeOpenTarget();
   }
