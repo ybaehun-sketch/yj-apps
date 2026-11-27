@@ -16,6 +16,7 @@ export function SiteNav() {
         <Link to="/" className="font-display font-bold text-primary">🎋 대나무숲 속풀이</Link>
         <div className="flex items-center gap-4">
           <Link to="/" activeOptions={{ exact: true }} activeProps={{ className: "text-foreground font-semibold" }} className="text-muted-foreground hover:text-foreground">홈</Link>
+          <Link to="/about" activeProps={{ className: "text-foreground font-semibold" }} className="text-muted-foreground hover:text-foreground">소개</Link>
           <Link to="/story" activeProps={{ className: "text-foreground font-semibold" }} className="text-muted-foreground hover:text-foreground">속풀이 칼럼</Link>
           <Dialog>
             <DialogTrigger className="text-muted-foreground hover:text-foreground">이용방법</DialogTrigger>

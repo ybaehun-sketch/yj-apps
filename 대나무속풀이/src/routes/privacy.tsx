@@ -35,6 +35,20 @@ function PrivacyPage() {
             <dd className="mt-1.5 text-muted-foreground">{body}</dd>
           </div>
         ))}
+        <div>
+          <dt className="font-semibold text-primary">광고 맞춤 설정 관리</dt>
+          <dd className="mt-1.5 text-muted-foreground">
+            Google의 맞춤형 광고를 원치 않으시면{" "}
+            <a href="https://adssettings.google.com" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+              Google 광고 설정
+            </a>
+            에서 해제할 수 있으며, 쿠키 사용 정책은{" "}
+            <a href="https://policies.google.com/technologies/ads" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+              Google 광고 정책 안내
+            </a>
+            에서 확인할 수 있습니다.
+          </dd>
+        </div>
       </dl>
 
       <div className="mt-6 flex items-center justify-between text-xs text-muted-foreground">

@@ -9,7 +9,7 @@ const q = (slug: string) => queryOptions({ queryKey: ["story", slug], queryFn: (
 export const Route = createFileRoute("/story/$slug")({
   staticData: { sitemap: true },
   loader: ({ context, params }) => context.queryClient.ensureQueryData(q(params.slug)),
-  head: ({ loaderData }) => {
+  head: ({ loaderData, params }) => {
     if (!loaderData) return { meta: [{ title: "찾을 수 없는 글 — 대나무숲 속풀이" }, { name: "robots", content: "noindex" }] };
     const t = `${loaderData.title} — 대나무숲 속풀이`;
     const d = loaderData.description || loaderData.body.slice(0, 120);
@@ -19,6 +19,7 @@ export const Route = createFileRoute("/story/$slug")({
         { property: "og:title", content: t }, { property: "og:description", content: d },
         { property: "og:type", content: "article" }, { name: "twitter:card", content: "summary" },
       ],
+      links: [{ rel: "canonical", href: `https://bambooforest.app/story/${params.slug}` }],
     };
   },
   notFoundComponent: () => (
@@ -34,7 +35,7 @@ function StoryPage() {
   const { slug } = Route.useParams();
   const { data: g } = useSuspenseQuery(q(slug));
   return (
-    <main className="mx-auto max-w-2xl px-5 py-10 pb-32">
+    <main className="mx-auto max-w-2xl px-5 py-10 pb-12">
       <Link to="/story" className="text-sm text-muted-foreground hover:text-foreground">← 속풀이 칼럼</Link>
       <article className="mt-4">
         <h1 className="font-serif text-3xl font-bold leading-snug">{g.title}</h1>

@@ -1,4 +1,7 @@
 import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import {
   Area,
   AreaChart,
@@ -12,11 +15,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowUpDown, Check, X as XIcon } from "lucide-react";
+import { ArrowUpDown, Check, RefreshCw, X as XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AiKeyMonitorCard } from "@/components/admin/AiKeyMonitorCard";
 import { UnifiedBlogStudio } from "@/components/admin/UnifiedBlogStudio";
 import { TarotMemberBlock } from "@/components/admin/TarotMemberBlock";
+import { hubGetGooglePlaySyncStatus, hubSyncGooglePlay } from "@/lib/admin-hub.functions";
 import type { StudioAppBlock } from "@/lib/studio-blocks/registry";
 import type { AppPluginMetrics, StudioAppEntity, TelemetryDailyRow } from "@/lib/studio-hub/types";
 
@@ -57,20 +61,27 @@ interface Props {
 function StatusBadge({ status }: { status: StudioAppEntity["status"] }) {
   if (status === "critical") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-red-200">
+      <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-red-200">
         ● 치명적 오류
       </span>
     );
   }
   if (status === "warning") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
+      <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
         ● 주의
       </span>
     );
   }
+  if (status === "pre_launch") {
+    return (
+      <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-400">
+        ○ 개시전
+      </span>
+    );
+  }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
       ● 정상
     </span>
   );
@@ -114,6 +125,35 @@ export function Zone2Monitor({
   const [sortKey, setSortKey] = useState<"revenue" | "dau" | "aiCost" | "profit" | "error">("revenue");
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [pendingToggleApp, setPendingToggleApp] = useState<StudioAppEntity | null>(null);
+
+  const qc = useQueryClient();
+  const getPlayStatusFn = useServerFn(hubGetGooglePlaySyncStatus);
+  const syncPlayFn = useServerFn(hubSyncGooglePlay);
+  const [syncingPlay, setSyncingPlay] = useState(false);
+
+  const { data: playSyncStatus } = useQuery({
+    queryKey: ["studio-google-play-sync-status"],
+    queryFn: () => getPlayStatusFn(),
+    refetchOnWindowFocus: false,
+  });
+
+  const handleSyncGooglePlay = async () => {
+    setSyncingPlay(true);
+    try {
+      const res = await syncPlayFn();
+      if (res.ok) {
+        toast.success(res.message);
+        await qc.invalidateQueries({ queryKey: ["studio-live-telemetry"] });
+        await qc.invalidateQueries({ queryKey: ["studio-google-play-sync-status"] });
+      } else {
+        toast.error(res.message);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "구글 플레이 동기화 중 오류가 발생했습니다.");
+    } finally {
+      setSyncingPlay(false);
+    }
+  };
 
   const toggleSort = (key: typeof sortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "desc" ? "asc" : "desc"));
@@ -175,10 +215,32 @@ export function Zone2Monitor({
       <div className="space-y-6">
         {/* 상단: 기준 토글 + 4대 KPI 카드 */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {isDaily ? "어제 하루 스튜디오 성적표" : "이번 달 누적 결산"}
-            </h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {isDaily ? "어제 하루 스튜디오 성적표" : "이번 달 누적 결산"}
+              </h2>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleSyncGooglePlay}
+                disabled={syncingPlay}
+                className="h-7 gap-1.5 bg-white text-[11px]"
+                title={
+                  playSyncStatus?.configured
+                    ? "구글 플레이 관리자에서 이번 달 공식 누적 데이터를 가져옵니다"
+                    : "구글 플레이 읽기 열쇠를 등록하면 바로 공식 데이터를 가져올 수 있습니다"
+                }
+              >
+                <RefreshCw className={`h-3 w-3 ${syncingPlay ? "animate-spin" : ""}`} />
+                {syncingPlay
+                  ? "구글 플레이 가져오는 중..."
+                  : playSyncStatus?.configured
+                    ? "구글 플레이 동기화"
+                    : "구글 플레이 연동 대기"}
+              </Button>
+            </div>
             <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs">
               <button
                 type="button"
@@ -312,6 +374,7 @@ export function Zone2Monitor({
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {sortedApps.map((app) => {
+                  const isPreLaunch = app.status === "pre_launch";
                   const netProfit = app.yesterdayRevenue - app.aiCost;
                   const highCostRatio = app.aiRevenueRatio > 20;
                   return (
@@ -319,43 +382,61 @@ export function Zone2Monitor({
                       key={app.id}
                       onClick={() => onSelectApp(app.id)}
                       className={`cursor-pointer transition-colors hover:bg-slate-50 ${
-                        app.status === "critical" ? "bg-red-50/30" : app.status === "warning" ? "bg-amber-50/20" : ""
+                        app.status === "critical"
+                          ? "bg-red-50/30"
+                          : app.status === "warning"
+                            ? "bg-amber-50/20"
+                            : isPreLaunch
+                              ? "bg-slate-50/40 text-slate-400"
+                              : ""
                       }`}
                     >
                       <td className="px-5 py-3">
-                        <div className="font-medium text-slate-900">{app.name}</div>
-                        <div className="text-xs text-slate-500">{app.category}</div>
+                        <div className={`font-medium ${isPreLaunch ? "text-slate-500" : "text-slate-900"}`}>{app.name}</div>
+                        <div className="text-xs text-slate-400">{app.category}</div>
                       </td>
                       <td className="px-3 py-3">
                         <StatusBadge status={app.status} />
                       </td>
                       <td className="px-3 py-3 text-right font-medium text-slate-800">
-                        {app.yesterdayRevenue.toLocaleString()}원
+                        {isPreLaunch ? <span className="text-slate-300">-</span> : `${app.yesterdayRevenue.toLocaleString()}원`}
                       </td>
-                      <td className="px-3 py-3 text-right text-slate-600">{app.dau.toLocaleString()}</td>
                       <td className="px-3 py-3 text-right text-slate-600">
-                        {app.aiCost > 0 ? `${app.aiCost.toLocaleString()}원` : "-"}
+                        {isPreLaunch ? <span className="text-slate-300">-</span> : app.dau.toLocaleString()}
+                      </td>
+                      <td className="px-3 py-3 text-right text-slate-600">
+                        {isPreLaunch ? <span className="text-slate-300">-</span> : app.aiCost > 0 ? `${app.aiCost.toLocaleString()}원` : "-"}
                       </td>
                       <td className="px-3 py-3 text-right">
-                        <div className={`font-medium ${highCostRatio ? "text-amber-600" : "text-slate-800"}`}>
-                          {netProfit.toLocaleString()}원
-                        </div>
-                        <div className={`text-[11px] ${highCostRatio ? "font-semibold text-amber-600" : "text-slate-400"}`}>
-                          원가율 {app.aiRevenueRatio}%
-                        </div>
+                        {isPreLaunch ? (
+                          <span className="text-slate-300">-</span>
+                        ) : (
+                          <>
+                            <div className={`font-medium ${highCostRatio ? "text-amber-600" : "text-slate-800"}`}>
+                              {netProfit.toLocaleString()}원
+                            </div>
+                            <div className={`text-[11px] ${highCostRatio ? "font-semibold text-amber-600" : "text-slate-400"}`}>
+                              원가율 {app.aiRevenueRatio}%
+                            </div>
+                          </>
+                        )}
                       </td>
                       <td className="px-3 py-3 text-right">
-                        <span
-                          className={
-                            app.errorCount >= 10
-                              ? "font-bold text-red-600"
-                              : app.errorCount > 0
-                                ? "font-semibold text-amber-600"
-                                : "text-slate-400"
-                          }
-                        >
-                          {app.errorCount}건
-                        </span>
+                        {isPreLaunch ? (
+                          <span className="text-slate-300">-</span>
+                        ) : (
+                          <span
+                            className={
+                              app.errorCount >= 10
+                                ? "font-bold text-red-600"
+                                : app.errorCount > 0
+                                  ? "font-semibold text-amber-600"
+                                  : "text-slate-400"
+                            }
+                          >
+                            {app.errorCount}건
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                         <button

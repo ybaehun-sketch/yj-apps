@@ -3,6 +3,8 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { sendUrgentAlert, type AlertSeverity } from "./lib/alerts.server";
+import { ingestAppTelemetry } from "./lib/telemetry.server";
+import type { AppStatus } from "./lib/studio-hub/types";
 
 function applyEnv(env: unknown) {
   if (env && typeof env === "object") {
@@ -14,7 +16,7 @@ function applyEnv(env: unknown) {
   }
 }
 
-async function handleAlertIngest(request: Request): Promise<Response> {
+function verifyIngestToken(request: Request): Response | null {
   const expectedToken = process.env["CONTROL_CENTER_ALERT_TOKEN"]?.trim();
   if (!expectedToken) {
     return Response.json({ ok: false, error: "CONTROL_CENTER_ALERT_TOKEN not configured" }, { status: 503 });
@@ -23,6 +25,29 @@ async function handleAlertIngest(request: Request): Promise<Response> {
   if (!providedToken || providedToken !== expectedToken) {
     return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
+  return null;
+}
+
+const APP_ID_ALIASES: Record<string, string> = {
+  tokbiseo: "talk_secretary",
+  talk_secretary: "talk_secretary",
+  wrongnote: "odap_conquer",
+  odap_conquer: "odap_conquer",
+  uldongne: "ul_dongne",
+  ul_dongne: "ul_dongne",
+  running: "running_crew",
+  running_crew: "running_crew",
+  teacuptarot: "teacup_tarot",
+  teacup_tarot: "teacup_tarot",
+  dreamsoban: "dream_soban",
+  dream_soban: "dream_soban",
+  bambooforest: "ai_bamboo",
+  ai_bamboo: "ai_bamboo",
+};
+
+async function handleAlertIngest(request: Request): Promise<Response> {
+  const authError = verifyIngestToken(request);
+  if (authError) return authError;
   try {
     const body = (await request.json()) as {
       appKey?: unknown;
@@ -46,6 +71,44 @@ async function handleAlertIngest(request: Request): Promise<Response> {
 
     const result = await sendUrgentAlert({ appKey, appName, title, message, severity });
     return Response.json({ ok: true, ...result });
+  } catch {
+    return Response.json({ ok: false, error: "Invalid JSON payload" }, { status: 400 });
+  }
+}
+
+async function handleTelemetryIngest(request: Request): Promise<Response> {
+  const authError = verifyIngestToken(request);
+  if (authError) return authError;
+  try {
+    const body = (await request.json()) as {
+      appId?: unknown;
+      date?: unknown;
+      revenue?: unknown;
+      dau?: unknown;
+      aiCost?: unknown;
+      errorCount?: unknown;
+      status?: unknown;
+    };
+    const rawAppId = typeof body.appId === "string" ? body.appId.trim() : "";
+    const appId = APP_ID_ALIASES[rawAppId];
+    if (!appId) {
+      return Response.json({ ok: false, error: "Invalid or unknown appId" }, { status: 400 });
+    }
+    const status: AppStatus | undefined =
+      body.status === "normal" || body.status === "warning" || body.status === "critical"
+        ? body.status
+        : undefined;
+
+    const result = await ingestAppTelemetry({
+      appId,
+      date: typeof body.date === "string" ? body.date : undefined,
+      revenue: typeof body.revenue === "number" ? body.revenue : undefined,
+      dau: typeof body.dau === "number" ? body.dau : undefined,
+      aiCost: typeof body.aiCost === "number" ? body.aiCost : undefined,
+      errorCount: typeof body.errorCount === "number" ? body.errorCount : undefined,
+      status,
+    });
+    return Response.json(result);
   } catch {
     return Response.json({ ok: false, error: "Invalid JSON payload" }, { status: 400 });
   }
@@ -116,6 +179,9 @@ export default {
       const url = new URL(request.url);
       if (url.pathname === "/api/alerts/ingest" && request.method === "POST") {
         return await handleAlertIngest(request);
+      }
+      if (url.pathname === "/api/telemetry/ingest" && request.method === "POST") {
+        return await handleTelemetryIngest(request);
       }
       const handler = await getServerEntry();
       const response = await normalizeCatastrophicSsrResponse(await handler.fetch(request, env, ctx));

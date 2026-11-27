@@ -23,12 +23,16 @@ export function LegalPage({ title, updated, sections }: { title: string; updated
 
 export function LegalLinks() {
   return (
-    <p className="mt-4 flex gap-3">
+    <p className="mt-4 flex flex-wrap gap-x-3 gap-y-1">
+      <Link to="/about" className="underline-offset-2 hover:underline">서비스 소개</Link>
+      <span aria-hidden>·</span>
       <Link to="/guide" className="underline-offset-2 hover:underline">마음 찻집 이야기</Link>
       <span aria-hidden>·</span>
-      <a href="https://yjstudio.app/teacuptarot/terms" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">이용약관</a>
+      <Link to="/contact" className="underline-offset-2 hover:underline">문의하기</Link>
       <span aria-hidden>·</span>
-      <a href="https://yjstudio.app/teacuptarot/privacy" target="_blank" rel="noopener noreferrer" className="font-semibold underline-offset-2 hover:underline">개인정보처리방침</a>
+      <Link to="/terms" className="underline-offset-2 hover:underline">이용약관</Link>
+      <span aria-hidden>·</span>
+      <Link to="/privacy" className="font-semibold underline-offset-2 hover:underline">개인정보처리방침</Link>
     </p>
   );
 }

@@ -28,7 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CardFace, PersonaAvatar } from "@/components/TarotCardView";
 import { PERSONAS, cardById, type DrawnCard, type PersonaId } from "@/lib/tarot";
-import { grantGuestAdTurn, makePrescription, sendGuestMessage, sendMessage } from "@/lib/tarot.functions";
+import { grantGuestAdTurn, makeGuestPrescription, makePrescription, sendGuestMessage, sendMessage } from "@/lib/tarot.functions";
 
 type Msg = { id: string; role: string; content: string };
 
@@ -72,6 +72,7 @@ export const Route = createFileRoute("/_authenticated/reading/$id")({
       { name: "description", content: "고민과 카드로 이어가는 1:1 타로 대화" },
       { property: "og:title", content: "타로 상담 중 — 찻잔 타로" },
       { property: "og:description", content: "고민과 카드로 이어가는 1:1 타로 대화" },
+      { name: "robots", content: "noindex" },
     ],
   }),
   loader: ({ context, params }) => context.queryClient.ensureQueryData(readingQuery(params.id)),
@@ -236,10 +237,35 @@ function Chat({ id }: { id: string }) {
     if (prescription) return;
     setRxBusy(true);
     try {
-      const { prescription: p } = await makePrescription({ data: { readingId: id } });
+      let p = "";
+      if (data.isGuest && data.turnToken) {
+        const res = await makeGuestPrescription({
+          data: {
+            turnToken: data.turnToken,
+            persona: persona.id,
+            concern: reading.concern,
+            messages: messages.map((m) => ({
+              role: m.role === "user" ? ("user" as const) : ("assistant" as const),
+              content: m.content,
+            })),
+          },
+        });
+        p = res.prescription;
+        try {
+          const raw = localStorage.getItem(guestStorageKey(id));
+          if (raw) {
+            const parsed = JSON.parse(raw) as GuestStored;
+            parsed.reading.prescription = p;
+            localStorage.setItem(guestStorageKey(id), JSON.stringify(parsed));
+          }
+        } catch { /* ignore */ }
+      } else {
+        const res = await makePrescription({ data: { readingId: id } });
+        p = res.prescription;
+        qc.invalidateQueries({ queryKey: ["readings"] });
+      }
       setPrescription(p);
       sfx.clink();
-      qc.invalidateQueries({ queryKey: ["readings"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "처방전을 만들지 못했어요.");
       setRxOpen(false);

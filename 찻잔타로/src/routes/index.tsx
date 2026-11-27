@@ -3,8 +3,6 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LegalLinks } from "@/components/LegalPage";
-import { BUSINESS } from "@/lib/business";
 import { Textarea } from "@/components/ui/textarea";
 import { FlipCard } from "@/components/TarotCardView";
 import { FixedAdBanner } from "@/components/MockAds";
@@ -31,6 +29,7 @@ export const Route = createFileRoute("/")({
       { property: "og:image:height", content: "630" },
       { name: "twitter:image", content: "https://teacuptarot.com/og-image.jpg" },
     ],
+    links: [{ rel: "canonical", href: "https://teacuptarot.com/" }],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(guidesQ),
   component: Index,
@@ -181,28 +180,38 @@ function Index() {
         <Button onClick={start} size="lg" className="mt-4 w-full">
           상담사 고르러 가기
         </Button>
+        <p className="mt-3 text-center text-[11px] leading-relaxed opacity-75">
+          ※ AI 타로 상담은 가벼운 성찰과 재미를 위한 참고용이며, 의학·법률·투자 자문을 대신하지 않습니다.
+        </p>
       </section>
 
       <LatestGuides guides={guides} />
 
       {AD_ONLY_MODE ? (
         <section className="mt-10 rounded-3xl border border-border bg-card p-6 shadow-warm">
-          <h2 className="font-serif text-xl font-bold">🍵 무료 이용 안내</h2>
+          <h2 className="font-serif text-xl font-bold">🍵 찻잔 타로 이용 안내</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            별도 결제 없이 누구나 무료로 타로 상담을 이용하실 수 있어요.
+            별도 회원가입이나 결제 없이 누구나 무료로 타로 상담을 이용하실 수 있어요.
           </p>
           <ul className="mt-4 divide-y divide-border/60 text-sm">
             <li className="flex items-center justify-between gap-3 py-2.5">
               <div>
-                <p className="font-semibold">🌅 매일 무료 새 상담</p>
-                <p className="text-xs text-muted-foreground">하루 1회 무료 새 상담 + 짧은 광고 보고 하루 3회 추가 상담</p>
+                <p className="font-semibold">1. 고민 적고 카드 3장 뽑기</p>
+                <p className="text-xs text-muted-foreground">고민을 적은 뒤 원하는 AI 상담사를 고르고 직감으로 3장의 카드를 선택해요</p>
               </div>
               <p className="shrink-0 font-bold text-primary">무료</p>
             </li>
             <li className="flex items-center justify-between gap-3 py-2.5">
               <div>
-                <p className="font-semibold">💬 대화 더 이어가기</p>
-                <p className="text-xs text-muted-foreground">상담당 2번 무료 대화 후, 짧은 광고를 보면 2번씩 더 대화 가능</p>
+                <p className="font-semibold">2. 매일 무료 새 상담</p>
+                <p className="text-xs text-muted-foreground">하루 1회 무료 새 상담 + 잠시 차 우리는 휴식 후 하루 3회 추가 상담</p>
+              </div>
+              <p className="shrink-0 font-bold text-primary">무료</p>
+            </li>
+            <li className="flex items-center justify-between gap-3 py-2.5">
+              <div>
+                <p className="font-semibold">3. 대화 이어가기 &amp; 마음 처방전</p>
+                <p className="text-xs text-muted-foreground">상담당 2번 무료 대화 후 잠시 기다리면 2번씩 추가 대화 및 한 줄 처방전 발급</p>
               </div>
               <p className="shrink-0 font-bold text-primary">무료</p>
             </li>
@@ -238,13 +247,24 @@ function Index() {
 
 
 
-      <footer className="mt-10 border-t border-border/60 pt-5 text-[11px] leading-relaxed text-muted-foreground">
-        <LegalLinks />
-        <div className="mt-3 space-y-0.5">
-          <p>{BUSINESS.name} · 문의 {BUSINESS.email}</p>
-          <p className="pt-1">© 2026 {BUSINESS.name}. All rights reserved.</p>
-        </div>
-      </footer>
+      <section className="mt-10 rounded-3xl border border-border bg-card p-6 shadow-warm">
+        <h2 className="font-serif text-xl font-bold">자주 묻는 질문</h2>
+        <dl className="mt-4 space-y-3 text-sm leading-relaxed">
+          <div>
+            <dt className="font-semibold">Q. 회원가입이나 로그인이 필요한가요?</dt>
+            <dd className="mt-0.5 text-muted-foreground">아니요, 별도의 가입 절차 없이 바로 고민을 적고 카드를 뽑아 상담을 시작할 수 있어요.</dd>
+          </div>
+          <div>
+            <dt className="font-semibold">Q. 상담 내용은 다른 사람에게 공개되나요?</dt>
+            <dd className="mt-0.5 text-muted-foreground">모든 상담은 1:1 비공개로 진행되며, 이용자 기기에만 임시 저장되어 언제든 브라우저에서 지울 수 있어요.</dd>
+          </div>
+          <div>
+            <dt className="font-semibold">Q. 타로 결과를 그대로 믿어도 되나요?</dt>
+            <dd className="mt-0.5 text-muted-foreground">찻잔 타로는 마음을 정리하고 스스로를 돌아보는 AI 엔터테인먼트 서비스입니다. 중요한 의학·법률·투자 결정은 반드시 전문가와 상의해 주세요.</dd>
+          </div>
+        </dl>
+      </section>
+
       <FixedAdBanner />
     </main>
     </>

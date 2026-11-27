@@ -8,7 +8,7 @@ const q = (slug: string) => queryOptions({ queryKey: ["guide", slug], queryFn: (
 
 export const Route = createFileRoute("/guide/$slug")({
   loader: ({ context, params }) => context.queryClient.ensureQueryData(q(params.slug)),
-  head: ({ loaderData }) => {
+  head: ({ loaderData, params }) => {
     if (!loaderData) return { meta: [{ title: "찾을 수 없는 글 — 꿈소반" }, { name: "robots", content: "noindex" }] };
     const t = `${loaderData.title} — 꿈소반`;
     const d = loaderData.description || loaderData.body.slice(0, 120);
@@ -18,6 +18,7 @@ export const Route = createFileRoute("/guide/$slug")({
         { property: "og:title", content: t }, { property: "og:description", content: d },
         { property: "og:type", content: "article" }, { name: "twitter:card", content: "summary" },
       ],
+      links: [{ rel: "canonical", href: `https://dreamsoban.app/guide/${params.slug}` }],
     };
   },
   notFoundComponent: () => (

@@ -41,6 +41,6 @@ export const PRIVACY_ITEMS = [
   ],
   [
     "운영 및 문의",
-    "서비스 운영: 와이제이 스튜디오 (YJ Studio) · 문의: ceo@yjstudio.app",
+    "서비스 운영: 와이제이 스튜디오 (YJ Studio) · 문의: contact@yjstudio.app",
   ],
 ] as const;

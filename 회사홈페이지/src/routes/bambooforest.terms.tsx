@@ -26,7 +26,7 @@ function BambooForestTermsPage() {
         <a className="text-primary underline" href="https://bambooforest.app" target="_blank" rel="noopener noreferrer">
           bambooforest.app
         </a>
-        ) 서비스에 적용됩니다.
+        ) 서비스에 적용됩니다. (시행일: 2026년 11월)
       </p>
 
       <section>
@@ -61,13 +61,9 @@ function BambooForestTermsPage() {
         <h2>5. 약관 변경 및 운영자 정보</h2>
         <p>약관이 바뀌면 이 페이지에 공지합니다.</p>
         <p>서비스명: 대나무숲 속풀이 (bambooforest.app)</p>
-        <p>운영: 와이제이 스튜디오 (YJ Studio, 대표 KETSIRI IRATDA)</p>
+        <p>운영: 와이제이 스튜디오 (YJ Studio)</p>
         <p>
           문의:{" "}
-          <a className="text-primary underline" href="mailto:ceo@yjstudio.app">
-            ceo@yjstudio.app
-          </a>{" "}
-          /{" "}
           <a className="text-primary underline" href="mailto:contact@yjstudio.app">
             contact@yjstudio.app
           </a>

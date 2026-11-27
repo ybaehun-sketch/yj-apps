@@ -31,7 +31,7 @@ export function LatestGuides({ guides }: { guides: G[] }) {
         <Link to="/guide" className="shrink-0 text-sm text-primary hover:underline">전체 보기 →</Link>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        {guides.slice(0, 4).map((g) => (
+        {guides.slice(0, 8).map((g) => (
           <Link key={g.slug} to="/guide/$slug" params={{ slug: g.slug }}
             className="block rounded-2xl border bg-card p-5 shadow-warm hover:border-primary">
             <h3 className="font-serif text-lg font-bold leading-snug">{g.title}</h3>

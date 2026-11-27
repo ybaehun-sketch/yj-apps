@@ -38,6 +38,7 @@ export const Route = createFileRoute("/_authenticated/readings")({
       { name: "description", content: "지난 타로 상담 대화를 다시 열어보세요." },
       { property: "og:title", content: "나의 상담 기록 — 찻잔 타로" },
       { property: "og:description", content: "지난 타로 상담 대화를 다시 열어보세요." },
+      { name: "robots", content: "noindex" },
     ],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(readingsQuery),

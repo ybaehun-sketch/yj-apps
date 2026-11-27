@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 const BASE_URL = "https://dreamsoban.app";
-const STATIC_PATHS = ["/", "/guide"];
+const STATIC_PATHS = ["/", "/about", "/guide", "/contact", "/terms", "/privacy"];
 
 const esc = (v: string) =>
   v.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[c]!);

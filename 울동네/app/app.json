@@ -2,8 +2,10 @@
   "expo": {
     "name": "울동네 - 우리동네 복지알림",
     "slug": "uldongne-mobile",
+    "owner": "yoobh",
     "version": "1.0.0",
     "orientation": "portrait",
+    "newArchEnabled": true,
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
@@ -13,7 +15,7 @@
     },
     "android": {
       "package": "app.yjstudio.uldongne",
-      "versionCode": 1,
+      "versionCode": 2,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -33,9 +35,21 @@
       "supabaseAnonKey": "sb_publishable_GR34C0DfqqMh3kZ6Cw1FAA_zG3aclhu",
       "webBlogBaseUrl": "https://wooldongne.com",
       "admobNativeUnitId": "",
-      "admobInterstitialUnitId": ""
+      "admobInterstitialUnitId": "",
+      "eas": {
+        "projectId": "93cc993b-c060-47d7-826d-770768674821"
+      }
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 37,
+            "targetSdkVersion": 36
+          }
+        }
+      ],
       "@react-native-firebase/app",
       "@react-native-firebase/messaging"
     ]

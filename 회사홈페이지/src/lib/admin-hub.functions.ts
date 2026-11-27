@@ -210,14 +210,12 @@ export const hubTestAiKeyDeep = createServerFn({ method: "POST" })
     return runDeepAiKeyTest(data.groupId);
   });
 
-export const hubUpdateAiBudget = createServerFn({ method: "POST" })
+export const hubUpdateSharedAiWallet = createServerFn({ method: "POST" })
   .middleware([requireAdmin])
   .inputValidator((d: unknown) =>
     z
       .object({
-        groupId: z.enum(["service", "patrol", "studio"]),
         monthlyBudgetKrw: z.number().min(0).max(100000000),
-        estimatedSpentKrw: z.number().min(0).max(100000000),
         alertThresholdPercent: z.number().min(5).max(80),
       })
       .parse(d),
@@ -225,10 +223,72 @@ export const hubUpdateAiBudget = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { ensureLocalEnvLoaded } = await import("./server-env.server");
     await ensureLocalEnvLoaded();
-    const { updateAiKeyBudget } = await import("./ai-key-monitor.server");
-    return updateAiKeyBudget(data.groupId, {
+    const { updateSharedAiWallet } = await import("./ai-key-monitor.server");
+    return updateSharedAiWallet({
       monthlyBudgetKrw: data.monthlyBudgetKrw,
-      estimatedSpentKrw: data.estimatedSpentKrw,
       alertThresholdPercent: data.alertThresholdPercent,
     });
+  });
+
+export const hubUpdateAiKeySpent = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        groupId: z.enum(["service", "patrol", "studio"]),
+        estimatedSpentKrw: z.number().min(0).max(100000000),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data }) => {
+    const { ensureLocalEnvLoaded } = await import("./server-env.server");
+    await ensureLocalEnvLoaded();
+    const { updateAiKeySpent } = await import("./ai-key-monitor.server");
+    return updateAiKeySpent(data.groupId, data.estimatedSpentKrw);
+  });
+
+export const hubGetRecentAlerts = createServerFn({ method: "GET" })
+  .middleware([requireAdmin])
+  .handler(async () => {
+    const { ensureLocalEnvLoaded } = await import("./server-env.server");
+    await ensureLocalEnvLoaded();
+    const { listRecentAlerts } = await import("./alerts.server");
+    return listRecentAlerts();
+  });
+
+export const hubResolveAlert = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
+  .inputValidator((d: unknown) => z.object({ id: z.string().min(1) }).parse(d))
+  .handler(async ({ data }) => {
+    const { ensureLocalEnvLoaded } = await import("./server-env.server");
+    await ensureLocalEnvLoaded();
+    const { resolveRecordedAlert } = await import("./alerts.server");
+    return resolveRecordedAlert(data.id);
+  });
+
+export const hubGetLiveTelemetry = createServerFn({ method: "GET" })
+  .middleware([requireAdmin])
+  .handler(async () => {
+    const { ensureLocalEnvLoaded } = await import("./server-env.server");
+    await ensureLocalEnvLoaded();
+    const { readLiveTelemetry } = await import("./telemetry.server");
+    return readLiveTelemetry();
+  });
+
+export const hubGetGooglePlaySyncStatus = createServerFn({ method: "GET" })
+  .middleware([requireAdmin])
+  .handler(async () => {
+    const { ensureLocalEnvLoaded } = await import("./server-env.server");
+    await ensureLocalEnvLoaded();
+    const { getGooglePlaySyncStatus } = await import("./google-play-sync.server");
+    return getGooglePlaySyncStatus();
+  });
+
+export const hubSyncGooglePlay = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
+  .handler(async () => {
+    const { ensureLocalEnvLoaded } = await import("./server-env.server");
+    await ensureLocalEnvLoaded();
+    const { syncGooglePlayMetrics } = await import("./google-play-sync.server");
+    return syncGooglePlayMetrics();
   });

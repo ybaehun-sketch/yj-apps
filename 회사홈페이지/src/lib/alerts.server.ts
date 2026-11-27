@@ -16,16 +16,78 @@ export interface AlertChannelStatus {
 }
 
 export interface RecordedAlert extends UrgentAlertPayload {
+  id: string;
   receivedAt: string;
+  resolved: boolean;
 }
 
 const lastSentMap = new Map<string, number>();
-const recentAlerts: RecordedAlert[] = [];
-const MAX_RECENT_ALERTS = 30;
+let memoryAlerts: RecordedAlert[] = [];
+const MAX_RECENT_ALERTS = 50;
 const COOLDOWN_MS = 60 * 60 * 1000; // 같은 앱/제목 경보는 1시간 쿨타임
 
-export function listRecentAlerts(): RecordedAlert[] {
-  return [...recentAlerts];
+async function getAlertsFilePath(): Promise<string | null> {
+  if (typeof process === "undefined" || typeof process.cwd !== "function") return null;
+  try {
+    const path = await import("node:path");
+    return path.resolve(process.cwd(), ".urgent-alerts.local.json");
+  } catch {
+    return null;
+  }
+}
+
+async function readAlerts(): Promise<RecordedAlert[]> {
+  const filePath = await getAlertsFilePath();
+  if (filePath) {
+    try {
+      const fs = await import("node:fs");
+      if (fs.existsSync(filePath)) {
+        const raw = fs.readFileSync(filePath, "utf8");
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          memoryAlerts = parsed as RecordedAlert[];
+          return memoryAlerts;
+        }
+      }
+    } catch {
+      // 파일 읽기 실패 시 메모리 폴백
+    }
+  }
+  return memoryAlerts;
+}
+
+async function writeAlerts(alerts: RecordedAlert[]): Promise<void> {
+  memoryAlerts = alerts;
+  const filePath = await getAlertsFilePath();
+  if (filePath) {
+    try {
+      const fs = await import("node:fs");
+      fs.writeFileSync(filePath, JSON.stringify(alerts, null, 2), "utf8");
+    } catch {
+      // 읽기 전용 환경에서는 메모리만 유지
+    }
+  }
+}
+
+export async function listRecentAlerts(): Promise<RecordedAlert[]> {
+  const list = await readAlerts();
+  return [...list];
+}
+
+export async function resolveRecordedAlert(id: string): Promise<boolean> {
+  const list = await readAlerts();
+  let updated = false;
+  const next = list.map((item) => {
+    if (item.id === id && !item.resolved) {
+      updated = true;
+      return { ...item, resolved: true };
+    }
+    return item;
+  });
+  if (updated) {
+    await writeAlerts(next);
+  }
+  return updated;
 }
 
 export function getAlertChannelStatus(): AlertChannelStatus {
@@ -50,10 +112,15 @@ export async function sendUrgentAlert(
   skippedCooldown?: boolean;
   notes: string[];
 }> {
-  recentAlerts.unshift({ ...payload, receivedAt: new Date().toISOString() });
-  if (recentAlerts.length > MAX_RECENT_ALERTS) {
-    recentAlerts.length = MAX_RECENT_ALERTS;
-  }
+  const currentAlerts = await readAlerts();
+  const nextAlert: RecordedAlert = {
+    ...payload,
+    id: `live_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    receivedAt: new Date().toISOString(),
+    resolved: false,
+  };
+  const updatedAlerts = [nextAlert, ...currentAlerts].slice(0, MAX_RECENT_ALERTS);
+  await writeAlerts(updatedAlerts);
 
   const dedupeKey = `${payload.appKey}:${payload.title}`;
   const now = Date.now();

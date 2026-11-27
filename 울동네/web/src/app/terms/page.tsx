@@ -3,7 +3,7 @@ import Link from 'next/link';
 
 export const metadata: Metadata = {
   title: '이용약관 | 울동네',
-  description: '울동네 생활·복지·지원금 큐레이션 웹 매거진 이용약관 및 면책 안내입니다.'
+  description: '울동네 생활·복지·지원금 큐레이션 웹 매거진 및 모바일 앱 이용약관 및 면책 안내입니다.'
 };
 
 export default function TermsPage() {
@@ -16,7 +16,7 @@ export default function TermsPage() {
       </div>
 
       <h1 className="text-2xl font-bold tracking-tight text-[#202124] sm:text-3xl">이용약관</h1>
-      <p className="mt-2 text-sm text-[#5f6368]">시행일: 2026년 11월 26일</p>
+      <p className="mt-2 text-sm text-[#5f6368]">시행일: 2026년 11월 27일</p>
 
       <div className="mt-8 space-y-6 text-[15px] leading-relaxed text-[#3c4043]">
         <section>
@@ -25,7 +25,8 @@ export default function TermsPage() {
           </h2>
           <p className="mt-3">
             본 약관은 YJ 스튜디오(이하 &ldquo;운영자&rdquo;)가 제공하는{' '}
-            <strong>울동네(wooldongne.com)</strong> 웹 매거진 서비스의 이용 조건과 책임 범위를
+            <strong>울동네(wooldongne.com)</strong> 웹 매거진 및{' '}
+            <strong>울동네 - 우리동네 복지알림</strong> 모바일 앱 서비스의 이용 조건과 책임 범위를
             규정합니다. 울동네는 중앙 정부 및 지방자치단체, 공공기관이 공개한 복지·지원금·생활혜택
             공고를 주민이 이해하기 쉽게 요약·정리해 제공하는 민간 정보 큐레이션 서비스입니다.
           </p>
@@ -47,8 +48,8 @@ export default function TermsPage() {
             </li>
             <li>
               운영자는 정확한 정보 전달을 위해 노력하나, 요약 과정에서 발생할 수 있는 시차나 해석
-              차이로 인한 직·간접적 손해에 대해서는 법령상 허용되는 범위 내에서 책임을 부담하지
-              않습니다.
+              차이, 통신 환경 및 기기 설정으로 인한 푸시 알림 지연·미수신으로 발생하는 직·간접적
+              손해에 대해서는 법령상 허용되는 범위 내에서 책임을 부담하지 않습니다.
             </li>
           </ul>
         </section>

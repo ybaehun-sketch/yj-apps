@@ -2,25 +2,45 @@ User-agent: Googlebot
 Allow: /
 Disallow: /admin
 Disallow: /auth
+Disallow: /new
+Disallow: /readings
+Disallow: /reading/
+Disallow: /membership
 
 User-agent: Bingbot
 Allow: /
 Disallow: /admin
 Disallow: /auth
+Disallow: /new
+Disallow: /readings
+Disallow: /reading/
+Disallow: /membership
 
 User-agent: Twitterbot
 Allow: /
 Disallow: /admin
 Disallow: /auth
+Disallow: /new
+Disallow: /readings
+Disallow: /reading/
+Disallow: /membership
 
 User-agent: facebookexternalhit
 Allow: /
 Disallow: /admin
 Disallow: /auth
+Disallow: /new
+Disallow: /readings
+Disallow: /reading/
+Disallow: /membership
 
 User-agent: *
 Allow: /
 Disallow: /admin
 Disallow: /auth
+Disallow: /new
+Disallow: /readings
+Disallow: /reading/
+Disallow: /membership
 
 Sitemap: https://teacuptarot.com/sitemap.xml

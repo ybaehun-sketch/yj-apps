@@ -145,6 +145,18 @@ function Inbox() {
     void syncPushIfEnabled(prefs.alarm);
   }, [prefs.alarm]);
 
+  const [majorUpdate, setMajorUpdate] = useState<{
+    id: string;
+    title: string;
+    message: string;
+    actionLabel?: string;
+    actionUrl?: string;
+  } | null>(null);
+  const dismissMajorUpdate = (id: string) => {
+    setMajorUpdate(null);
+    try { localStorage.setItem("jungbi.seenMajorUpdateId", id); } catch { /* ignore */ }
+  };
+
   const [storeUpdate, setStoreUpdate] = useState<{ version: string; url: string } | null>(null);
   const dismissStoreUpdate = (version: string) => {
     setStoreUpdate(null);
@@ -155,7 +167,24 @@ function Inbox() {
       try {
         const res = await fetch("/api/warmup", { cache: "no-store" });
         if (!res.ok) return;
-        const data = (await res.json()) as { storeVersion?: string; storeUrl?: string };
+        const data = (await res.json()) as {
+          storeVersion?: string;
+          storeUrl?: string;
+          majorUpdate?: { id?: string; title?: string; message?: string; actionLabel?: string; actionUrl?: string } | null;
+        };
+        const mu = data.majorUpdate;
+        if (mu?.id?.trim() && mu.title?.trim() && mu.message?.trim()) {
+          const id = mu.id.trim();
+          if (localStorage.getItem("jungbi.seenMajorUpdateId") !== id) {
+            setMajorUpdate({
+              id,
+              title: mu.title.trim(),
+              message: mu.message.trim(),
+              actionLabel: mu.actionLabel?.trim() || undefined,
+              actionUrl: mu.actionUrl?.trim() || undefined,
+            });
+          }
+        }
         const latest = data.storeVersion?.trim();
         const url = data.storeUrl?.trim();
         if (!latest || !url) return;
@@ -1196,13 +1225,71 @@ function Inbox() {
         </div>
       )}
 
+      {/* 주요 업데이트 안내 팝업 (대표님이 필요할 때만 서버에서 켜는 모달) */}
+      {majorUpdate && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
+          onClick={() => dismissMajorUpdate(majorUpdate.id)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl border border-border bg-card p-5 text-foreground shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+                  <MaterialSymbol name="campaign" size={20} weight={350} />
+                </span>
+                <h2 className="text-base font-bold leading-snug">{majorUpdate.title}</h2>
+              </div>
+              <IconButton ariaLabel={tr("닫기")} onClick={() => dismissMajorUpdate(majorUpdate.id)} className="h-8 w-8 min-h-[32px] min-w-[32px] -mr-1 -mt-1">
+                <MaterialSymbol name="close" size={18} weight={350} />
+              </IconButton>
+            </div>
+            <p className="mb-5 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{majorUpdate.message}</p>
+            <div className="flex items-center justify-end gap-2">
+              {majorUpdate.actionUrl ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => dismissMajorUpdate(majorUpdate.id)}
+                    className="rounded-full px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
+                  >
+                    {tr("닫기")}
+                  </button>
+                  <a
+                    href={majorUpdate.actionUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => dismissMajorUpdate(majorUpdate.id)}
+                    className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white shadow-xs hover:opacity-90"
+                  >
+                    {majorUpdate.actionLabel || tr("업데이트")}
+                  </a>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => dismissMajorUpdate(majorUpdate.id)}
+                  className="w-full rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:opacity-90"
+                >
+                  {majorUpdate.actionLabel || tr("확인")}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 하단 입력창 및 플로팅 알약 Dock */}
       <div className="sticky bottom-0 z-20 bg-gradient-to-t from-background via-background/95 to-transparent pt-1 pb-[max(0.6rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto max-w-2xl px-3">
           {err && <p className="mb-1.5 px-3 text-xs text-destructive">{err}</p>}
 
           {/* 스토어 새 버전 업데이트 안내 배너 */}
-          {storeUpdate && (
+          {!majorUpdate && storeUpdate && (
             <div className="mb-2 flex items-center gap-2 rounded-2xl border border-primary/30 bg-card px-3.5 py-2.5 text-xs text-foreground shadow-xs">
               <div className="min-w-0 flex-1">
                 <p className="inline-flex items-center gap-1 font-semibold">

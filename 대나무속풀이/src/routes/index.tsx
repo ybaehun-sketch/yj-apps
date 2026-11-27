@@ -1,4 +1,3 @@
-import { LegalFooter } from "@/components/legal-footer";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
@@ -29,6 +28,7 @@ export const Route = createFileRoute("/")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://bambooforest.app/" }],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(storiesQuery).catch(() => []),
   component: Index,
@@ -315,6 +315,9 @@ function Index() {
             >
               {cooldownLeft > 0 ? `🌫️ 연기가 가라앉는 중... ${cooldownLeft}초` : "🔥 대나무숲에 소리 지르고 태우기"}
             </Button>
+            <p className="text-center text-xs leading-relaxed text-muted-foreground">
+              ※ AI가 생성하는 가벼운 감정 해소용 답변이며 의학·심리·법률 상담을 대신하지 않습니다. 위기 시 109 · 1577-0199
+            </p>
           </section>
         )}
 
@@ -392,7 +395,6 @@ function Index() {
         <LatestStories />
         <HomeGuideFaq />
       </div>
-      <LegalFooter />
     </main>
     </>
   );

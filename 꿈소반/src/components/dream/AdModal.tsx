@@ -39,11 +39,11 @@ export function AdModal({
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
-        <DialogTitle className="text-center text-lg">📺 잠시 광고를 시청해 주세요</DialogTitle>
+        <DialogTitle className="text-center text-lg">🌙 꿈의 기운을 모으는 중이에요</DialogTitle>
         <DialogDescription className="text-center text-muted-foreground">{message}</DialogDescription>
-        <div className="relative mt-2 flex aspect-video items-center justify-center overflow-hidden rounded-xl border border-dashed border-border bg-muted">
-          <span className="text-xs tracking-widest text-muted-foreground">AD · 광고 영역</span>
-          <span className="absolute right-2 top-2 rounded-full bg-background/70 px-2 py-0.5 text-xs">{left}초</span>
+        <div className="relative mt-2 flex aspect-video flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border border-border/60 bg-background/40">
+          <span className="text-4xl">✨</span>
+          <span className="text-xs text-muted-foreground">잠시만 기다려 주세요 ({left}초)</span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-muted">
           <div
@@ -52,7 +52,7 @@ export function AdModal({
           />
         </div>
         <p className="text-center text-xs text-muted-foreground">
-          {left > 0 ? `${left}초 후 자동으로 잠금이 해제됩니다` : "잠금 해제 완료 ✨"}
+          {left > 0 ? `${left}초 후 자동으로 열립니다` : "준비 완료 ✨"}
         </p>
       </DialogContent>
     </Dialog>

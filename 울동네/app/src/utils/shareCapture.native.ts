@@ -9,7 +9,7 @@ export async function shareNativeCardImage(
   appDownloadUrl: string
 ): Promise<void> {
   if (cardRef.current) {
-    const uri = await captureRef(cardRef, {
+    const uri = await captureRef(cardRef as Parameters<typeof captureRef>[0], {
       format: 'png',
       quality: 0.95
     });

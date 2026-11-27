@@ -65,10 +65,28 @@ export const Route = createFileRoute("/privacy")({
           ),
         },
         { title: "제3자 제공", body: <p>이용자의 동의가 있거나 법령에 따른 요청이 있는 경우를 빼고는 정보를 다른 곳에 제공하지 않아요.</p> },
-        { title: "이용자의 권리", body: <p>이용자는 언제든 브라우저 저장소와 쿠키를 삭제하거나, 광고 맞춤 설정을 끌 수 있어요. 문의가 있으시면 아래 메일로 연락해 주세요.</p> },
+        {
+          title: "이용자의 권리",
+          body: (
+            <div className="space-y-1.5">
+              <p>이용자는 언제든 브라우저 저장소와 쿠키를 삭제하거나, 광고 맞춤 설정을 끌 수 있어요.</p>
+              <p>
+                Google의 맞춤형 광고를 끄려면{" "}
+                <a href="https://adssettings.google.com" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+                  Google 광고 설정
+                </a>
+                에서 변경할 수 있으며, Google의 쿠키 사용 방식은{" "}
+                <a href="https://policies.google.com/technologies/ads" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+                  Google 광고 정책 안내
+                </a>
+                에서 확인할 수 있어요. 문의가 있으시면 아래 메일로 연락해 주세요.
+              </p>
+            </div>
+          ),
+        },
         { title: "안전 조치", body: <p>모든 통신 구간은 암호화(HTTPS)하며, 무로그인 이용 횟수 검증 토큰은 서버 서명으로 안전하게 보호해요.</p> },
         { title: "만 14세 미만", body: <p>서비스는 만 14세 미만 아동을 대상으로 개인정보를 수집하지 않아요.</p> },
-        { title: "개인정보 보호 문의", body: <p>운영: 와이제이 스튜디오 · 문의: ybaehun@gmail.com</p> },
+        { title: "개인정보 보호 문의", body: <p>운영: 와이제이 스튜디오 · 문의: contact@yjstudio.app</p> },
       ]}
     />
   ),

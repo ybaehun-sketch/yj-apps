@@ -22,6 +22,7 @@ export const Route = createFileRoute("/_authenticated/new")({
       { name: "description", content: "상담사를 고르고 직감으로 3장의 카드를 뽑아보세요." },
       { property: "og:title", content: "새 상담 — 찻잔 타로" },
       { property: "og:description", content: "상담사를 고르고 직감으로 3장의 카드를 뽑아보세요." },
+      { name: "robots", content: "noindex" },
     ],
   }),
   component: NewReading,

@@ -3,11 +3,9 @@ import { sendUrgentAlert } from "./alerts.server";
 export type AiKeyGroupId = "service" | "patrol" | "studio";
 export type AiKeyStatus = "healthy" | "warning" | "error" | "unconfigured";
 
-export interface AiKeyBudgetState {
-  /** 이번 달 충전 금액 또는 월 상한 예산 (원) */
+export interface SharedWalletState {
+  /** 구글 AI 공통 충전 금액 또는 월 상한 예산 (원) */
   monthlyBudgetKrw: number;
-  /** 누적 예상 사용 금액 (원) */
-  estimatedSpentKrw: number;
   /** 잔액 경고 기준 (남은 비율 %, 기본 20) */
   alertThresholdPercent: number;
   /** 마지막 업데이트 시각 */
@@ -26,43 +24,38 @@ export interface AiKeyGroupSnapshot {
   statusMessage: string;
   latencyMs: number | null;
   checkedAt: string;
-  budget: AiKeyBudgetState;
-  remainingKrw: number;
-  remainingPercent: number;
-  budgetWarning: boolean;
+  /** 이 열쇠가 이번 달 사용한 예상 금액 (원) */
+  spentKrw: number;
+  /** 전체 AI 사용량 중 이 열쇠의 비중 (%) */
+  spentSharePercent: number;
 }
 
 export interface AiKeyMonitorOverview {
   groups: AiKeyGroupSnapshot[];
+  sharedWallet: SharedWalletState;
   totalBudgetKrw: number;
   totalSpentKrw: number;
   totalRemainingKrw: number;
   totalRemainingPercent: number;
+  budgetWarning: boolean;
   lastCheckedAt: string;
 }
 
 interface PersistedMonitorState {
-  budgets: Record<AiKeyGroupId, AiKeyBudgetState>;
+  sharedWallet: SharedWalletState;
+  spentByGroup: Record<AiKeyGroupId, number>;
 }
 
-const DEFAULT_BUDGETS: Record<AiKeyGroupId, AiKeyBudgetState> = {
-  service: {
-    monthlyBudgetKrw: 7000,
-    estimatedSpentKrw: 50,
+const DEFAULT_STATE: PersistedMonitorState = {
+  sharedWallet: {
+    monthlyBudgetKrw: 28000,
     alertThresholdPercent: 20,
     updatedAt: new Date().toISOString(),
   },
-  patrol: {
-    monthlyBudgetKrw: 18000,
-    estimatedSpentKrw: 2110,
-    alertThresholdPercent: 20,
-    updatedAt: new Date().toISOString(),
-  },
-  studio: {
-    monthlyBudgetKrw: 3000,
-    estimatedSpentKrw: 20,
-    alertThresholdPercent: 20,
-    updatedAt: new Date().toISOString(),
+  spentByGroup: {
+    service: 50,
+    patrol: 2110,
+    studio: 20,
   },
 };
 
@@ -85,12 +78,38 @@ async function readState(): Promise<PersistedMonitorState> {
       const fs = await import("node:fs");
       if (fs.existsSync(filePath)) {
         const raw = fs.readFileSync(filePath, "utf8");
-        const parsed = JSON.parse(raw) as Partial<PersistedMonitorState>;
+        const parsed = JSON.parse(raw) as Partial<PersistedMonitorState> & {
+          budgets?: Partial<Record<AiKeyGroupId, { monthlyBudgetKrw?: number; estimatedSpentKrw?: number; alertThresholdPercent?: number }>>;
+        };
+
+        // 기존 열쇠별 예산 파일이 남아 있으면 공동 지갑으로 자연스럽게 합산 이전
+        if (!parsed.sharedWallet && parsed.budgets) {
+          const sumBudget =
+            (parsed.budgets.service?.monthlyBudgetKrw ?? 7000) +
+            (parsed.budgets.patrol?.monthlyBudgetKrw ?? 18000) +
+            (parsed.budgets.studio?.monthlyBudgetKrw ?? 3000);
+          return {
+            sharedWallet: {
+              monthlyBudgetKrw: sumBudget,
+              alertThresholdPercent: parsed.budgets.service?.alertThresholdPercent ?? 20,
+              updatedAt: new Date().toISOString(),
+            },
+            spentByGroup: {
+              service: parsed.budgets.service?.estimatedSpentKrw ?? DEFAULT_STATE.spentByGroup.service,
+              patrol: parsed.budgets.patrol?.estimatedSpentKrw ?? DEFAULT_STATE.spentByGroup.patrol,
+              studio: parsed.budgets.studio?.estimatedSpentKrw ?? DEFAULT_STATE.spentByGroup.studio,
+            },
+          };
+        }
+
         return {
-          budgets: {
-            service: { ...DEFAULT_BUDGETS.service, ...parsed.budgets?.service },
-            patrol: { ...DEFAULT_BUDGETS.patrol, ...parsed.budgets?.patrol },
-            studio: { ...DEFAULT_BUDGETS.studio, ...parsed.budgets?.studio },
+          sharedWallet: {
+            ...DEFAULT_STATE.sharedWallet,
+            ...parsed.sharedWallet,
+          },
+          spentByGroup: {
+            ...DEFAULT_STATE.spentByGroup,
+            ...parsed.spentByGroup,
           },
         };
       }
@@ -100,11 +119,8 @@ async function readState(): Promise<PersistedMonitorState> {
   }
   if (!memoryState) {
     memoryState = {
-      budgets: {
-        service: { ...DEFAULT_BUDGETS.service },
-        patrol: { ...DEFAULT_BUDGETS.patrol },
-        studio: { ...DEFAULT_BUDGETS.studio },
-      },
+      sharedWallet: { ...DEFAULT_STATE.sharedWallet },
+      spentByGroup: { ...DEFAULT_STATE.spentByGroup },
     };
   }
   return memoryState;
@@ -207,17 +223,14 @@ async function pingGeminiKeyFree(apiKey: string): Promise<{
 export async function checkAllAiKeys(): Promise<AiKeyMonitorOverview> {
   const state = await readState();
   const nowIso = new Date().toISOString();
+  const totalSpentKrw = Object.values(state.spentByGroup).reduce((acc, v) => acc + Math.max(0, v), 0);
 
   const groups = await Promise.all(
     GROUP_SPECS.map(async (spec): Promise<AiKeyGroupSnapshot> => {
       const apiKey = spec.resolveKey();
-      const budget = state.budgets[spec.id];
-      const remainingKrw = Math.max(0, budget.monthlyBudgetKrw - budget.estimatedSpentKrw);
-      const remainingPercent =
-        budget.monthlyBudgetKrw > 0
-          ? Math.max(0, Math.min(100, Math.round((remainingKrw / budget.monthlyBudgetKrw) * 100)))
-          : 0;
-      const budgetWarning = remainingPercent <= budget.alertThresholdPercent;
+      const spentKrw = Math.max(0, state.spentByGroup[spec.id] ?? 0);
+      const spentSharePercent =
+        totalSpentKrw > 0 ? Math.max(0, Math.min(100, Math.round((spentKrw / totalSpentKrw) * 100))) : 0;
 
       if (!apiKey) {
         return {
@@ -232,10 +245,8 @@ export async function checkAllAiKeys(): Promise<AiKeyMonitorOverview> {
           statusMessage: "아직 열쇠가 연결되지 않았습니다.",
           latencyMs: null,
           checkedAt: nowIso,
-          budget,
-          remainingKrw,
-          remainingPercent,
-          budgetWarning,
+          spentKrw,
+          spentSharePercent,
         };
       }
 
@@ -251,16 +262,6 @@ export async function checkAllAiKeys(): Promise<AiKeyMonitorOverview> {
         });
       }
 
-      if (budgetWarning && budget.monthlyBudgetKrw > 0) {
-        await sendUrgentAlert({
-          appKey: `ai_budget_${spec.id}`,
-          appName: spec.label,
-          title: "AI 예상 잔액 부족 경고",
-          message: `남은 예상 잔액: ${remainingKrw.toLocaleString()}원 (${remainingPercent}%)\n충전 예산: ${budget.monthlyBudgetKrw.toLocaleString()}원`,
-          severity: remainingPercent <= 10 ? "critical" : "warning",
-        });
-      }
-
       return {
         id: spec.id,
         label: spec.label,
@@ -273,26 +274,37 @@ export async function checkAllAiKeys(): Promise<AiKeyMonitorOverview> {
         statusMessage: ping.message,
         latencyMs: ping.latencyMs,
         checkedAt: nowIso,
-        budget,
-        remainingKrw,
-        remainingPercent,
-        budgetWarning,
+        spentKrw,
+        spentSharePercent,
       };
     }),
   );
 
-  const totalBudgetKrw = groups.reduce((acc, g) => acc + g.budget.monthlyBudgetKrw, 0);
-  const totalSpentKrw = groups.reduce((acc, g) => acc + g.budget.estimatedSpentKrw, 0);
+  const totalBudgetKrw = state.sharedWallet.monthlyBudgetKrw;
   const totalRemainingKrw = Math.max(0, totalBudgetKrw - totalSpentKrw);
   const totalRemainingPercent =
     totalBudgetKrw > 0 ? Math.max(0, Math.min(100, Math.round((totalRemainingKrw / totalBudgetKrw) * 100))) : 0;
+  const budgetWarning =
+    totalBudgetKrw > 0 && totalRemainingPercent <= state.sharedWallet.alertThresholdPercent;
+
+  if (budgetWarning) {
+    await sendUrgentAlert({
+      appKey: "ai_budget_shared",
+      appName: "구글 AI 공동 지갑",
+      title: "AI 공동 예상 잔액 부족 경고",
+      message: `남은 예상 잔액: ${totalRemainingKrw.toLocaleString()}원 (${totalRemainingPercent}%)\n공동 충전 예산: ${totalBudgetKrw.toLocaleString()}원`,
+      severity: totalRemainingPercent <= 10 ? "critical" : "warning",
+    });
+  }
 
   return {
     groups,
+    sharedWallet: state.sharedWallet,
     totalBudgetKrw,
     totalSpentKrw,
     totalRemainingKrw,
     totalRemainingPercent,
+    budgetWarning,
     lastCheckedAt: nowIso,
   };
 }
@@ -350,29 +362,32 @@ export async function runDeepAiKeyTest(groupId: AiKeyGroupId): Promise<{
   }
 }
 
-export async function updateAiKeyBudget(
-  groupId: AiKeyGroupId,
-  patch: { monthlyBudgetKrw: number; estimatedSpentKrw: number; alertThresholdPercent: number },
-): Promise<AiKeyBudgetState> {
+export async function updateSharedAiWallet(patch: {
+  monthlyBudgetKrw: number;
+  alertThresholdPercent: number;
+}): Promise<SharedWalletState> {
   const state = await readState();
-  const next: AiKeyBudgetState = {
+  const next: SharedWalletState = {
     monthlyBudgetKrw: Math.max(0, Math.round(patch.monthlyBudgetKrw)),
-    estimatedSpentKrw: Math.max(0, Math.round(patch.estimatedSpentKrw)),
     alertThresholdPercent: Math.max(5, Math.min(80, Math.round(patch.alertThresholdPercent))),
     updatedAt: new Date().toISOString(),
   };
-  state.budgets[groupId] = next;
+  state.sharedWallet = next;
   await writeState(state);
   return next;
+}
+
+export async function updateAiKeySpent(groupId: AiKeyGroupId, estimatedSpentKrw: number): Promise<number> {
+  const state = await readState();
+  const nextSpent = Math.max(0, Math.round(estimatedSpentKrw));
+  state.spentByGroup[groupId] = nextSpent;
+  await writeState(state);
+  return nextSpent;
 }
 
 export async function recordEstimatedAiSpend(groupId: AiKeyGroupId, amountKrw: number): Promise<void> {
   if (amountKrw <= 0) return;
   const state = await readState();
-  state.budgets[groupId] = {
-    ...state.budgets[groupId],
-    estimatedSpentKrw: state.budgets[groupId].estimatedSpentKrw + Math.round(amountKrw),
-    updatedAt: new Date().toISOString(),
-  };
+  state.spentByGroup[groupId] = (state.spentByGroup[groupId] ?? 0) + Math.round(amountKrw);
   await writeState(state);
 }

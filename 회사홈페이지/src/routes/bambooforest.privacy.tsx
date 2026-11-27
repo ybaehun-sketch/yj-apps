@@ -26,7 +26,7 @@ function BambooForestPrivacyPage() {
         <a className="text-primary underline" href="https://bambooforest.app" target="_blank" rel="noopener noreferrer">
           bambooforest.app
         </a>
-        ) 서비스의 개인정보 처리 기준을 안내합니다.
+        ) 서비스의 개인정보 처리 기준을 안내합니다. (시행일: 2026년 11월)
       </p>
 
       <section>
@@ -49,9 +49,17 @@ function BambooForestPrivacyPage() {
 
       <section>
         <h2>4. 광고 및 쿠키</h2>
+        <p>구글 애드센스 등 광고 사업자가 쿠키를 사용해 광고를 보여줄 수 있습니다.</p>
         <p>
-          구글 애드센스 등 광고 사업자가 쿠키를 사용해 광고를 보여줄 수 있습니다.
-          브라우저 설정이나 구글 광고 설정에서 맞춤 광고를 끌 수 있습니다.
+          Google의 맞춤형 광고를 원치 않으시면{" "}
+          <a className="text-primary underline" href="https://adssettings.google.com" target="_blank" rel="noopener noreferrer">
+            Google 광고 설정
+          </a>
+          에서 해제할 수 있으며, 쿠키 사용 정책은{" "}
+          <a className="text-primary underline" href="https://policies.google.com/technologies/ads" target="_blank" rel="noopener noreferrer">
+            Google 광고 정책 안내
+          </a>
+          에서 확인할 수 있습니다.
         </p>
       </section>
 
@@ -64,10 +72,6 @@ function BambooForestPrivacyPage() {
         <h2>6. 운영 및 문의</h2>
         <p>
           서비스 운영: 와이제이 스튜디오 (YJ Studio) · 문의:{" "}
-          <a className="text-primary underline" href="mailto:ceo@yjstudio.app">
-            ceo@yjstudio.app
-          </a>{" "}
-          /{" "}
           <a className="text-primary underline" href="mailto:contact@yjstudio.app">
             contact@yjstudio.app
           </a>

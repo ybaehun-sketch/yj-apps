@@ -12,6 +12,7 @@ export const Route = createFileRoute("/story/")({
       { property: "og:title", content: T }, { property: "og:description", content: D },
       { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
     ],
+    links: [{ rel: "canonical", href: "https://bambooforest.app/story" }],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(q),
   component: StoryList,
@@ -20,12 +21,16 @@ export const Route = createFileRoute("/story/")({
 function StoryList() {
   const { data } = useSuspenseQuery(q);
   return (
-    <main className="mx-auto max-w-2xl px-5 py-10 pb-32">
+    <main className="mx-auto max-w-2xl px-5 py-10 pb-12">
       <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">← 대나무숲에 외치러 가기</Link>
       <h1 className="mt-4 font-serif text-3xl font-bold">🎋 속풀이 칼럼</h1>
       <p className="mt-2 text-base text-muted-foreground">{D}</p>
       <ul className="mt-8 space-y-3">
-        {data.length === 0 && <li className="text-muted-foreground">첫 글을 준비하는 중이에요.</li>}
+        {data.length === 0 && (
+          <li className="rounded-2xl border border-border bg-card/70 p-6 text-sm text-muted-foreground">
+            아직 등록된 칼럼이 없어요. <Link to="/" className="font-semibold text-primary underline underline-offset-4">대나무숲 홈</Link>에서 답답한 마음을 바로 털어놓아 보세요.
+          </li>
+        )}
         {data.map((g) => (
           <li key={g.slug}>
             <Link to="/story/$slug" params={{ slug: g.slug }} className="block rounded-2xl border border-border bg-card/70 p-5 transition hover:border-primary">

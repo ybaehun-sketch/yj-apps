@@ -4,7 +4,7 @@ export const BUSINESS = {
   ceo: "KETSIRI IRATDA",
   regNo: "678-58-00895",
   address: "강원특별자치도 홍천군 홍천읍 희망로13길 13-16",
-  email: "ybaehun@gmail.com",
+  email: "contact@yjstudio.app",
   phone: "010-8373-1055",
   privacyOfficer: "유배훈",
   mailOrderNo: "신고 준비 중",

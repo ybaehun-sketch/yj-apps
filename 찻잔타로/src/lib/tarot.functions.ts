@@ -1273,3 +1273,25 @@ ${facts ? `사용자가 앞서 이미 말한 사실:\n${facts}\n` : ""}${advised
     const nextState: GuestTurnState = { ...state, t: userTurns };
     return { reply, turnToken: await signGuestToken(nextState) };
   });
+
+export const makeGuestPrescription = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    z.object({
+      turnToken: z.string(),
+      persona: z.enum(["sister", "witch", "fact"]),
+      concern: z.string().min(1).max(1000),
+      messages: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })).max(60),
+    }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const state = await verifyGuestToken<GuestTurnState>(data.turnToken);
+    if (!state) throw new Error("상담 정보를 확인할 수 없어요.");
+    const transcript = data.messages.slice(-40).map((m) => `${m.role === "user" ? "나" : "상담사"}: ${m.content}`).join("\n");
+    const p = PERSONAS[data.persona as PersonaId] ?? PERSONAS.sister;
+    const text = await ask(
+      `너는 ${p.name}. 아래 타로 상담을 마무리하며 인스타 스토리에 올릴 '마음 처방전' 한 줄을 써. 말투는 ${p.title}답게. 25자 이내의 감성적인 한 문장만, 따옴표·이모지·해시태그 없이 출력해.`,
+      [{ role: "user", content: `고민: ${data.concern}\n\n대화:\n${transcript}` }],
+    );
+    const line = (text.split("\n")[0] ?? "").replace(/^["'“”]+|["'“”]+$/g, "").trim();
+    return { prescription: line };
+  });

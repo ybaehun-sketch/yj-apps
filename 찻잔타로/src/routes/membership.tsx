@@ -17,6 +17,7 @@ export const Route = createFileRoute("/membership")({
       { property: "og:description", content: "매일 찻잎 1개, 티룸 멤버십과 찻잎 충전." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "robots", content: "noindex" },
     ],
   }),
   component: MembershipPage,

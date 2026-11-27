@@ -19,6 +19,8 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
 import { AccountMenu } from "@/components/AccountMenu";
+import { LegalLinks } from "@/components/LegalPage";
+import { BUSINESS } from "@/lib/business";
 import { AD_ONLY_MODE } from "@/lib/access";
 
 function NotFoundComponent() {
@@ -105,7 +107,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
-const ADSENSE_BOOT_SCRIPT = `if(!/[?&]app=1/.test(location.search)&&!window.ReactNativeWebView){var s=document.createElement("script");s.async=true;s.src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1356528417680958";s.crossOrigin="anonymous";document.head.appendChild(s);}`;
+const ADSENSE_BOOT_SCRIPT = `if(!/[?&]app=1/.test(location.search)&&!window.ReactNativeWebView&&!/^\\/(auth|admin|terms|privacy|about|contact|membership|new|readings|reading)(\\/|$)/.test(location.pathname)){var s=document.createElement("script");s.async=true;s.src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1356528417680958";s.crossOrigin="anonymous";document.head.appendChild(s);}`;
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
@@ -182,6 +184,9 @@ function Header() {
       </div>
       <nav className="flex shrink-0 items-center gap-2 whitespace-nowrap text-[14px] font-medium text-foreground/80 sm:gap-4 sm:text-[15px]">
         <SoundToggle />
+        <Link to="/about" className="hover:text-foreground">
+          소개
+        </Link>
         <Link to="/guide" className="hover:text-foreground">
           타로 이야기
         </Link>
@@ -204,6 +209,26 @@ function Header() {
   );
 }
 
+function Footer() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  if (pathname.startsWith("/reading/") || pathname.startsWith("/admin") || pathname === "/auth") return null;
+  return (
+    <footer className="mx-auto mt-6 max-w-3xl border-t border-border/60 px-5 pb-12 pt-5 text-[11px] leading-relaxed text-muted-foreground">
+      <LegalLinks />
+      <div className="mt-3 space-y-0.5">
+        <p>
+          {BUSINESS.name} · 문의{" "}
+          <a href={`mailto:${BUSINESS.email}`} className="underline-offset-2 hover:underline">
+            {BUSINESS.email}
+          </a>
+        </p>
+        <p>본 서비스의 AI 타로 해석은 재미와 성찰을 위한 참고용이며 의학·법률·투자 조언이 아닙니다.</p>
+        <p className="pt-1">© 2026 {BUSINESS.name}. All rights reserved.</p>
+      </div>
+    </footer>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
@@ -221,6 +246,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <Header />
       <Outlet />
+      <Footer />
       <Toaster />
     </QueryClientProvider>
   );

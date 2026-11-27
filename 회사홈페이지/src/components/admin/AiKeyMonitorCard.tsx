@@ -15,13 +15,13 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { hubGetAiKeyMonitor, hubTestAiKeyDeep, hubUpdateAiBudget } from "@/lib/admin-hub.functions";
+import { hubGetAiKeyMonitor, hubTestAiKeyDeep, hubUpdateAiKeySpent, hubUpdateSharedAiWallet } from "@/lib/admin-hub.functions";
 import type { AiKeyGroupId, AiKeyGroupSnapshot, AiKeyStatus } from "@/lib/ai-key-monitor.server";
 
 function KeyStatusBadge({ status }: { status: AiKeyStatus }) {
   if (status === "healthy") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
+      <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
         <CheckCircle2 className="h-3.5 w-3.5" />
         정상 작동
       </span>
@@ -29,7 +29,7 @@ function KeyStatusBadge({ status }: { status: AiKeyStatus }) {
   }
   if (status === "warning") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
+      <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
         <AlertTriangle className="h-3.5 w-3.5" />
         한도 주의
       </span>
@@ -37,14 +37,14 @@ function KeyStatusBadge({ status }: { status: AiKeyStatus }) {
   }
   if (status === "error") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-red-200">
+      <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-red-200">
         <XCircle className="h-3.5 w-3.5" />
         연결 끊김
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+    <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
       미연결
     </span>
   );
@@ -53,16 +53,21 @@ function KeyStatusBadge({ status }: { status: AiKeyStatus }) {
 export function AiKeyMonitorCard() {
   const getMonitorFn = useServerFn(hubGetAiKeyMonitor);
   const deepTestFn = useServerFn(hubTestAiKeyDeep);
-  const updateBudgetFn = useServerFn(hubUpdateAiBudget);
+  const updateWalletFn = useServerFn(hubUpdateSharedAiWallet);
+  const updateSpentFn = useServerFn(hubUpdateAiKeySpent);
   const qc = useQueryClient();
 
   const [intervalMinutes, setIntervalMinutes] = useState<number>(5);
   const [testingGroupId, setTestingGroupId] = useState<AiKeyGroupId | null>(null);
-  const [editingGroup, setEditingGroup] = useState<AiKeyGroupSnapshot | null>(null);
+
+  const [editingWallet, setEditingWallet] = useState(false);
   const [budgetInput, setBudgetInput] = useState("");
-  const [spentInput, setSpentInput] = useState("");
   const [thresholdInput, setThresholdInput] = useState("20");
-  const [savingBudget, setSavingBudget] = useState(false);
+  const [savingWallet, setSavingWallet] = useState(false);
+
+  const [editingSpentGroup, setEditingSpentGroup] = useState<AiKeyGroupSnapshot | null>(null);
+  const [spentInput, setSpentInput] = useState("");
+  const [savingSpent, setSavingSpent] = useState(false);
 
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["studio-ai-key-monitor"],
@@ -93,33 +98,55 @@ export function AiKeyMonitorCard() {
     }
   };
 
-  const openBudgetEditor = (group: AiKeyGroupSnapshot) => {
-    setEditingGroup(group);
-    setBudgetInput(String(group.budget.monthlyBudgetKrw));
-    setSpentInput(String(group.budget.estimatedSpentKrw));
-    setThresholdInput(String(group.budget.alertThresholdPercent));
+  const openWalletEditor = () => {
+    setBudgetInput(String(data?.totalBudgetKrw ?? 28000));
+    setThresholdInput(String(data?.sharedWallet?.alertThresholdPercent ?? 20));
+    setEditingWallet(true);
   };
 
-  const handleSaveBudget = async (e: React.FormEvent) => {
+  const handleSaveWallet = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingGroup) return;
-    setSavingBudget(true);
+    setSavingWallet(true);
     try {
-      await updateBudgetFn({
+      await updateWalletFn({
         data: {
-          groupId: editingGroup.id,
           monthlyBudgetKrw: Number(budgetInput) || 0,
-          estimatedSpentKrw: Number(spentInput) || 0,
           alertThresholdPercent: Number(thresholdInput) || 20,
         },
       });
-      toast.success(`[${editingGroup.label}] 충전 예산과 잔액 기준을 저장했습니다.`);
-      setEditingGroup(null);
+      toast.success("구글 AI 공동 충전금과 알림 기준을 저장했습니다.");
+      setEditingWallet(false);
       await qc.invalidateQueries({ queryKey: ["studio-ai-key-monitor"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "저장 중 오류가 발생했습니다.");
     } finally {
-      setSavingBudget(false);
+      setSavingWallet(false);
+    }
+  };
+
+  const openSpentEditor = (group: AiKeyGroupSnapshot) => {
+    setEditingSpentGroup(group);
+    setSpentInput(String(group.spentKrw));
+  };
+
+  const handleSaveSpent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSpentGroup) return;
+    setSavingSpent(true);
+    try {
+      await updateSpentFn({
+        data: {
+          groupId: editingSpentGroup.id,
+          estimatedSpentKrw: Number(spentInput) || 0,
+        },
+      });
+      toast.success(`[${editingSpentGroup.label}] 이번 달 사용 추정치를 저장했습니다.`);
+      setEditingSpentGroup(null);
+      await qc.invalidateQueries({ queryKey: ["studio-ai-key-monitor"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "저장 중 오류가 발생했습니다.");
+    } finally {
+      setSavingSpent(false);
     }
   };
 
@@ -132,7 +159,7 @@ export function AiKeyMonitorCard() {
     : "-";
 
   const totalPercent = data?.totalRemainingPercent ?? 0;
-  const totalLow = totalPercent <= 20 && (data?.totalBudgetKrw ?? 0) > 0;
+  const totalLow = Boolean(data?.budgetWarning);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5">
@@ -182,23 +209,35 @@ export function AiKeyMonitorCard() {
         </div>
       </div>
 
-      {/* 전체 합산 예상 잔액 게이지 */}
+      {/* 공동 지갑 예상 잔액 게이지 */}
       <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Wallet className={`h-4 w-4 ${totalLow ? "text-red-600" : "text-blue-600"}`} />
-            <span className="text-xs font-semibold text-slate-800">전체 AI 충전 예산 대비 예상 잔액</span>
+            <span className="text-xs font-semibold text-slate-800">구글 AI 공동 충전금 & 남은 예상 잔액</span>
             {totalLow && (
               <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-red-200">
                 잔액 부족 주의
               </span>
             )}
           </div>
-          <div className="text-sm font-bold text-slate-900">
-            {(data?.totalRemainingKrw ?? 0).toLocaleString()}원 남음{" "}
-            <span className="text-xs font-normal text-slate-500">
-              / 총 예산 {(data?.totalBudgetKrw ?? 0).toLocaleString()}원 ({totalPercent}%)
-            </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="text-sm font-bold text-slate-900">
+              {(data?.totalRemainingKrw ?? 0).toLocaleString()}원 남음{" "}
+              <span className="text-xs font-normal text-slate-500">
+                / 공동 충전 {(data?.totalBudgetKrw ?? 0).toLocaleString()}원 ({totalPercent}%)
+              </span>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={openWalletEditor}
+              className="h-7 gap-1 bg-white text-[11px]"
+            >
+              <SlidersHorizontal className="h-3 w-3" />
+              충전금 수정
+            </Button>
           </div>
         </div>
         <div className="mt-2.5 h-2.5 w-full overflow-hidden rounded-full bg-slate-200">
@@ -209,8 +248,12 @@ export function AiKeyMonitorCard() {
             style={{ width: `${totalPercent}%` }}
           />
         </div>
-        <p className="mt-2 text-[11px] text-slate-500">
-          ※ 구글은 열쇠별 실시간 잔액 조회를 공식 지원하지 않아, 입력하신 충전 금액에서 사용 추정치를 차감해 보여드립니다. 아래 각 카드에서 언제든 실제 잔액에 맞게 보정하실 수 있습니다.
+        <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+          <span>이번 달 전체 사용 합계 {(data?.totalSpentKrw ?? 0).toLocaleString()}원</span>
+          <span>긴급 알림 기준: 잔액 {data?.sharedWallet?.alertThresholdPercent ?? 20}% 이하</span>
+        </div>
+        <p className="mt-1.5 text-[11px] text-slate-500">
+          ※ 3개 열쇠가 하나의 구글 결제 지갑(공동 충전금)을 함께 사용합니다. 아래 카드에서는 각 열쇠별 이번 달 사용 추정치를 보여줍니다.
         </p>
       </div>
 
@@ -220,21 +263,20 @@ export function AiKeyMonitorCard() {
       ) : (
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           {(data?.groups ?? []).map((group) => {
-            const isLow = group.budgetWarning && group.budget.monthlyBudgetKrw > 0;
             return (
               <div
                 key={group.id}
                 className={`flex flex-col justify-between rounded-xl border p-4 transition-colors ${
                   group.status === "error"
                     ? "border-red-200 bg-red-50/20"
-                    : group.status === "warning" || isLow
+                    : group.status === "warning"
                       ? "border-amber-200 bg-amber-50/20"
                       : "border-slate-200 bg-white"
                 }`}
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
-                    <div>
+                    <div className="min-w-0">
                       <h4 className="text-sm font-bold text-slate-900">{group.label}</h4>
                       <p className="mt-0.5 text-[11px] text-slate-500">{group.description}</p>
                     </div>
@@ -270,52 +312,43 @@ export function AiKeyMonitorCard() {
                     <p className="pt-0.5 text-[11px] text-slate-500">{group.statusMessage}</p>
                   </div>
 
-                  {/* 개별 예상 잔액 게이지 */}
-                  <div className="mt-3">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-600">예상 잔액</span>
-                      <span className={`font-semibold ${isLow ? "text-red-600" : "text-slate-900"}`}>
-                        {group.remainingKrw.toLocaleString()}원 ({group.remainingPercent}%)
+                  {/* 열쇠별 이번 달 예상 사용량 */}
+                  <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2">
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="whitespace-nowrap text-slate-600">이번 달 예상 사용</span>
+                      <span className="whitespace-nowrap font-semibold text-slate-900">
+                        {group.spentKrw.toLocaleString()}원{" "}
+                        <span className="text-[11px] font-normal text-slate-500">({group.spentSharePercent}%)</span>
                       </span>
-                    </div>
-                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                      <div
-                        className={`h-full rounded-full ${
-                          isLow ? "bg-red-500" : group.remainingPercent <= 40 ? "bg-amber-500" : "bg-blue-600"
-                        }`}
-                        style={{ width: `${group.remainingPercent}%` }}
-                      />
-                    </div>
-                    <div className="mt-1 flex justify-between text-[11px] text-slate-400">
-                      <span>사용 {group.budget.estimatedSpentKrw.toLocaleString()}원</span>
-                      <span>알림 기준 {group.budget.alertThresholdPercent}% 이하</span>
                     </div>
                   </div>
                 </div>
 
                 {/* 하단 액션 버튼 */}
-                <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3">
+                <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     disabled={!group.configured || testingGroupId === group.id}
                     onClick={() => handleDeepTest(group)}
-                    className="h-7 flex-1 gap-1 text-[11px]"
+                    className="h-7 min-w-0 flex-1 gap-1 px-2 text-[11px]"
                     title="초경량 AI에게 한 글자만 물어 실제 응답 가능 여부를 확인합니다"
                   >
-                    <Sparkles className="h-3 w-3 text-blue-600" />
-                    {testingGroupId === group.id ? "테스트 중..." : "실제 응답 테스트"}
+                    <Sparkles className="h-3 w-3 shrink-0 text-blue-600" />
+                    <span className="truncate">
+                      {testingGroupId === group.id ? "테스트 중..." : "실제 응답 테스트"}
+                    </span>
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => openBudgetEditor(group)}
-                    className="h-7 gap-1 text-[11px]"
+                    onClick={() => openSpentEditor(group)}
+                    className="h-7 shrink-0 gap-1 px-2 text-[11px]"
                   >
-                    <SlidersHorizontal className="h-3 w-3" />
-                    충전액 수정
+                    <SlidersHorizontal className="h-3 w-3 shrink-0" />
+                    사용량 보정
                   </Button>
                 </div>
               </div>
@@ -324,39 +357,29 @@ export function AiKeyMonitorCard() {
         </div>
       )}
 
-      {/* 충전 예산 / 잔액 보정 모달 */}
-      {editingGroup && (
+      {/* 공동 충전금 수정 모달 */}
+      {editingWallet && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
           <form
-            onSubmit={handleSaveBudget}
+            onSubmit={handleSaveWallet}
             className="w-full max-w-sm space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xl"
           >
             <div>
-              <h3 className="text-base font-bold text-slate-900">[{editingGroup.label}] 잔액 설정</h3>
+              <h3 className="text-base font-bold text-slate-900">구글 AI 공동 충전금 설정</h3>
               <p className="mt-1 text-xs text-slate-500">
-                구글 결제 화면에서 확인하신 금액으로 맞추면 더 정확하게 알림을 받으실 수 있습니다.
+                3개 열쇠가 함께 쓰는 구글 결제 계정의 총 충전 금액과 잔액 부족 알림 기준을 설정합니다.
               </p>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-700">이번 달 충전 금액 / 예산 (원)</label>
+                <label className="mb-1 block text-xs font-medium text-slate-700">공동 충전 금액 / 월 예산 (원)</label>
                 <Input
                   type="number"
                   min={0}
                   step={1000}
                   value={budgetInput}
                   onChange={(e) => setBudgetInput(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-700">지금까지 사용한 금액 (원)</label>
-                <Input
-                  type="number"
-                  min={0}
-                  step={100}
-                  value={spentInput}
-                  onChange={(e) => setSpentInput(e.target.value)}
                 />
               </div>
               <div>
@@ -374,11 +397,48 @@ export function AiKeyMonitorCard() {
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setEditingGroup(null)}>
+              <Button type="button" variant="outline" size="sm" onClick={() => setEditingWallet(false)}>
                 취소
               </Button>
-              <Button type="submit" size="sm" className="bg-blue-600 hover:bg-blue-700" disabled={savingBudget}>
-                {savingBudget ? "저장 중..." : "저장하기"}
+              <Button type="submit" size="sm" className="bg-blue-600 hover:bg-blue-700" disabled={savingWallet}>
+                {savingWallet ? "저장 중..." : "저장하기"}
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* 열쇠별 사용량 보정 모달 */}
+      {editingSpentGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
+          <form
+            onSubmit={handleSaveSpent}
+            className="w-full max-w-sm space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xl"
+          >
+            <div>
+              <h3 className="text-base font-bold text-slate-900">[{editingSpentGroup.label}] 사용량 보정</h3>
+              <p className="mt-1 text-xs text-slate-500">
+                구글 결제 내역에서 확인하신 이번 달 사용 금액에 맞춰 추정치를 보정합니다.
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">이번 달 사용한 금액 (원)</label>
+              <Input
+                type="number"
+                min={0}
+                step={100}
+                value={spentInput}
+                onChange={(e) => setSpentInput(e.target.value)}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setEditingSpentGroup(null)}>
+                취소
+              </Button>
+              <Button type="submit" size="sm" className="bg-blue-600 hover:bg-blue-700" disabled={savingSpent}>
+                {savingSpent ? "저장 중..." : "저장하기"}
               </Button>
             </div>
           </form>

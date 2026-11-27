@@ -44,7 +44,7 @@ function AdminControlCenter() {
     enabled: Boolean(auth?.admin),
   });
 
-  const telemetry = useStudioTelemetry();
+  const telemetry = useStudioTelemetry(Boolean(auth?.admin));
   const [selectedAppId, setSelectedAppId] = useState<string | "all" | "blog">("all");
   const [alertDrawerOpen, setAlertDrawerOpen] = useState(false);
 

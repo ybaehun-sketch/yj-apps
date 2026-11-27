@@ -1,4 +1,4 @@
-export type AppStatus = "normal" | "warning" | "critical";
+export type AppStatus = "normal" | "warning" | "critical" | "pre_launch";
 export type RevenueGroup = "subscription" | "ad_traffic";
 
 export interface StudioAppEntity {

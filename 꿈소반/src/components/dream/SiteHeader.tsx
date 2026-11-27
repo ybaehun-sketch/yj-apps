@@ -10,6 +10,7 @@ export function SiteHeader() {
         <Link to="/" className="font-serif text-lg text-foreground">🌙 꿈소반</Link>
         <div className="flex items-center gap-1">
           <Link to="/" className={item} activeProps={{ className: `${item} text-foreground` }} activeOptions={{ exact: true }}>홈</Link>
+          <Link to="/about" className={item} activeProps={{ className: `${item} text-foreground` }}>소개</Link>
           <Link to="/guide" className={item} activeProps={{ className: `${item} text-foreground` }}>꿈해몽 칼럼</Link>
           <Dialog>
             <DialogTrigger className={item}>이용방법</DialogTrigger>

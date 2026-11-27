@@ -197,6 +197,18 @@ export default {
 const LATEST_STORE_VERSION = "1.0.2.0";
 const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=app.yjstudio.tokbiseo";
 
+type MajorUpdatePopup = {
+  id: string;
+  title: string;
+  message: string;
+  actionLabel?: string;
+  actionUrl?: string;
+};
+
+// 작은 패치 수정 시에는 null 유지 (팝업 없음).
+// 큰 업데이트 안내가 필요할 때만 id를 새 값(예: "2026-11-28-v1.1")으로 채워 배포하면 사용자당 1회 팝업이 뜹니다.
+const MAJOR_UPDATE_POPUP: MajorUpdatePopup | null = null;
+
     if (reqUrl.pathname === "/api/warmup") {
       try {
         const proxy = (env as { GEMINI_PROXY?: { fetch: typeof fetch } } | undefined)?.GEMINI_PROXY;
@@ -205,7 +217,7 @@ const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=app.yjstud
         }
       } catch { /* ignore warmup failure */ }
       return Response.json(
-        { ok: true, storeVersion: LATEST_STORE_VERSION, storeUrl: PLAY_STORE_URL },
+        { ok: true, storeVersion: LATEST_STORE_VERSION, storeUrl: PLAY_STORE_URL, majorUpdate: MAJOR_UPDATE_POPUP },
         { status: 200, headers: { "Cache-Control": "no-store" } },
       );
     }

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { listGuides } from "@/lib/guides.functions";
 
 const BASE = "https://teacuptarot.com";
-const STATIC = ["/", "/guide", "/membership", "/terms", "/privacy"];
+const STATIC = ["/", "/about", "/guide", "/contact", "/terms", "/privacy"];
 
 export const Route = createFileRoute("/sitemap.xml")({
   server: {

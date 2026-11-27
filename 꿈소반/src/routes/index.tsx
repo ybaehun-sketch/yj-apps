@@ -15,7 +15,6 @@ import { AdModal } from "@/components/dream/AdModal";
 import { EnergyGauge } from "@/components/dream/EnergyGauge";
 import { TalismanCard } from "@/components/dream/TalismanCard";
 import { LottoScratch } from "@/components/dream/LottoScratch";
-import { Footer } from "@/components/dream/Footer";
 
 const TITLE = "꿈소반 — AI 심층 꿈풀이 · 무의식이 보낸 꿈의 암호 해독";
 const DESC = "회원가입 없이 100% 무료·익명. 전통 해몽과 현대 심리학으로 어젯밤 꿈을 풀고, 부적과 위트 있는 한 줄 처방까지.";
@@ -30,8 +29,9 @@ export const Route = createFileRoute("/")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://dreamsoban.app/" }],
   }),
-  loader: async () => (await listGuides()).slice(0, 4),
+  loader: async () => (await listGuides()).slice(0, 8),
   component: Index,
 });
 
@@ -131,6 +131,9 @@ function Index() {
             </Button>
           )}
           <p className="mt-2 text-center text-xs text-muted-foreground">오늘 남은 꿈풀이 {Math.max(0, DAILY_LIMIT - used)} / {DAILY_LIMIT}회</p>
+          <p className="mt-1.5 text-center text-[11px] leading-relaxed text-muted-foreground/80">
+            ※ AI 해몽은 재미와 자기 성찰을 위한 참고용이며 의학·심리·투자 조언이 아닙니다. 위기 시 109 · 1577-0199
+          </p>
         </Section>
 
         {/* Step 1 result */}
@@ -169,7 +172,7 @@ function Index() {
                   )}
                   {!reward ? (
                     <Button onClick={() => { sfx.tap(); setAd("reward"); }} className="mt-5 h-13 rounded-full bg-moon-gradient px-7 py-3 text-base text-primary-foreground shadow-glow">
-                      {isLucky ? "📺 광고 시청 후 복권 긁기" : "📺 광고 시청 후 부적 카드 받기"}
+                      {isLucky ? "🍀 행운 번호 긁기" : "🧧 액막이 부적 카드 받기"}
                     </Button>
                   ) : (
                     <div className="mt-6">
@@ -225,8 +228,55 @@ function Index() {
             </div>
           </section>
         )}
+
+        <Section>
+          <h2 className="font-serif text-xl">🌙 꿈소반 이용 안내</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            별도 회원가입이나 결제 없이 누구나 하루 3번 무료로 꿈풀이를 이용할 수 있어요.
+          </p>
+          <ul className="mt-4 divide-y divide-border/50 text-sm">
+            <li className="flex items-center justify-between gap-3 py-2.5">
+              <div>
+                <p className="font-semibold">1. 어젯밤 꿈 적기</p>
+                <p className="text-xs text-muted-foreground">기억나는 장면, 사람, 색깔, 감정을 입력창에 편하게 적어요</p>
+              </div>
+              <p className="shrink-0 font-bold text-moon">무료</p>
+            </li>
+            <li className="flex items-center justify-between gap-3 py-2.5">
+              <div>
+                <p className="font-semibold">2. 전통 해몽 + 심리학 해석</p>
+                <p className="text-xs text-muted-foreground">두 가지 시선으로 꿈의 핵심 상징과 의미를 바로 확인해요</p>
+              </div>
+              <p className="shrink-0 font-bold text-moon">하루 3회</p>
+            </li>
+            <li className="flex items-center justify-between gap-3 py-2.5">
+              <div>
+                <p className="font-semibold">3. 액막이 부적 &amp; 행운 번호</p>
+                <p className="text-xs text-muted-foreground">꿈의 기운에 맞춘 부적 카드나 행운 번호를 저장해 공유해요</p>
+              </div>
+              <p className="shrink-0 font-bold text-moon">무료</p>
+            </li>
+          </ul>
+        </Section>
+
+        <Section>
+          <h2 className="font-serif text-xl">❓ 자주 묻는 질문</h2>
+          <dl className="mt-4 space-y-3 text-sm leading-relaxed">
+            <div>
+              <dt className="font-semibold">Q. 어떤 방식으로 꿈을 풀어주나요?</dt>
+              <dd className="mt-0.5 text-muted-foreground">전통 해몽의 상징 해석과 현대 심리학의 무의식 관점을 함께 짚어 균형 잡힌 풀이를 들려드려요.</dd>
+            </div>
+            <div>
+              <dt className="font-semibold">Q. 작성한 꿈 내용이 어딘가에 저장되나요?</dt>
+              <dd className="mt-0.5 text-muted-foreground">회원가입 없이 100% 익명으로 이용하며, 입력하신 꿈 내용은 해석 직후 사라지고 서버에 남지 않습니다.</dd>
+            </div>
+            <div>
+              <dt className="font-semibold">Q. 해몽 결과와 행운 번호는 어떻게 활용하나요?</dt>
+              <dd className="mt-0.5 text-muted-foreground">가벼운 기분 전환과 자기 성찰을 위한 재미용 콘텐츠로 즐겨주세요. 실제 미래 예측이나 당첨을 보장하지는 않습니다.</dd>
+            </div>
+          </dl>
+        </Section>
       </main>
-      <Footer />
       <AdModal
         open={ad === "reward"}
         message={isLucky ? "꿈의 행운 기운을 숫자로 모으는 중입니다..." : "나쁜 기운을 막아줄 부적을 그리는 중입니다..."}

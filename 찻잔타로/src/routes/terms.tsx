@@ -90,7 +90,7 @@ export const Route = createFileRoute("/terms")({
             <>
               <p>서비스명: 찻잔 타로 (teacuptarot.com)</p>
               <p>운영: 와이제이 스튜디오</p>
-              <p>문의: <a className="underline" href="mailto:ybaehun@gmail.com">ybaehun@gmail.com</a></p>
+              <p>문의: <a className="underline" href="mailto:contact@yjstudio.app">contact@yjstudio.app</a></p>
               <p>이용 중 불편한 점이나 문의 사항은 위 메일로 보내주시면 확인 후 답장드려요.</p>
             </>
           ),

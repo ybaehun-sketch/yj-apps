@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
   type ErrorComponentProps,
@@ -12,6 +13,7 @@ import { useEffect, type ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
 import { SiteNav } from "@/components/site-nav";
+import { LegalFooter } from "@/components/legal-footer";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
@@ -97,13 +99,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&display=swap" },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
-    scripts: [
-      {
-        src: "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1356528417680958",
-        async: true,
-        crossOrigin: "anonymous",
-      },
-    ],
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -111,11 +106,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+const ADSENSE_BOOT_SCRIPT = `if(!/^\\/(auth|admin|terms|privacy|about|contact)(\\/|$)/.test(location.pathname)){var s=document.createElement("script");s.async=true;s.src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1356528417680958";s.crossOrigin="anonymous";document.head.appendChild(s);}`;
+
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="ko">
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: ADSENSE_BOOT_SCRIPT }} />
       </head>
       <body>
         {children}
@@ -127,12 +125,15 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const hideFooter = pathname.startsWith("/admin") || pathname === "/auth";
 
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <SiteNav />
       <Outlet />
+      {!hideFooter && <LegalFooter />}
       <Toaster />
     </QueryClientProvider>
   );
