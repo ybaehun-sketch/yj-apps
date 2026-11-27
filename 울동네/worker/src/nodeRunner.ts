@@ -23,6 +23,13 @@ function fetchViaNodeHttp(urlStr: string, headers: Record<string, string>, redir
         }
         const chunks: Buffer[] = [];
         res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('error', (err) => {
+          clearTimeout(hardTimer);
+          if (!settled) {
+            settled = true;
+            reject(err);
+          }
+        });
         res.on('end', () => {
           clearTimeout(hardTimer);
           if (settled) return;
@@ -35,12 +42,21 @@ function fetchViaNodeHttp(urlStr: string, headers: Record<string, string>, redir
           }
           resolve(new Response(body, { status, headers: resHeaders }));
         });
+        res.on('close', () => {
+          clearTimeout(hardTimer);
+          if (!settled) {
+            settled = true;
+            reject(new Error('Response closed prematurely'));
+          }
+        });
       }
     );
     const hardTimer = setTimeout(() => {
       if (!settled) {
         settled = true;
-        req.destroy(new Error('Request hard timeout (10s)'));
+        const timeoutErr = new Error('Request hard timeout (10s)');
+        req.destroy(timeoutErr);
+        reject(timeoutErr);
       }
     }, 10000);
     req.on('timeout', () => {
