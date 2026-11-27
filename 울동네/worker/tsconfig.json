@@ -10,5 +10,5 @@
     "noEmit": true
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/reservePatrol.ts"]
+  "exclude": ["src/reservePatrol.ts", "src/fullPatrol.ts", "src/nodeRunner.ts"]
 }

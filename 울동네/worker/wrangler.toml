@@ -2,12 +2,10 @@ name = "uldongne-patrol-worker"
 main = "src/index.ts"
 compatibility_date = "2025-02-14"
 
-[triggers]
-# 한국시간(KST) 기준 (하루 3회 전체 순찰 → 앱 즉시 자동 업데이트):
-# - 화~토 새벽 05:00 (UTC 월~금 20:00): 최종 전체 순찰 + 완료 직후 블로그 초안 작성
-# - 월~금 낮 12:00 (UTC 월~금 03:00): 전체 순찰 + 앱 즉시 반영 + 블로그 후보 수집
-# - 월~금 오후 18:00 (UTC 월~금 09:00): 전체 순찰 + 앱 즉시 반영 + 블로그 후보 수집
-crons = ["0 20 * * 1-5", "0 3 * * 1-5", "0 9 * * 1-5"]
+# [triggers]
+# 정기 전체 순찰은 GitHub Actions(.github/workflows/uldongne-reserve-patrol.yml)로 통합 이전됨.
+# (Cloudflare Worker는 관리자 화면 수동 재점검 등 HTTP 요청 용도로만 유지)
+# crons = ["0 20 * * 1-5", "0 3 * * 1-5", "0 9 * * 1-5"]
 
 [vars]
 GEMINI_SCAN_MODEL = "gemini-3.5-flash-lite"

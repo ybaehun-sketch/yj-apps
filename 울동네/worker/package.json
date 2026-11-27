@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "wrangler dev --test-scheduled",
     "deploy": "wrangler deploy",
+    "full-patrol": "node scripts/run-full-patrol.mjs",
     "reserve-patrol": "node scripts/run-reserve-patrol.mjs",
     "typecheck": "tsc --noEmit"
   },

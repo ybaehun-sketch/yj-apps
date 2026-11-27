@@ -121,7 +121,7 @@ async function saveAndNotifyPost(
 /**
  * 보조금24 API (API_GOV24) 수집 처리
  */
-async function collectFromGov24Api(
+export async function collectFromGov24Api(
   env: Env,
   target: CrawlTarget,
   maxNewPosts: number
@@ -219,7 +219,7 @@ function extractXmlTag(xml: string, tag: string): string {
 /**
  * 복지로 API (API_WELFARE: 중앙부처/지자체 복지서비스) 수집 처리
  */
-async function collectFromWelfareApi(
+export async function collectFromWelfareApi(
   env: Env,
   target: CrawlTarget,
   maxNewPosts: number
