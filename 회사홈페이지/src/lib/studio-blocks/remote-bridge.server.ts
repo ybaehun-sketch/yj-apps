@@ -345,3 +345,41 @@ export async function remoteListUldongneTargets(): Promise<UldongneCrawlTarget[]
   if (error) throw new Error(`울동네 순찰 목록을 불러오지 못했어요: ${error.message}`);
   return (data ?? []) as UldongneCrawlTarget[];
 }
+
+export interface UldongnePatrolBriefingTargetItem {
+  org_name: string;
+  region_sido: string;
+  region_sigungu: string;
+  target_url: string;
+  reason?: string;
+}
+
+export interface UldongnePatrolBriefing {
+  id: string;
+  patrol_date: string;
+  slot: "slot_1" | "slot_2" | "slot_3";
+  patrol_type: "main" | "reserve";
+  round_started_at: string;
+  checked_count: number;
+  success_count: number;
+  created_posts: number;
+  problem_targets: UldongnePatrolBriefingTargetItem[];
+  recovered_targets: UldongnePatrolBriefingTargetItem[];
+  failed_targets: UldongnePatrolBriefingTargetItem[];
+  updated_at: string;
+}
+
+export async function remoteListUldongneBriefings(limit = 60): Promise<UldongnePatrolBriefing[]> {
+  const client = createRemoteSupabase("ULDONGNE");
+  if (!client) return [];
+
+  const { data, error } = await client
+    .from("uldongne_patrol_briefings")
+    .select("*")
+    .order("patrol_date", { ascending: false })
+    .order("slot", { ascending: true })
+    .limit(limit);
+
+  if (error) throw new Error(`울동네 순찰 브리핑을 불러오지 못했어요: ${error.message}`);
+  return (data ?? []) as UldongnePatrolBriefing[];
+}

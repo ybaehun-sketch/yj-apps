@@ -16,9 +16,9 @@ const SLOT_META: Array<{
   title: string;
   timeLabel: string;
 }> = [
-  { key: 'slot_1', title: '1차 순찰', timeLabel: '낮 12:00 (예비 12:20)' },
-  { key: 'slot_2', title: '2차 순찰', timeLabel: '오후 18:00 (예비 18:20)' },
-  { key: 'slot_3', title: '3차 순찰', timeLabel: '새벽 05:00 (예비 05:20)' }
+  { key: 'slot_1', title: '1차 순찰', timeLabel: '오전 11:10' },
+  { key: 'slot_2', title: '2차 순찰', timeLabel: '오후 17:10 · 블로그 초안 작성' },
+  { key: 'slot_3', title: '이전 새벽 기록', timeLabel: '구 시간표' }
 ];
 
 function getKstDateKey(offsetDays = 0): string {
@@ -274,13 +274,23 @@ export function PatrolBriefingModal({ open, briefings, onClose }: PatrolBriefing
             </div>
 
             <div className="space-y-4">
-              {SLOT_META.map((slot) => {
+              {[...SLOT_META]
+                .sort((a, b) => {
+                  const aRow = selectedRows.filter((r) => r.slot === a.key);
+                  const bRow = selectedRows.filter((r) => r.slot === b.key);
+                  const aLatest = aRow.reduce((max, r) => Math.max(max, new Date(r.updated_at).getTime() || 0), 0);
+                  const bLatest = bRow.reduce((max, r) => Math.max(max, new Date(r.updated_at).getTime() || 0), 0);
+                  if (aLatest !== bLatest) return bLatest - aLatest;
+                  return SLOT_META.indexOf(a) - SLOT_META.indexOf(b);
+                })
+                .map((slot) => {
                 const mainRow = selectedRows.find(
                   (r) => r.slot === slot.key && r.patrol_type === 'main'
                 );
                 const reserveRow = selectedRows.find(
                   (r) => r.slot === slot.key && r.patrol_type === 'reserve'
                 );
+                const latestUpdatedAt = reserveRow?.updated_at || mainRow?.updated_at;
 
                 return (
                   <div
@@ -288,17 +298,18 @@ export function PatrolBriefingModal({ open, briefings, onClose }: PatrolBriefing
                     className="rounded-xl border border-[#dadce0] bg-white p-4"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#f1f3f4] pb-2.5">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-md bg-[#f1f3f4] px-2 py-0.5 text-xs font-bold text-[#202124]">
                           {slot.title}
                         </span>
-                        <span className="text-xs text-[#5f6368]">{slot.timeLabel}</span>
+                        {latestUpdatedAt ? (
+                          <span className="rounded-md bg-[#e8f0fe] px-2 py-0.5 text-xs font-semibold text-[#1a73e8]">
+                            {formatKstTime(latestUpdatedAt)} 실행
+                          </span>
+                        ) : null}
+                        <span className="text-[11px] text-[#80868b]">(정기 {slot.timeLabel})</span>
                       </div>
-                      {mainRow ? (
-                        <span className="text-[11px] text-[#5f6368]">
-                          마지막 보고 {formatKstTime(mainRow.updated_at)}
-                        </span>
-                      ) : (
+                      {!latestUpdatedAt && (
                         <span className="text-[11px] text-[#9aa0a6]">기록 없음</span>
                       )}
                     </div>

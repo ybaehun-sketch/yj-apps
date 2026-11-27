@@ -33,6 +33,7 @@ export function AdminDashboardClient({
   const [appPosts, setAppPosts] = useState<WelfarePost[]>(initialAppPosts);
   const [targets, setTargets] = useState<CrawlTarget[]>(initialTargets);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [manualPatrolRunning, setManualPatrolRunning] = useState(false);
   const [toast, setToast] = useState<string>('');
   const [patrolModalOpen, setPatrolModalOpen] = useState(false);
   const [briefingModalOpen, setBriefingModalOpen] = useState(false);
@@ -121,6 +122,40 @@ export function AdminDashboardClient({
     setPatrolModalTab(tab);
     setPatrolModalRegion(region);
     setPatrolModalOpen(true);
+  }
+
+  async function handleManualFullPatrol() {
+    if (manualPatrolRunning) return;
+    setManualPatrolRunning(true);
+    setToast('전체 순찰(340곳)을 시작했습니다. 완료까지 1~2분 정도 걸립니다...');
+    try {
+      const res = await fetch('/api/admin/patrol-full', { method: 'POST' });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        summary?: {
+          checkedTargets?: number;
+          successCount?: number;
+          createdPosts?: number;
+          failedCount?: number;
+        };
+      };
+      if (!res.ok || !data.ok) {
+        setToast(data.error || '수동 순찰 실행에 실패했습니다.');
+        return;
+      }
+      const checked = data.summary?.checkedTargets ?? 0;
+      const success = data.summary?.successCount ?? 0;
+      const created = data.summary?.createdPosts ?? 0;
+      setToast(`수동 순찰 완료! (${checked}곳 점검 · ${success}곳 정상 · 새 글 ${created}건 수집) 화면을 새로고침합니다.`);
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch {
+      setToast('수동 순찰 요청 중 연결 오류가 발생했습니다.');
+    } finally {
+      setManualPatrolRunning(false);
+    }
   }
 
   const [showErrorTargets, setShowErrorTargets] = useState(false);
@@ -313,6 +348,14 @@ export function AdminDashboardClient({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-bold text-[#202124]">AI 순찰대 현황</h2>
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleManualFullPatrol}
+              disabled={manualPatrolRunning}
+              className="rounded-lg border border-[#137333] bg-[#e6f4ea] px-3.5 py-1.5 text-xs font-semibold text-[#137333] transition hover:bg-[#ceead6] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {manualPatrolRunning ? '수동 순찰 중...' : '수동 순찰'}
+            </button>
             <button
               type="button"
               onClick={() => setBriefingModalOpen(true)}

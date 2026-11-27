@@ -189,6 +189,15 @@ export const hubListUldongneTargets = createServerFn({ method: "GET" })
     return remoteListUldongneTargets();
   });
 
+export const hubListUldongneBriefings = createServerFn({ method: "GET" })
+  .middleware([requireAdmin])
+  .handler(async () => {
+    const { ensureLocalEnvLoaded } = await import("./server-env.server");
+    await ensureLocalEnvLoaded();
+    const { remoteListUldongneBriefings } = await import("./studio-blocks/remote-bridge.server");
+    return remoteListUldongneBriefings();
+  });
+
 export const hubGetAiKeyMonitor = createServerFn({ method: "GET" })
   .middleware([requireAdmin])
   .handler(async () => {

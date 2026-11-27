@@ -42,9 +42,9 @@ function parseCliArgs(argv: string[]): { sigungu?: string; finalizeBlog?: boolea
   return { sigungu, finalizeBlog, koreanRelay };
 }
 
-function isKstDawnWindow(date = new Date()): boolean {
+function isKstAfternoonBlogWindow(date = new Date()): boolean {
   const kstHour = new Date(date.getTime() + 9 * 60 * 60 * 1000).getUTCHours();
-  return kstHour >= 4 && kstHour < 8;
+  return kstHour >= 16 && kstHour < 20;
 }
 
 async function runSingleTarget(
@@ -110,7 +110,7 @@ async function main(): Promise<void> {
   }
 
   const { sigungu, finalizeBlog: cliFinalize, koreanRelay } = parseCliArgs(process.argv.slice(2));
-  const shouldFinalizeBlog = koreanRelay ? false : (cliFinalize ?? isKstDawnWindow());
+  const shouldFinalizeBlog = koreanRelay ? false : (cliFinalize ?? isKstAfternoonBlogWindow());
   const maxNewPosts = Number(env.MAX_NEW_POSTS_PER_TARGET || '5');
   const roundStartedAt = new Date().toISOString();
 

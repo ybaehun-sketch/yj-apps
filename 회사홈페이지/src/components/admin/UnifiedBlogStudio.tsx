@@ -12,9 +12,11 @@ import {
   hubGenerateBlogDraft,
   hubGetBlogFreshness,
   hubListRemotePosts,
+  hubListUldongneBriefings,
   hubListUldongneTargets,
   hubSaveRemotePost,
 } from "@/lib/admin-hub.functions";
+import { UldongnePatrolBriefingModal } from "./UldongnePatrolBriefingModal";
 import { UldongnePatrolModal } from "./UldongnePatrolModal";
 
 function formatElapsedBadge(lastPublishedAt: string | null | undefined, connected?: boolean) {
@@ -46,10 +48,12 @@ const emptyForm = {
 export function UnifiedBlogStudio({ blogApps, geminiConfigured }: Props) {
   const [selectedKey, setSelectedKey] = useState(blogApps[0]?.key ?? "uldongne");
   const [patrolModalOpen, setPatrolModalOpen] = useState(false);
+  const [briefingModalOpen, setBriefingModalOpen] = useState(false);
   const activeApp = blogApps.find((a) => a.key === selectedKey) ?? blogApps[0];
 
   const listFn = useServerFn(hubListRemotePosts);
   const listTargetsFn = useServerFn(hubListUldongneTargets);
+  const listBriefingsFn = useServerFn(hubListUldongneBriefings);
   const freshnessFn = useServerFn(hubGetBlogFreshness);
   const saveFn = useServerFn(hubSaveRemotePost);
   const deleteFn = useServerFn(hubDeleteRemotePost);
@@ -77,6 +81,16 @@ export function UnifiedBlogStudio({ blogApps, geminiConfigured }: Props) {
     queryKey: ["hub-uldongne-targets"],
     queryFn: () => listTargetsFn(),
     enabled: selectedKey === "uldongne" && patrolModalOpen,
+  });
+
+  const {
+    data: uldongneBriefings = [],
+    isLoading: briefingsLoading,
+    error: briefingsError,
+  } = useQuery({
+    queryKey: ["hub-uldongne-briefings"],
+    queryFn: () => listBriefingsFn(),
+    enabled: selectedKey === "uldongne" && briefingModalOpen,
   });
 
   const [form, setForm] = useState(emptyForm);
@@ -255,6 +269,13 @@ export function UnifiedBlogStudio({ blogApps, geminiConfigured }: Props) {
             className="rounded-lg border border-[#d2e3fc] bg-[#f8fbff] px-3.5 py-1.5 text-xs font-semibold text-[#1a73e8] transition hover:bg-[#e8f0fe]"
           >
             순찰지역 테이블 보기 ({data.patrolSummary.total}곳)
+          </button>
+          <button
+            type="button"
+            onClick={() => setBriefingModalOpen(true)}
+            className="rounded-lg border border-[#dadce0] bg-white px-3.5 py-1.5 text-xs font-semibold text-[#3c4043] transition hover:bg-[#f1f3f4]"
+          >
+            순찰 현황 브리핑
           </button>
         </div>
       )}
@@ -439,6 +460,14 @@ export function UnifiedBlogStudio({ blogApps, geminiConfigured }: Props) {
         loading={targetsLoading}
         errorMessage={targetsError instanceof Error ? targetsError.message : undefined}
         onClose={() => setPatrolModalOpen(false)}
+      />
+
+      <UldongnePatrolBriefingModal
+        open={briefingModalOpen}
+        briefings={uldongneBriefings}
+        loading={briefingsLoading}
+        errorMessage={briefingsError instanceof Error ? briefingsError.message : undefined}
+        onClose={() => setBriefingModalOpen(false)}
       />
     </div>
   );

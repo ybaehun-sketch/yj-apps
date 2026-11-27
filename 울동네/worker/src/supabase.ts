@@ -351,8 +351,7 @@ export function resolveKstPatrolSlot(isoTimestamp: string): {
   const patrolDate = kstDateObj.toISOString().slice(0, 10);
   const kstHour = kstDateObj.getUTCHours();
 
-  const slot: 'slot_1' | 'slot_2' | 'slot_3' =
-    kstHour < 10 ? 'slot_3' : kstHour < 16 ? 'slot_1' : 'slot_2';
+  const slot: 'slot_1' | 'slot_2' | 'slot_3' = kstHour < 15 ? 'slot_1' : 'slot_2';
   return { patrolDate, slot };
 }
 
