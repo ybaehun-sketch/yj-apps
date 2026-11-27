@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 
 export function Footer() {
   return (
-    <footer className="relative z-10 mx-auto mt-16 max-w-2xl border-t border-border/50 px-4 pb-12 pt-6 text-center text-xs text-muted-foreground">
+    <footer className="relative z-10 mx-auto mt-16 max-w-3xl border-t border-border/50 px-4 pb-12 pt-6 text-center text-xs text-muted-foreground">
       <div className="flex flex-wrap justify-center gap-x-4 gap-y-1">
         <Link to="/about" className="underline-offset-4 hover:text-foreground hover:underline">
           서비스 소개

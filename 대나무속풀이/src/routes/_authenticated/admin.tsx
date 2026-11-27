@@ -43,7 +43,7 @@ function AdminPage() {
     );
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 p-5">
+    <div className="mx-auto max-w-3xl space-y-6 p-5">
       <header className="flex items-center justify-between">
         <h1 className="font-serif text-2xl">🎋 운영자 화면 · 글 관리</h1>
         <div className="flex items-center gap-3 text-sm">

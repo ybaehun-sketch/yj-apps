@@ -275,7 +275,7 @@ function Index() {
         </DialogContent>
       </Dialog>
 
-      <div className="relative z-10 mx-auto flex max-w-xl flex-col gap-8 px-5 py-14">
+      <div className="relative z-10 mx-auto flex max-w-3xl flex-col gap-8 px-5 py-14">
         <header className="text-center">
           <p className="font-display text-sm tracking-[0.3em] text-primary">대나무숲 속풀이</p>
           <h1 className="font-display mt-4 text-4xl font-bold leading-tight text-glow sm:text-5xl">

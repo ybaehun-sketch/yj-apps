@@ -89,7 +89,7 @@ function Index() {
     <div className="relative min-h-screen overflow-x-hidden">
       <StarField />
       <Toaster position="top-center" />
-      <main className="relative z-10 mx-auto flex max-w-2xl flex-col gap-6 px-4 pt-14">
+      <main className="relative z-10 mx-auto flex max-w-3xl flex-col gap-6 px-4 pt-14">
         {/* Hero */}
         <header className="animate-rise text-center">
           <p className="mb-4 text-xs tracking-[0.35em] text-moon">꿈소반 · AI 심층 꿈풀이</p>
