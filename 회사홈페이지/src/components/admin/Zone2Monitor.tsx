@@ -333,135 +333,154 @@ export function Zone2Monitor({
           </div>
         </div>
 
-        {/* 중단: 7개 앱 통합 상태 매트릭스 테이블 */}
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3.5">
-            <h2 className="text-sm font-semibold text-slate-900">7개 앱 통합 상태 매트릭스</h2>
-            <span className="text-xs text-slate-500">컬럼 제목을 누르면 정렬 · 행을 누르면 상세 이동</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs text-slate-500">
-                <tr>
-                  <th className="px-5 py-3 font-medium">앱 이름 / 카테고리</th>
-                  <th className="px-3 py-3 font-medium">상태</th>
-                  <th className="px-3 py-3 text-right font-medium">
-                    <button type="button" onClick={() => toggleSort("revenue")} className="inline-flex items-center gap-1 hover:text-slate-900">
-                      어제 매출 <ArrowUpDown className="h-3 w-3" />
-                    </button>
-                  </th>
-                  <th className="px-3 py-3 text-right font-medium">
-                    <button type="button" onClick={() => toggleSort("dau")} className="inline-flex items-center gap-1 hover:text-slate-900">
-                      DAU <ArrowUpDown className="h-3 w-3" />
-                    </button>
-                  </th>
-                  <th className="px-3 py-3 text-right font-medium">
-                    <button type="button" onClick={() => toggleSort("aiCost")} className="inline-flex items-center gap-1 hover:text-slate-900">
-                      어제 AI 원가 <ArrowUpDown className="h-3 w-3" />
-                    </button>
-                  </th>
-                  <th className="px-3 py-3 text-right font-medium">
-                    <button type="button" onClick={() => toggleSort("profit")} className="inline-flex items-center gap-1 hover:text-slate-900">
-                      순이익 (원가율) <ArrowUpDown className="h-3 w-3" />
-                    </button>
-                  </th>
-                  <th className="px-3 py-3 text-right font-medium">
-                    <button type="button" onClick={() => toggleSort("error")} className="inline-flex items-center gap-1 hover:text-slate-900">
-                      에러 <ArrowUpDown className="h-3 w-3" />
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 text-center font-medium">원격 점검</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {sortedApps.map((app) => {
-                  const isPreLaunch = app.status === "pre_launch";
-                  const netProfit = app.yesterdayRevenue - app.aiCost;
-                  const highCostRatio = app.aiRevenueRatio > 20;
-                  return (
-                    <tr
-                      key={app.id}
-                      onClick={() => onSelectApp(app.id)}
-                      className={`cursor-pointer transition-colors hover:bg-slate-50 ${
-                        app.status === "critical"
-                          ? "bg-red-50/30"
-                          : app.status === "warning"
-                            ? "bg-amber-50/20"
-                            : isPreLaunch
-                              ? "bg-slate-50/40 text-slate-400"
-                              : ""
-                      }`}
-                    >
-                      <td className="px-5 py-3">
-                        <div className={`font-medium ${isPreLaunch ? "text-slate-500" : "text-slate-900"}`}>{app.name}</div>
-                        <div className="text-xs text-slate-400">{app.category}</div>
-                      </td>
-                      <td className="px-3 py-3">
-                        <StatusBadge status={app.status} />
-                      </td>
-                      <td className="px-3 py-3 text-right font-medium text-slate-800">
-                        {isPreLaunch ? <span className="text-slate-300">-</span> : `${app.yesterdayRevenue.toLocaleString()}원`}
-                      </td>
-                      <td className="px-3 py-3 text-right text-slate-600">
-                        {isPreLaunch ? <span className="text-slate-300">-</span> : app.dau.toLocaleString()}
-                      </td>
-                      <td className="px-3 py-3 text-right text-slate-600">
-                        {isPreLaunch ? <span className="text-slate-300">-</span> : app.aiCost > 0 ? `${app.aiCost.toLocaleString()}원` : "-"}
-                      </td>
-                      <td className="px-3 py-3 text-right">
-                        {isPreLaunch ? (
-                          <span className="text-slate-300">-</span>
-                        ) : (
-                          <>
-                            <div className={`font-medium ${highCostRatio ? "text-amber-600" : "text-slate-800"}`}>
-                              {netProfit.toLocaleString()}원
-                            </div>
-                            <div className={`text-[11px] ${highCostRatio ? "font-semibold text-amber-600" : "text-slate-400"}`}>
-                              원가율 {app.aiRevenueRatio}%
-                            </div>
-                          </>
-                        )}
-                      </td>
-                      <td className="px-3 py-3 text-right">
-                        {isPreLaunch ? (
-                          <span className="text-slate-300">-</span>
-                        ) : (
-                          <span
-                            className={
-                              app.errorCount >= 10
-                                ? "font-bold text-red-600"
-                                : app.errorCount > 0
-                                  ? "font-semibold text-amber-600"
-                                  : "text-slate-400"
-                            }
-                          >
-                            {app.errorCount}건
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={() => setPendingToggleApp(app)}
-                          className={`inline-flex h-6 w-11 items-center rounded-full px-0.5 transition-colors ${
-                            app.maintenanceMode ? "bg-red-600" : "bg-slate-200"
-                          }`}
-                          title="원격 점검 모드 토글"
-                        >
-                          <span
-                            className={`h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                              app.maintenanceMode ? "translate-x-5" : "translate-x-0"
-                            }`}
-                          />
+        {/* 중단: 웹·앱 투트랙 / 스토어 앱 전용 분리 매트릭스 */}
+        {(() => {
+          const twoTrackApps = sortedApps.filter((a) => a.revenueGroup === "ad_traffic");
+          const appOnlyApps = sortedApps.filter((a) => a.revenueGroup !== "ad_traffic");
+
+          const renderMatrixCard = (title: string, badge: string, list: StudioAppEntity[]) => (
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-5 py-3.5">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                    {badge}
+                  </span>
+                </div>
+                <span className="text-xs text-slate-500">컬럼 제목을 누르면 정렬 · 행을 누르면 상세 이동</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-slate-200 bg-slate-50 text-xs text-slate-500">
+                    <tr>
+                      <th className="px-5 py-3 font-medium">앱 이름 / 카테고리</th>
+                      <th className="px-3 py-3 font-medium">상태</th>
+                      <th className="px-3 py-3 text-right font-medium">
+                        <button type="button" onClick={() => toggleSort("revenue")} className="inline-flex items-center gap-1 hover:text-slate-900">
+                          어제 매출 <ArrowUpDown className="h-3 w-3" />
                         </button>
-                      </td>
+                      </th>
+                      <th className="px-3 py-3 text-right font-medium">
+                        <button type="button" onClick={() => toggleSort("dau")} className="inline-flex items-center gap-1 hover:text-slate-900">
+                          DAU <ArrowUpDown className="h-3 w-3" />
+                        </button>
+                      </th>
+                      <th className="px-3 py-3 text-right font-medium">
+                        <button type="button" onClick={() => toggleSort("aiCost")} className="inline-flex items-center gap-1 hover:text-slate-900">
+                          어제 AI 원가 <ArrowUpDown className="h-3 w-3" />
+                        </button>
+                      </th>
+                      <th className="px-3 py-3 text-right font-medium">
+                        <button type="button" onClick={() => toggleSort("profit")} className="inline-flex items-center gap-1 hover:text-slate-900">
+                          순이익 (원가율) <ArrowUpDown className="h-3 w-3" />
+                        </button>
+                      </th>
+                      <th className="px-3 py-3 text-right font-medium">
+                        <button type="button" onClick={() => toggleSort("error")} className="inline-flex items-center gap-1 hover:text-slate-900">
+                          에러 <ArrowUpDown className="h-3 w-3" />
+                        </button>
+                      </th>
+                      <th className="px-4 py-3 text-center font-medium">원격 점검</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {list.map((app) => {
+                      const isPreLaunch = app.status === "pre_launch";
+                      const netProfit = app.yesterdayRevenue - app.aiCost;
+                      const highCostRatio = app.aiRevenueRatio > 20;
+                      return (
+                        <tr
+                          key={app.id}
+                          onClick={() => onSelectApp(app.id)}
+                          className={`cursor-pointer transition-colors hover:bg-slate-50 ${
+                            app.status === "critical"
+                              ? "bg-red-50/30"
+                              : app.status === "warning"
+                                ? "bg-amber-50/20"
+                                : isPreLaunch
+                                  ? "bg-slate-50/40 text-slate-400"
+                                  : ""
+                          }`}
+                        >
+                          <td className="px-5 py-3">
+                            <div className={`font-medium ${isPreLaunch ? "text-slate-500" : "text-slate-900"}`}>{app.name}</div>
+                            <div className="text-xs text-slate-400">{app.category}</div>
+                          </td>
+                          <td className="px-3 py-3">
+                            <StatusBadge status={app.status} />
+                          </td>
+                          <td className="px-3 py-3 text-right font-medium text-slate-800">
+                            {isPreLaunch ? <span className="text-slate-300">-</span> : `${app.yesterdayRevenue.toLocaleString()}원`}
+                          </td>
+                          <td className="px-3 py-3 text-right text-slate-600">
+                            {isPreLaunch ? <span className="text-slate-300">-</span> : app.dau.toLocaleString()}
+                          </td>
+                          <td className="px-3 py-3 text-right text-slate-600">
+                            {isPreLaunch ? <span className="text-slate-300">-</span> : app.aiCost > 0 ? `${app.aiCost.toLocaleString()}원` : "-"}
+                          </td>
+                          <td className="px-3 py-3 text-right">
+                            {isPreLaunch ? (
+                              <span className="text-slate-300">-</span>
+                            ) : (
+                              <>
+                                <div className={`font-medium ${highCostRatio ? "text-amber-600" : "text-slate-800"}`}>
+                                  {netProfit.toLocaleString()}원
+                                </div>
+                                <div className={`text-[11px] ${highCostRatio ? "font-semibold text-amber-600" : "text-slate-400"}`}>
+                                  원가율 {app.aiRevenueRatio}%
+                                </div>
+                              </>
+                            )}
+                          </td>
+                          <td className="px-3 py-3 text-right">
+                            {isPreLaunch ? (
+                              <span className="text-slate-300">-</span>
+                            ) : (
+                              <span
+                                className={
+                                  app.errorCount >= 10
+                                    ? "font-bold text-red-600"
+                                    : app.errorCount > 0
+                                      ? "font-semibold text-amber-600"
+                                      : "text-slate-400"
+                                }
+                              >
+                                {app.errorCount}건
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={() => setPendingToggleApp(app)}
+                              className={`inline-flex h-6 w-11 items-center rounded-full px-0.5 transition-colors ${
+                                app.maintenanceMode ? "bg-red-600" : "bg-slate-200"
+                              }`}
+                              title="원격 점검 모드 토글"
+                            >
+                              <span
+                                className={`h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                                  app.maintenanceMode ? "translate-x-5" : "translate-x-0"
+                                }`}
+                              />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+
+          return (
+            <div className="space-y-4">
+              {renderMatrixCard(`웹 · 앱 투트랙 수익화 (${twoTrackApps.length}개)`, "웹 애드센스 + 앱 애드몹", twoTrackApps)}
+              {renderMatrixCard(`모바일 앱 전용 (${appOnlyApps.length}개)`, "구독 · 평생소장 · 멤버십", appOnlyApps)}
+            </div>
+          );
+        })()}
 
         {/* 테이블 원격 점검 2단계 확인 모달 */}
         {pendingToggleApp && (
