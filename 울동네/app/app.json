@@ -46,7 +46,8 @@
       [
         "react-native-google-mobile-ads",
         {
-          "androidAppId": "ca-app-pub-1356528417680958~1457885348"
+          "androidAppId": "ca-app-pub-1356528417680958~1457885348",
+          "iosAppId": "ca-app-pub-3940256099942544~1458242517"
         }
       ],
       [
@@ -62,8 +63,5 @@
       "@react-native-firebase/app",
       "@react-native-firebase/messaging"
     ]
-  },
-  "react-native-google-mobile-ads": {
-    "android_app_id": "ca-app-pub-1356528417680958~1457885348"
   }
 }

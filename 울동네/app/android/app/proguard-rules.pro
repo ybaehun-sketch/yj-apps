@@ -11,4 +11,12 @@
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.facebook.react.turbomodule.** { *; }
 
-# Add any project specific keep options here:
+# Google Mobile Ads (AdMob)
+-keep class com.google.android.gms.ads.** { *; }
+-keep class com.google.android.gms.internal.ads.** { *; }
+-keep class com.google.android.gms.internal.consent_sdk.** { *; }
+-keep class io.invertase.googlemobileads.** { *; }
+
+# Firebase & Annotations
+-keepattributes *Annotation*
+-keepattributes Signature
