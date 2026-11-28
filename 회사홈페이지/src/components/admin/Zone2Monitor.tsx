@@ -557,7 +557,7 @@ export function Zone2Monitor({
 
   // [개별 앱] 뷰
   const appDaily = dailyRows.filter((r) => r.appId === selectedApp.id);
-  const metrics = pluginMetrics[selectedApp.id] ?? (selectedApp.id === "ul_dongne_app" ? pluginMetrics["ul_dongne"] : undefined);
+  const metrics = pluginMetrics[selectedApp.id] ?? pluginMetrics[selectedApp.id.replace(/_app$/, "")];
 
   return (
     <div className="space-y-6">
