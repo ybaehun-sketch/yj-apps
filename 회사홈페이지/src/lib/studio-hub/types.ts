@@ -1,5 +1,6 @@
 export type AppStatus = "normal" | "warning" | "critical" | "pre_launch";
 export type RevenueGroup = "subscription" | "ad_traffic";
+export type PlatformType = "web" | "app";
 
 export interface StudioAppEntity {
   id: string;
@@ -7,6 +8,7 @@ export interface StudioAppEntity {
   name: string;
   category: string;
   revenueGroup: RevenueGroup;
+  platformType?: PlatformType;
   status: AppStatus;
   yesterdayRevenue: number; // 원
   dau: number;

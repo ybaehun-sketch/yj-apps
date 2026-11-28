@@ -124,8 +124,13 @@ export function Zone1PulseBar({
         ? "bg-amber-500/15 text-amber-700 border-amber-500/30"
         : "bg-slate-100 text-slate-600 border-slate-200";
 
-  const subApps = apps.filter((a) => a.revenueGroup === "subscription");
-  const adApps = apps.filter((a) => a.revenueGroup === "ad_traffic");
+  const isWebApp = (app: StudioAppEntity) =>
+    app.platformType === "web" ||
+    ["teacuptarot", "dreamsoban", "bambooforest"].includes(app.key) ||
+    ["teacup_tarot", "kkum_soban", "ai_bamboo"].includes(app.id);
+
+  const webApps = apps.filter(isWebApp);
+  const mobileApps = apps.filter((a) => !isWebApp(a));
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -181,14 +186,14 @@ export function Zone1PulseBar({
           </button>
 
           <GroupDropdown
-            label="구독형 앱"
-            apps={subApps}
+            label="🌐 웹 서비스"
+            apps={webApps}
             selectedAppId={selectedAppId}
             onSelectApp={onSelectApp}
           />
           <GroupDropdown
-            label="광고·트래픽형"
-            apps={adApps}
+            label="📱 핸드폰 앱"
+            apps={mobileApps}
             selectedAppId={selectedAppId}
             onSelectApp={onSelectApp}
           />
