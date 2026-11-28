@@ -144,10 +144,10 @@ function AdminControlCenter() {
         onLogout={handleLogout}
       />
 
-      {/* 본문: PC 1440px+ 와이드(좌 65% + 우 35%), 모바일(768px 이하) 긴급 제어 최상단 우선 배치 */}
-      <main className="mx-auto flex max-w-[1600px] flex-col gap-6 px-4 py-6 lg:flex-row lg:px-6">
-        {/* Zone 2: 좌측 65% 모니터링 구역 */}
-        <section className="order-2 min-w-0 flex-1 lg:order-1 lg:basis-[65%]">
+      {/* 본문: PC 1440px+ 와이드(좌 65% + 우 35%), 통합 블로그 탭에서는 작업실을 넓게 쓰기 위해 우측 패널을 숨기고 100% 전체 폭 사용 */}
+      <main className={`mx-auto flex flex-col gap-6 px-4 py-6 lg:px-6 ${selectedAppId === "blog" ? "w-full max-w-[1700px]" : "max-w-[1600px] lg:flex-row"}`}>
+        {/* Zone 2: 모니터링 구역 (통합 블로그 작업실에서는 100% 전체 폭 활용) */}
+        <section className={`order-2 min-w-0 flex-1 ${selectedAppId === "blog" ? "w-full" : "lg:order-1 lg:basis-[65%]"}`}>
           <Zone2Monitor
             apps={telemetry.apps}
             selectedAppId={selectedAppId}
@@ -164,18 +164,20 @@ function AdminControlCenter() {
           />
         </section>
 
-        {/* Zone 3: 우측 35% 액션 & 제어 센터 (모바일에서는 최상단) */}
-        <section className="order-1 w-full shrink-0 lg:order-2 lg:basis-[35%] lg:max-w-[480px]">
-          <Zone3ControlCenter
-            apps={telemetry.apps}
-            selectedAppId={selectedAppId}
-            alerts={telemetry.alerts}
-            pendingBorderlineCount={pendingBorderlineCount}
-            onUpdateRemoteConfig={telemetry.updateRemoteConfig}
-            onResolveAlert={telemetry.resolveAlert}
-            onSelectApp={setSelectedAppId}
-          />
-        </section>
+        {/* Zone 3: 우측 35% 액션 & 제어 센터 (통합 블로그 작업실에서는 넓은 작업 환경을 위해 숨김) */}
+        {selectedAppId !== "blog" && (
+          <section className="order-1 w-full shrink-0 lg:order-2 lg:basis-[35%] lg:max-w-[480px]">
+            <Zone3ControlCenter
+              apps={telemetry.apps}
+              selectedAppId={selectedAppId}
+              alerts={telemetry.alerts}
+              pendingBorderlineCount={pendingBorderlineCount}
+              onUpdateRemoteConfig={telemetry.updateRemoteConfig}
+              onResolveAlert={telemetry.resolveAlert}
+              onSelectApp={setSelectedAppId}
+            />
+          </section>
+        )}
       </main>
 
       {/* 우측 긴급 알림 드로어 */}
