@@ -18,15 +18,22 @@ interface Props {
   onLogout: () => void;
 }
 
+interface GroupItem extends StudioAppEntity {
+  displayName?: string;
+  displaySub?: string;
+}
+
 function GroupDropdown({
   label,
   apps,
   selectedAppId,
+  isGroupActive,
   onSelectApp,
 }: {
   label: string;
-  apps: StudioAppEntity[];
+  apps: GroupItem[];
   selectedAppId: string | "all" | "blog";
+  isGroupActive: boolean;
   onSelectApp: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -40,7 +47,7 @@ function GroupDropdown({
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
-  const selectedInGroup = apps.find((a) => a.id === selectedAppId);
+  const selectedInGroup = isGroupActive ? apps.find((a) => a.id === selectedAppId) : null;
   const hasCritical = apps.some((a) => a.status === "critical");
   const hasWarning = apps.some((a) => a.status === "warning");
 
@@ -51,12 +58,12 @@ function GroupDropdown({
         onClick={() => setOpen((v) => !v)}
         className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
           selectedInGroup
-            ? "bg-blue-600 text-white"
+            ? "bg-blue-600 text-white font-semibold"
             : "bg-slate-100 text-slate-700 hover:bg-slate-200"
         }`}
       >
         <span>
-          {selectedInGroup ? `${selectedInGroup.name}` : `${label} (${apps.length})`}
+          {selectedInGroup ? `${selectedInGroup.displayName ?? selectedInGroup.name}` : `${label} (${apps.length})`}
         </span>
         {(hasCritical || hasWarning) && (
           <span
@@ -67,12 +74,12 @@ function GroupDropdown({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1.5 w-52 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
+        <div className="absolute left-0 top-full z-50 mt-1.5 w-60 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
           {apps.map((app) => {
-            const active = app.id === selectedAppId;
+            const active = isGroupActive && app.id === selectedAppId;
             return (
               <button
-                key={app.id}
+                key={`${app.id}-${app.displayName ?? app.name}`}
                 type="button"
                 onClick={() => {
                   onSelectApp(app.id);
@@ -83,8 +90,8 @@ function GroupDropdown({
                 }`}
               >
                 <div>
-                  <div>{app.name}</div>
-                  <div className="text-[10px] text-slate-400">{app.category}</div>
+                  <div className="font-medium text-slate-900">{app.displayName ?? app.name}</div>
+                  <div className="text-[10px] text-slate-400">{app.displaySub ?? app.category}</div>
                 </div>
                 {app.status !== "normal" && (
                   <span
@@ -124,13 +131,63 @@ export function Zone1PulseBar({
         ? "bg-amber-500/15 text-amber-700 border-amber-500/30"
         : "bg-slate-100 text-slate-600 border-slate-200";
 
-  const isWebApp = (app: StudioAppEntity) =>
-    app.platformType === "web" ||
-    ["teacuptarot", "dreamsoban", "bambooforest"].includes(app.key) ||
-    ["teacup_tarot", "kkum_soban", "ai_bamboo"].includes(app.id);
+  const [activeGroup, setActiveGroup] = useState<"web" | "app" | null>(null);
 
-  const webApps = apps.filter(isWebApp);
-  const mobileApps = apps.filter((a) => !isWebApp(a));
+  useEffect(() => {
+    if (selectedAppId === "all" || selectedAppId === "blog") {
+      setActiveGroup(null);
+    } else if (activeGroup === null) {
+      if (
+        ["teacuptarot", "dreamsoban", "bambooforest"].includes(selectedAppId) ||
+        ["teacup_tarot", "kkum_soban", "ai_bamboo"].includes(selectedAppId)
+      ) {
+        setActiveGroup("web");
+      } else if (
+        ["tokbiseo", "wrongnote", "running"].includes(selectedAppId) ||
+        ["talk_secretary", "odap_conquer", "running_crew"].includes(selectedAppId)
+      ) {
+        setActiveGroup("app");
+      }
+    }
+  }, [selectedAppId]);
+
+  // 웹 서비스 그룹: 웹 전용 3종 + 우리동네 웹매거진
+  const webApps: GroupItem[] = [
+    ...apps
+      .filter(
+        (a) =>
+          a.platformType === "web" ||
+          ["teacuptarot", "dreamsoban", "bambooforest"].includes(a.key) ||
+          ["teacup_tarot", "kkum_soban", "ai_bamboo"].includes(a.id)
+      )
+      .map((a) => ({ ...a, displayName: a.name, displaySub: a.category })),
+    ...apps
+      .filter((a) => a.key === "uldongne" || a.id === "ul_dongne")
+      .map((a) => ({
+        ...a,
+        displayName: "우리동네 웹매거진",
+        displaySub: "복지·혜택 큐레이션 웹 (wooldongne.com)",
+      })),
+  ];
+
+  // 핸드폰 앱 그룹: 모바일 앱 3종 + 우리동네 앱 (스토어)
+  const mobileApps: GroupItem[] = [
+    ...apps
+      .filter(
+        (a) =>
+          a.platformType === "app" ||
+          ["tokbiseo", "wrongnote", "running"].includes(a.key) ||
+          ["talk_secretary", "odap_conquer", "running_crew"].includes(a.id)
+      )
+      .map((a) => ({ ...a, displayName: a.name, displaySub: a.category })),
+    ...apps
+      .filter((a) => a.key === "uldongne" || a.id === "ul_dongne")
+      .map((a) => ({
+        ...a,
+        displayName: "우리동네 앱",
+        displaySub: "구글 플레이스토어 앱 (v1.0.1)",
+      })),
+  ];
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -160,11 +217,14 @@ export function Zone1PulseBar({
           </div>
         </div>
 
-        {/* 중앙: 고정 탭 2개 + 수익 모델별 그룹 드롭다운 */}
+        {/* 중앙: 고정 탭 2개 + 형태별 그룹 드롭다운 (웹 서비스 vs 핸드폰 앱) */}
         <nav className="order-3 flex w-full items-center gap-1.5 lg:order-2 lg:w-auto">
           <button
             type="button"
-            onClick={() => onSelectApp("all")}
+            onClick={() => {
+              setActiveGroup(null);
+              onSelectApp("all");
+            }}
             className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
               selectedAppId === "all"
                 ? "bg-slate-900 text-white"
@@ -175,7 +235,10 @@ export function Zone1PulseBar({
           </button>
           <button
             type="button"
-            onClick={() => onSelectApp("blog")}
+            onClick={() => {
+              setActiveGroup(null);
+              onSelectApp("blog");
+            }}
             className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
               selectedAppId === "blog"
                 ? "bg-blue-600 text-white"
@@ -189,13 +252,21 @@ export function Zone1PulseBar({
             label="🌐 웹 서비스"
             apps={webApps}
             selectedAppId={selectedAppId}
-            onSelectApp={onSelectApp}
+            isGroupActive={activeGroup === "web"}
+            onSelectApp={(id) => {
+              setActiveGroup("web");
+              onSelectApp(id);
+            }}
           />
           <GroupDropdown
             label="📱 핸드폰 앱"
             apps={mobileApps}
             selectedAppId={selectedAppId}
-            onSelectApp={onSelectApp}
+            isGroupActive={activeGroup === "app"}
+            onSelectApp={(id) => {
+              setActiveGroup("app");
+              onSelectApp(id);
+            }}
           />
         </nav>
 

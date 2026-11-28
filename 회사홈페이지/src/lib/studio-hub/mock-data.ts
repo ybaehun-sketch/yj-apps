@@ -43,10 +43,10 @@ export const MOCK_APPS: StudioAppEntity[] = [
   {
     id: "ul_dongne",
     key: "uldongne",
-    name: "울동네",
-    category: "복지·로컬 정보",
+    name: "우리동네",
+    category: "복지 매거진 & 스토어 앱",
     revenueGroup: "ad_traffic",
-    platformType: "app",
+    platformType: "hybrid",
     status: "pre_launch",
     yesterdayRevenue: 0,
     dau: 0,

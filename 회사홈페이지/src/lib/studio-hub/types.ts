@@ -1,6 +1,6 @@
 export type AppStatus = "normal" | "warning" | "critical" | "pre_launch";
 export type RevenueGroup = "subscription" | "ad_traffic";
-export type PlatformType = "web" | "app";
+export type PlatformType = "web" | "app" | "hybrid";
 
 export interface StudioAppEntity {
   id: string;
