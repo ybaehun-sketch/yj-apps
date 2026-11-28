@@ -58,11 +58,11 @@ function GroupDropdown({
         onClick={() => setOpen((v) => !v)}
         className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
           selectedInGroup
-            ? "bg-blue-600 text-white font-semibold"
+            ? "bg-blue-600 !text-white font-semibold"
             : "bg-slate-100 text-slate-700 hover:bg-slate-200"
         }`}
       >
-        <span>
+        <span className={selectedInGroup ? "!text-white font-semibold" : ""}>
           {selectedInGroup ? `${selectedInGroup.displayName ?? selectedInGroup.name}` : `${label} (${apps.length})`}
         </span>
         {(hasCritical || hasWarning) && (
@@ -70,7 +70,7 @@ function GroupDropdown({
             className={`h-2 w-2 rounded-full ${hasCritical ? "bg-red-500" : "bg-amber-500"}`}
           />
         )}
-        <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+        <ChevronDown className={`h-3.5 w-3.5 ${selectedInGroup ? "text-white" : "opacity-70"}`} />
       </button>
 
       {open && (

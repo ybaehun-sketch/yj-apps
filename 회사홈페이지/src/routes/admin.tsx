@@ -132,6 +132,8 @@ function AdminControlCenter() {
   const tarotConnected = allBlocks.find((b) => b.key === "teacuptarot")?.remoteConnected ?? false;
   const pendingBorderlineCount = telemetry.pluginMetrics.ul_dongne?.borderlineNotices?.length ?? 0;
 
+  const isDetailView = selectedAppId !== "all";
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* Zone 1: 상단 글로벌 펄스 바 (64px 고정) */}
@@ -144,10 +146,10 @@ function AdminControlCenter() {
         onLogout={handleLogout}
       />
 
-      {/* 본문: PC 1440px+ 와이드(좌 65% + 우 35%), 통합 블로그 탭에서는 작업실을 넓게 쓰기 위해 우측 패널을 숨기고 100% 전체 폭 사용 */}
-      <main className={`mx-auto flex flex-col gap-6 px-4 py-6 lg:px-6 ${selectedAppId === "blog" ? "w-full max-w-[1700px]" : "max-w-[1600px] lg:flex-row"}`}>
-        {/* Zone 2: 모니터링 구역 (통합 블로그 작업실에서는 100% 전체 폭 활용) */}
-        <section className={`order-2 min-w-0 flex-1 ${selectedAppId === "blog" ? "w-full" : "lg:order-1 lg:basis-[65%]"}`}>
+      {/* 본문: 전체 통합 탭에서는 좌65%+우35% 분할 배치, 각 웹/앱 및 통합 블로그 상세 화면에서는 우측 패널을 숨기고 100% 와이드 화면 활용 */}
+      <main className={`mx-auto flex flex-col gap-6 px-4 py-6 lg:px-6 ${isDetailView ? "w-full max-w-[1700px]" : "max-w-[1600px] lg:flex-row"}`}>
+        {/* Zone 2: 모니터링 및 개별 작업 구역 (개별 웹/앱 이동 시 100% 전체 폭 활용) */}
+        <section className={`order-2 min-w-0 flex-1 ${isDetailView ? "w-full" : "lg:order-1 lg:basis-[65%]"}`}>
           <Zone2Monitor
             apps={telemetry.apps}
             selectedAppId={selectedAppId}
@@ -164,8 +166,8 @@ function AdminControlCenter() {
           />
         </section>
 
-        {/* Zone 3: 우측 35% 액션 & 제어 센터 (통합 블로그 작업실에서는 넓은 작업 환경을 위해 숨김) */}
-        {selectedAppId !== "blog" && (
+        {/* Zone 3: 우측 35% 액션 & 제어 센터 (전체 통합 화면에서만 표시, 개별 웹/앱 및 블로그 화면에서는 공간 확장을 위해 숨김) */}
+        {!isDetailView && (
           <section className="order-1 w-full shrink-0 lg:order-2 lg:basis-[35%] lg:max-w-[480px]">
             <Zone3ControlCenter
               apps={telemetry.apps}
