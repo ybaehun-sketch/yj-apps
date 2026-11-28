@@ -45,6 +45,34 @@ function normalizeBucketName(raw: string | undefined): string | null {
   return cleaned || null;
 }
 
+async function resolveBucketName(): Promise<string | null> {
+  const fromEnv = normalizeBucketName(process.env["GOOGLE_PLAY_BUCKET_NAME"]);
+  if (fromEnv) return fromEnv;
+
+  try {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const candidates = [
+      path.resolve(process.cwd(), ".env.local"),
+      "C:\\dev\\yj-apps\\비밀키\\회사홈페이지\\google-play.env",
+    ];
+    for (const file of candidates) {
+      if (fs.existsSync(file)) {
+        const content = fs.readFileSync(file, "utf8");
+        const m = content.match(/^GOOGLE_PLAY_BUCKET_NAME\s*=\s*(.+)$/m);
+        if (m?.[1]) {
+          const parsed = normalizeBucketName(m[1].replace(/^["']|["']$/g, ""));
+          if (parsed) return parsed;
+        }
+      }
+    }
+  } catch {
+    // ignore in serverless environments
+  }
+
+  return null;
+}
+
 async function resolveServiceAccount(): Promise<ServiceAccountKey | null> {
   const rawEnv = process.env["GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"]?.trim();
   if (rawEnv) {
@@ -83,7 +111,7 @@ async function resolveServiceAccount(): Promise<ServiceAccountKey | null> {
 
 export async function getGooglePlaySyncStatus(): Promise<GooglePlaySyncStatus> {
   const sa = await resolveServiceAccount();
-  const bucket = normalizeBucketName(process.env["GOOGLE_PLAY_BUCKET_NAME"]);
+  const bucket = await resolveBucketName();
   return {
     configured: Boolean(sa && bucket),
     hasServiceAccount: Boolean(sa),
@@ -227,7 +255,7 @@ async function fetchBucketObject(
 
 export async function syncGooglePlayMetrics(): Promise<GooglePlaySyncResult> {
   const sa = await resolveServiceAccount();
-  const bucket = normalizeBucketName(process.env["GOOGLE_PLAY_BUCKET_NAME"]);
+  const bucket = await resolveBucketName();
 
   if (!sa || !bucket) {
     return {
