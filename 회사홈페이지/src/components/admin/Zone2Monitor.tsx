@@ -77,7 +77,7 @@ function StatusBadge({ status }: { status: StudioAppEntity["status"] }) {
   if (status === "pre_launch") {
     return (
       <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-400">
-        ○ 개시전
+        ○ 연결전
       </span>
     );
   }
@@ -239,7 +239,7 @@ export function Zone2Monitor({
                   ? "구글 플레이 가져오는 중..."
                   : playSyncStatus?.configured
                     ? "구글 플레이 동기화"
-                    : "구글 플레이 연동 대기"}
+                    : "구글 플레이 연결전"}
               </Button>
             </div>
             <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs">
@@ -410,17 +410,25 @@ export function Zone2Monitor({
                             <StatusBadge status={app.status} />
                           </td>
                           <td className="px-3 py-3 text-right font-medium text-slate-800">
-                            {isPreLaunch ? <span className="text-slate-300">-</span> : `${app.yesterdayRevenue.toLocaleString()}원`}
+                            {isPreLaunch ? (
+                              <span className="text-slate-300">-</span>
+                            ) : app.platformType === "web" && app.yesterdayRevenue === 0 ? (
+                              <span className="text-xs font-normal text-slate-400">연결전</span>
+                            ) : (
+                              `${app.yesterdayRevenue.toLocaleString()}원`
+                            )}
                           </td>
                           <td className="px-3 py-3 text-right text-slate-600">
                             {isPreLaunch ? <span className="text-slate-300">-</span> : app.dau.toLocaleString()}
                           </td>
                           <td className="px-3 py-3 text-right text-slate-600">
-                            {isPreLaunch ? <span className="text-slate-300">-</span> : app.aiCost > 0 ? `${app.aiCost.toLocaleString()}원` : "-"}
+                            {isPreLaunch ? <span className="text-slate-300">-</span> : app.aiCost > 0 ? `${app.aiCost.toLocaleString()}원` : <span className="text-xs text-slate-400">연결전</span>}
                           </td>
                           <td className="px-3 py-3 text-right">
                             {isPreLaunch ? (
                               <span className="text-slate-300">-</span>
+                            ) : app.platformType === "web" && app.yesterdayRevenue === 0 ? (
+                              <span className="text-xs text-slate-400">연결전</span>
                             ) : (
                               <>
                                 <div className={`font-medium ${highCostRatio ? "text-amber-600" : "text-slate-800"}`}>

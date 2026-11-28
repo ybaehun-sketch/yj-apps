@@ -1,7 +1,13 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { hubGetLiveTelemetry, hubGetRecentAlerts, hubResolveAlert } from "@/lib/admin-hub.functions";
+import {
+  hubGetAiKeyMonitor,
+  hubGetExternalIntegrations,
+  hubGetLiveTelemetry,
+  hubGetRecentAlerts,
+  hubResolveAlert,
+} from "@/lib/admin-hub.functions";
 import {
   MOCK_APPS,
   MOCK_PLUGIN_METRICS,
@@ -19,6 +25,8 @@ export function useStudioTelemetry(enabled = true) {
   const getLiveAlertsFn = useServerFn(hubGetRecentAlerts);
   const resolveLiveAlertFn = useServerFn(hubResolveAlert);
   const getLiveTelemetryFn = useServerFn(hubGetLiveTelemetry);
+  const getExternalFn = useServerFn(hubGetExternalIntegrations);
+  const getAiMonitorFn = useServerFn(hubGetAiKeyMonitor);
   const qc = useQueryClient();
 
   const [baseApps, setBaseApps] = useState<StudioAppEntity[]>(MOCK_APPS);
@@ -35,26 +43,70 @@ export function useStudioTelemetry(enabled = true) {
     refetchOnWindowFocus: true,
   });
 
+  const { data: externalData } = useQuery({
+    queryKey: ["studio-external-integrations"],
+    queryFn: () => getExternalFn(),
+    enabled,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: aiMonitorData } = useQuery({
+    queryKey: ["studio-ai-key-monitor"],
+    queryFn: () => getAiMonitorFn(),
+    enabled,
+    refetchOnWindowFocus: false,
+  });
+
   const apps = useMemo<StudioAppEntity[]>(() => {
     const latest = liveTelemetry?.latestByApp ?? {};
+    const cfDomainByAppId: Record<string, string> = {
+      ul_dongne: "wooldongne.com",
+      teacup_tarot: "teacuptarot.com",
+      kkum_soban: "dreamsoban.app",
+      ai_bamboo: "bambooforest.app",
+    };
+    const cfByDomain = new Map(
+      (externalData?.cloudflare.connected ? externalData.cloudflare.sites : []).map((s) => [s.domain, s]),
+    );
+    const aiHealthByKey = new Map<string, boolean>();
+    for (const grp of aiMonitorData?.groups ?? []) {
+      const ok = grp.status === "healthy";
+      if (grp.id === "service") {
+        aiHealthByKey.set("teacup_tarot", ok);
+        aiHealthByKey.set("kkum_soban", ok);
+        aiHealthByKey.set("ai_bamboo", ok);
+      } else if (grp.id === "patrol") {
+        aiHealthByKey.set("ul_dongne", ok);
+      }
+    }
+
     return baseApps.map((app) => {
       const live = latest[app.id];
-      if (!live) return app;
+      const cfDomain = cfDomainByAppId[app.id];
+      const cfSite = cfDomain ? cfByDomain.get(cfDomain) : undefined;
+      const aiOk = aiHealthByKey.get(app.id);
+
+      if (!live && !cfSite) return app;
+
+      const yesterdayRevenue = live?.yesterdayRevenue ?? 0;
+      const dau = live?.dau ?? cfSite?.uniques ?? 0;
+      const aiCost = live?.aiCost ?? 0;
       const aiRevenueRatio =
-        live.yesterdayRevenue > 0
-          ? Number(((live.aiCost / live.yesterdayRevenue) * 100).toFixed(1))
-          : 0;
+        yesterdayRevenue > 0 ? Number(((aiCost / yesterdayRevenue) * 100).toFixed(1)) : 0;
+      const derivedStatus: StudioAppEntity["status"] =
+        live?.status ?? (aiOk === false ? "warning" : "normal");
+
       return {
         ...app,
-        status: live.status,
-        yesterdayRevenue: live.yesterdayRevenue,
-        dau: live.dau,
-        aiCost: live.aiCost,
+        status: derivedStatus,
+        yesterdayRevenue,
+        dau,
+        aiCost,
         aiRevenueRatio,
-        errorCount: live.errorCount,
+        errorCount: live?.errorCount ?? (aiOk === false ? 1 : 0),
       };
     });
-  }, [baseApps, liveTelemetry]);
+  }, [baseApps, liveTelemetry, externalData, aiMonitorData]);
 
   const dailyRows = useMemo(() => {
     const liveRows = liveTelemetry?.dailyRows ?? [];
@@ -106,12 +158,11 @@ export function useStudioTelemetry(enabled = true) {
     const totalRevenue = apps.reduce((s, a) => s + a.yesterdayRevenue, 0);
     const totalDau = apps.reduce((s, a) => s + a.dau, 0);
     const totalAiCost = apps.reduce((s, a) => s + a.aiCost, 0);
-    const dayOfMonth = Math.max(1, new Date().getDate());
-    const monthlyRevenue = totalRevenue * dayOfMonth;
-    const projectedMonthlyRevenue = totalRevenue * 30;
-    const monthlyVisitors = totalDau * dayOfMonth;
-    const monthlyAiCost = totalAiCost * dayOfMonth;
-    const projectedMonthlyAiCost = totalAiCost * 30;
+    const monthlyRevenue = dailyRows.length > 0 ? dailyRows.reduce((s, r) => s + r.revenue, 0) : totalRevenue;
+    const projectedMonthlyRevenue = monthlyRevenue;
+    const monthlyVisitors = dailyRows.length > 0 ? dailyRows.reduce((s, r) => s + r.dau, 0) : totalDau;
+    const monthlyAiCost = dailyRows.length > 0 ? dailyRows.reduce((s, r) => s + r.aiCost, 0) : totalAiCost;
+    const projectedMonthlyAiCost = monthlyAiCost;
     const monthlyNetProfit = monthlyRevenue - monthlyAiCost;
     const netProfitMargin =
       monthlyRevenue > 0 ? Number(((monthlyNetProfit / monthlyRevenue) * 100).toFixed(1)) : 0;

@@ -305,10 +305,15 @@ async function fetchCloudflareTraffic(): Promise<ExternalIntegrationsSnapshot["c
 }
 
 export async function getExternalIntegrationsStatus(): Promise<ExternalIntegrationsSnapshot> {
-  const [expo, cloudflare] = await Promise.all([fetchExpoStatus(), fetchCloudflareTraffic()]);
+  const cloudflare = await fetchCloudflareTraffic();
   return {
     checkedAt: new Date().toISOString(),
-    expo,
+    expo: {
+      connected: false,
+      username: null,
+      apps: [],
+      errorMessage: null,
+    },
     cloudflare,
   };
 }
