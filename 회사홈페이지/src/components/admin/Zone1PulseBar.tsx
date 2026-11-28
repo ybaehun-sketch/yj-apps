@@ -247,43 +247,33 @@ export function Zone1PulseBar({
     }
   }, [selectedAppId]);
 
-  // 웹 서비스 그룹: 웹 전용 3종 + 우리동네 웹매거진
-  const webApps: GroupItem[] = [
-    ...apps
-      .filter(
-        (a) =>
-          a.platformType === "web" ||
-          ["teacuptarot", "dreamsoban", "bambooforest"].includes(a.key) ||
-          ["teacup_tarot", "kkum_soban", "ai_bamboo"].includes(a.id)
-      )
-      .map((a) => ({ ...a, displayName: a.name, displaySub: a.category })),
-    ...apps
-      .filter((a) => a.key === "uldongne" || a.id === "ul_dongne")
-      .map((a) => ({
-        ...a,
-        displayName: "우리동네 웹매거진",
-        displaySub: "복지·혜택 큐레이션 웹 (wooldongne.com)",
-      })),
-  ];
+  // 웹 서비스 그룹: 웹 전용 3종 + 우리동네 (매거진)
+  const webApps: GroupItem[] = apps
+    .filter(
+      (a) =>
+        a.platformType === "web" ||
+        ["teacuptarot", "dreamsoban", "bambooforest", "uldongne"].includes(a.key) ||
+        ["teacup_tarot", "kkum_soban", "ai_bamboo", "ul_dongne"].includes(a.id)
+    )
+    .map((a) => ({
+      ...a,
+      displayName: a.id === "ul_dongne" ? "우리동네 (매거진)" : a.name,
+      displaySub: a.id === "ul_dongne" ? "복지·혜택 큐레이션 웹 (wooldongne.com)" : a.category,
+    }));
 
-  // 핸드폰 앱 그룹: 모바일 앱 3종 + 우리동네 앱 (스토어)
-  const mobileApps: GroupItem[] = [
-    ...apps
-      .filter(
-        (a) =>
-          a.platformType === "app" ||
-          ["tokbiseo", "wrongnote", "running"].includes(a.key) ||
-          ["talk_secretary", "odap_conquer", "running_crew"].includes(a.id)
-      )
-      .map((a) => ({ ...a, displayName: a.name, displaySub: a.category })),
-    ...apps
-      .filter((a) => a.key === "uldongne" || a.id === "ul_dongne")
-      .map((a) => ({
-        ...a,
-        displayName: "우리동네 앱",
-        displaySub: "구글 플레이스토어 앱 (v1.0.1)",
-      })),
-  ];
+  // 핸드폰 앱 그룹: 모바일 앱 3종 + 우리동네 (스마트폰앱)
+  const mobileApps: GroupItem[] = apps
+    .filter(
+      (a) =>
+        a.platformType === "app" ||
+        ["tokbiseo", "wrongnote", "running", "uldongne_app"].includes(a.key) ||
+        ["talk_secretary", "odap_conquer", "running_crew", "ul_dongne_app"].includes(a.id)
+    )
+    .map((a) => ({
+      ...a,
+      displayName: a.id === "ul_dongne_app" ? "우리동네 (스마트폰앱)" : a.name,
+      displaySub: a.id === "ul_dongne_app" ? "구글 플레이스토어 앱 · 애드몹" : a.category,
+    }));
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">

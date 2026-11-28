@@ -291,7 +291,7 @@ export function Zone2Monitor({
                   {(isDaily ? summary.totalDau : summary.monthlyVisitors).toLocaleString()}명
                 </p>
                 <p className="mt-0.5 text-[11px] text-slate-500">
-                  {isDaily ? "7개 앱 합산" : `일평균 ${summary.totalDau.toLocaleString()}명`}
+                  {isDaily ? `${apps.length}개 서비스 합산` : `일평균 ${summary.totalDau.toLocaleString()}명`}
                 </p>
               </div>
               <MiniSparkline data={dailyByDate} dataKey="dau" color="#2563eb" />
@@ -557,7 +557,7 @@ export function Zone2Monitor({
 
   // [개별 앱] 뷰
   const appDaily = dailyRows.filter((r) => r.appId === selectedApp.id);
-  const metrics = pluginMetrics[selectedApp.id];
+  const metrics = pluginMetrics[selectedApp.id] ?? (selectedApp.id === "ul_dongne_app" ? pluginMetrics["ul_dongne"] : undefined);
 
   return (
     <div className="space-y-6">
@@ -610,7 +610,7 @@ export function Zone2Monitor({
       </div>
 
       {/* 앱 전용 플러그인 슬롯 */}
-      {selectedApp.id === "ul_dongne" && metrics && (
+      {(selectedApp.id === "ul_dongne" || selectedApp.id === "ul_dongne_app") && metrics && (
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-xl border border-slate-200 bg-white p-5">
