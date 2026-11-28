@@ -333,10 +333,10 @@ export function Zone2Monitor({
           </div>
         </div>
 
-        {/* 중단: 웹·앱 투트랙 / 스토어 앱 전용 분리 매트릭스 */}
+        {/* 중단: 웹 서비스(애드센스) / 모바일 앱(애드몹·구독) 분리 매트릭스 */}
         {(() => {
-          const twoTrackApps = sortedApps.filter((a) => a.revenueGroup === "ad_traffic");
-          const appOnlyApps = sortedApps.filter((a) => a.revenueGroup !== "ad_traffic");
+          const webServices = sortedApps.filter((a) => a.platformType === "web");
+          const mobileApps = sortedApps.filter((a) => a.platformType !== "web");
 
           const renderMatrixCard = (title: string, badge: string, list: StudioAppEntity[]) => (
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -476,8 +476,8 @@ export function Zone2Monitor({
 
           return (
             <div className="space-y-4">
-              {renderMatrixCard(`웹 · 앱 투트랙 수익화 (${twoTrackApps.length}개)`, "웹 애드센스 + 앱 애드몹", twoTrackApps)}
-              {renderMatrixCard(`모바일 앱 전용 (${appOnlyApps.length}개)`, "구독 · 평생소장 · 멤버십", appOnlyApps)}
+              {renderMatrixCard(`웹 서비스 (${webServices.length}개)`, "웹 매거진 · 애드센스", webServices)}
+              {renderMatrixCard(`모바일 앱 (${mobileApps.length}개)`, "스토어 앱 · 애드몹 · 구독", mobileApps)}
             </div>
           );
         })()}
