@@ -35,8 +35,7 @@ function GuidePage() {
   const { data: g } = useSuspenseQuery(q(slug));
   return (
     <main className="mx-auto max-w-[840px] px-5 py-10">
-      <Link to="/guide" className="text-sm text-muted-foreground hover:text-foreground">← 마음 찻집 이야기</Link>
-      <article className="mt-4">
+      <article>
         <h1 className="font-serif text-3xl font-bold leading-snug">{g.title}</h1>
         <p className="mt-2 text-xs text-muted-foreground">{new Date(g.created_at).toLocaleDateString("ko-KR")}</p>
         <div className="mt-8 rounded-3xl border bg-card p-6 shadow-warm"><GuideBody body={g.body} /></div>

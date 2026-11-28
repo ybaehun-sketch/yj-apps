@@ -9,8 +9,7 @@ export function LegalPage({ title, updated, sections }: { title: string; updated
   const notice = t("legalNotice");
   return (
     <main className="mx-auto max-w-2xl px-5 py-10">
-      <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">{t("legalBack")}</Link>
-      <h1 className="mt-4 font-serif text-3xl font-bold">{title}</h1>
+      <h1 className="font-serif text-3xl font-bold">{title}</h1>
       <p className="mt-1 text-xs text-muted-foreground">{t("legalEffective")} {updated}</p>
       {notice && <p className="mt-2 text-xs text-muted-foreground/80">{notice}</p>}
       <div className="mt-8 space-y-7 rounded-3xl border bg-card p-6 text-sm leading-relaxed shadow-warm">

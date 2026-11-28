@@ -28,8 +28,7 @@ function AboutPage() {
   return (
     <main className="mx-auto max-w-2xl space-y-8 px-5 py-10">
       <div>
-        <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">{t("legalBack")}</Link>
-        <h1 className="mt-4 font-serif text-3xl font-bold">{t("aboutTitle")}</h1>
+        <h1 className="font-serif text-3xl font-bold">{t("aboutTitle")}</h1>
         <p className="mt-2 text-muted-foreground">{t("aboutIntro")}</p>
       </div>
 

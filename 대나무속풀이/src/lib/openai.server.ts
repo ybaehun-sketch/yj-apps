@@ -8,7 +8,7 @@ async function askGeminiJson(key: string, instructions: string, input: string): 
   for (const model of GEMINI_MODELS) {
     let res: Response;
     try {
-      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      res = await fetch(`https://tokbiseo-gemini-proxy.ybaehun.workers.dev/v1beta/models/${model}:generateContent`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": key },
         body: JSON.stringify({
