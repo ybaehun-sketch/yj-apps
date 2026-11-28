@@ -43,7 +43,7 @@ export const MOCK_APPS: StudioAppEntity[] = [
   {
     id: "ul_dongne",
     key: "uldongne",
-    name: "우리동네 (매거진)",
+    name: "우리동네",
     category: "웹 매거진 · 애드센스",
     revenueGroup: "ad_traffic",
     platformType: "web",
@@ -60,7 +60,7 @@ export const MOCK_APPS: StudioAppEntity[] = [
   {
     id: "ul_dongne_app",
     key: "uldongne_app",
-    name: "우리동네 (스마트폰앱)",
+    name: "우리동네",
     category: "스토어 앱 · 애드몹",
     revenueGroup: "ad_traffic",
     platformType: "app",
@@ -94,7 +94,7 @@ export const MOCK_APPS: StudioAppEntity[] = [
   {
     id: "teacup_tarot",
     key: "teacuptarot",
-    name: "찻잔타로 (웹)",
+    name: "찻잔타로",
     category: "웹 AI · 애드센스",
     revenueGroup: "ad_traffic",
     platformType: "web",
@@ -111,7 +111,7 @@ export const MOCK_APPS: StudioAppEntity[] = [
   {
     id: "teacup_tarot_app",
     key: "teacuptarot_app",
-    name: "찻잔타로 (스마트폰앱)",
+    name: "찻잔타로",
     category: "스토어 앱 · 애드몹",
     revenueGroup: "ad_traffic",
     platformType: "app",
@@ -128,7 +128,7 @@ export const MOCK_APPS: StudioAppEntity[] = [
   {
     id: "kkum_soban",
     key: "dreamsoban",
-    name: "꿈소반 (웹)",
+    name: "꿈소반",
     category: "웹 AI · 애드센스",
     revenueGroup: "ad_traffic",
     platformType: "web",
@@ -145,7 +145,7 @@ export const MOCK_APPS: StudioAppEntity[] = [
   {
     id: "kkum_soban_app",
     key: "dreamsoban_app",
-    name: "꿈소반 (스마트폰앱)",
+    name: "꿈소반",
     category: "스토어 앱 · 애드몹",
     revenueGroup: "ad_traffic",
     platformType: "app",
@@ -162,7 +162,7 @@ export const MOCK_APPS: StudioAppEntity[] = [
   {
     id: "ai_bamboo",
     key: "bambooforest",
-    name: "AI 대나무숲 (웹)",
+    name: "AI 대나무숲",
     category: "웹 AI · 애드센스",
     revenueGroup: "ad_traffic",
     platformType: "web",
@@ -179,7 +179,7 @@ export const MOCK_APPS: StudioAppEntity[] = [
   {
     id: "ai_bamboo_app",
     key: "bambooforest_app",
-    name: "AI 대나무숲 (스마트폰앱)",
+    name: "AI 대나무숲",
     category: "스토어 앱 · 애드몹",
     revenueGroup: "ad_traffic",
     platformType: "app",

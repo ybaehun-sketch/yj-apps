@@ -257,11 +257,11 @@ export function Zone1PulseBar({
     )
     .map((a) => ({
       ...a,
-      displayName: a.id === "ul_dongne" ? "우리동네 (매거진)" : a.name,
+      displayName: a.name,
       displaySub: a.id === "ul_dongne" ? "복지·혜택 큐레이션 웹 (wooldongne.com)" : a.category,
     }));
 
-  // 핸드폰 앱 그룹: 모바일 앱 3종 + 우리동네 (스마트폰앱)
+  // 핸드폰 앱 그룹: 모바일 앱 3종 + 우리동네/웹3형제 앱
   const mobileApps: GroupItem[] = apps
     .filter(
       (a) =>
@@ -271,7 +271,7 @@ export function Zone1PulseBar({
     )
     .map((a) => ({
       ...a,
-      displayName: a.id === "ul_dongne_app" ? "우리동네 (스마트폰앱)" : a.name,
+      displayName: a.name,
       displaySub: a.id === "ul_dongne_app" ? "구글 플레이스토어 앱 · 애드몹" : a.category,
     }));
 
