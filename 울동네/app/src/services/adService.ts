@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { getLastInterstitialTime, setLastInterstitialTime } from './storageService';
-import { InterstitialAd, AdEventType, TestIds } from 'react-native-google-mobile-ads';
+import mobileAds, { InterstitialAd, AdEventType, TestIds } from 'react-native-google-mobile-ads';
 
 const COOLDOWN_MS = 3 * 60 * 1000; // 최소 3분 쿨타임
 const FALLBACK_OPEN_TIMEOUT_MS = 15 * 1000; // 광고 콜백 지연 시 안전 타이머
@@ -15,14 +15,18 @@ const INTERSTITIAL_ID = __DEV__
 let interstitialAd: InterstitialAd | null = null;
 let isLoaded = false;
 let isAdShowing = false;
+let isInitialized = false;
 
 /**
- * 전면 광고 사전 로딩 및 이벤트 리스너 연결
+ * AdMob SDK 안전 초기화 및 전면 광고 사전 로딩
  */
-export function initializeInterstitialAd(): void {
+export async function initializeAdMobAsync(): Promise<void> {
   if (Platform.OS === 'web') return;
 
   try {
+    await mobileAds().initialize();
+    isInitialized = true;
+
     interstitialAd = InterstitialAd.createForAdRequest(INTERSTITIAL_ID, {
       requestNonPersonalizedAdsOnly: true
     });
@@ -48,6 +52,10 @@ export function initializeInterstitialAd(): void {
     interstitialAd = null;
     isLoaded = false;
   }
+}
+
+export function isAdMobReady(): boolean {
+  return isInitialized;
 }
 
 /**

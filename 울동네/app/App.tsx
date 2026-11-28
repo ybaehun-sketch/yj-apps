@@ -9,7 +9,7 @@ import {
   registerNotificationTapHandler,
   syncFcmTopicSubscriptions
 } from './src/services/fcmService';
-import { initializeInterstitialAd } from './src/services/adService';
+import { initializeAdMobAsync } from './src/services/adService';
 import { loadUserPreferences, saveUserPreferences } from './src/services/storageService';
 import { fetchPostByNotificationPayload } from './src/services/supabaseService';
 import type { UserPreferences, WelfarePost } from './src/types/welfare';
@@ -21,7 +21,7 @@ export default function App() {
   const [selectedPost, setSelectedPost] = useState<WelfarePost | null>(null);
 
   useEffect(() => {
-    initializeInterstitialAd();
+    void initializeAdMobAsync();
     loadUserPreferences().then((saved) => {
       if (saved) {
         const normalized: UserPreferences = {

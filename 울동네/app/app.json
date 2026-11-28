@@ -3,9 +3,9 @@
     "name": "울동네 - 우리동네 복지알림",
     "slug": "uldongne-mobile",
     "owner": "yoobh",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
@@ -15,7 +15,7 @@
     },
     "android": {
       "package": "app.yjstudio.uldongne",
-      "versionCode": 3,
+      "versionCode": 4,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -24,7 +24,7 @@
     },
     "ios": {
       "bundleIdentifier": "app.yjstudio.uldongne",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "supportsTablet": true
     },
     "web": {
@@ -53,13 +53,17 @@
         "expo-build-properties",
         {
           "android": {
-            "compileSdkVersion": 37,
-            "targetSdkVersion": 36
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "extraProguardRules": "-keep class com.google.android.gms.ads.** { *; }\n-keep class com.google.android.gms.internal.ads.** { *; }\n-keepattributes *Annotation*\n-keepattributes Signature"
           }
         }
       ],
       "@react-native-firebase/app",
       "@react-native-firebase/messaging"
     ]
+  },
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-1356528417680958~1457885348"
   }
 }

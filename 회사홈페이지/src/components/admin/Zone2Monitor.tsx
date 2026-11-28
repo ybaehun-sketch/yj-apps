@@ -18,6 +18,7 @@ import {
 import { ArrowUpDown, Check, RefreshCw, X as XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AiKeyMonitorCard } from "@/components/admin/AiKeyMonitorCard";
+import { ExternalIntegrationsCard } from "@/components/admin/ExternalIntegrationsCard";
 import { UnifiedBlogStudio } from "@/components/admin/UnifiedBlogStudio";
 import { TarotMemberBlock } from "@/components/admin/TarotMemberBlock";
 import { hubGetGooglePlaySyncStatus, hubSyncGooglePlay } from "@/lib/admin-hub.functions";
@@ -492,6 +493,9 @@ export function Zone2Monitor({
 
         {/* AI 열쇠 연결 현황 & 예상 잔액 게이지 */}
         <AiKeyMonitorCard />
+
+        {/* 외부 서비스 실시간 연동 현황 (Expo · 클라우드플레어) */}
+        <ExternalIntegrationsCard />
 
         {/* 하단: 수익군별 일별 추이 비교 차트 */}
         <div className="rounded-xl border border-slate-200 bg-white p-5">

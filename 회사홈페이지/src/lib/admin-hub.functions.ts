@@ -301,3 +301,12 @@ export const hubSyncGooglePlay = createServerFn({ method: "POST" })
     const { syncGooglePlayMetrics } = await import("./google-play-sync.server");
     return syncGooglePlayMetrics();
   });
+
+export const hubGetExternalIntegrations = createServerFn({ method: "GET" })
+  .middleware([requireAdmin])
+  .handler(async () => {
+    const { ensureLocalEnvLoaded } = await import("./server-env.server");
+    await ensureLocalEnvLoaded();
+    const { getExternalIntegrationsStatus } = await import("./external-integrations.server");
+    return getExternalIntegrationsStatus();
+  });

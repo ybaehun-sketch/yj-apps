@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import Constants from 'expo-constants';
 import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
@@ -17,11 +17,20 @@ const AD_UNIT_ID = __DEV__ ? TestIds.BANNER : (REAL_BANNER_ID || TestIds.BANNER)
  * 피드 카드 사이에 자연스럽게 노출되는 구글 애드몹 배너 카드 컴포넌트
  */
 export function NativeAdCard({ isDark = false }: NativeAdCardProps) {
-  const [adLoaded, setAdLoaded] = useState(false);
+  const [canRender, setCanRender] = useState(false);
   const [adFailed, setAdFailed] = useState(false);
 
-  // 웹 브라우저 환경이거나 광고 로드 실패 시 공간을 차지하지 않도록 숨김 처리
-  if (Platform.OS === 'web' || adFailed) {
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    // 앱 시작 시 광고 초기화 완료 후 렌더링되도록 0.5초 안전 딜레이 적용
+    const timer = setTimeout(() => {
+      setCanRender(true);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 웹 브라우저 환경이거나 광고 로드 실패 또는 초기화 전에는 공간을 차지하지 않음
+  if (Platform.OS === 'web' || !canRender || adFailed) {
     return null;
   }
 
@@ -33,10 +42,6 @@ export function NativeAdCard({ isDark = false }: NativeAdCardProps) {
           size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
           requestOptions={{
             requestNonPersonalizedAdsOnly: true
-          }}
-          onAdLoaded={() => {
-            setAdLoaded(true);
-            setAdFailed(false);
           }}
           onAdFailedToLoad={() => {
             setAdFailed(true);

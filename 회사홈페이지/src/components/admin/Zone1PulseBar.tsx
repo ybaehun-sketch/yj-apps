@@ -1,7 +1,103 @@
 import { useState, useRef, useEffect } from "react";
-import { Bell, ChevronDown, LogOut, ShieldCheck } from "lucide-react";
+import { Bell, ChevronDown, ExternalLink, LogOut, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { StudioAppEntity } from "@/lib/studio-hub/types";
+
+interface QuickLinkItem {
+  label: string;
+  desc: string;
+  url: string;
+}
+
+interface QuickLinkSection {
+  title: string;
+  items: QuickLinkItem[];
+}
+
+const STUDIO_QUICK_LINK_SECTIONS: QuickLinkSection[] = [
+  {
+    title: "수익 · 광고",
+    items: [
+      { label: "구글 애드센스", desc: "웹 사이트 광고 수익 · 심사 현황", url: "https://adsense.google.com" },
+      { label: "구글 애드몹", desc: "핸드폰 앱 광고 수익 관리", url: "https://admob.google.com" },
+    ],
+  },
+  {
+    title: "스토어 · 빌드 · 호스팅",
+    items: [
+      { label: "구글 개발자 콘솔", desc: "플레이스토어 앱 출시 · 심사 · 통계", url: "https://play.google.com/console" },
+      { label: "Expo (EAS)", desc: "모바일 앱 빌드 · 업데이트 관리", url: "https://expo.dev" },
+      { label: "클라우드플레어", desc: "웹사이트 배포 · 도메인 · 트래픽", url: "https://dash.cloudflare.com" },
+    ],
+  },
+  {
+    title: "검색 · 데이터 · AI · 코드",
+    items: [
+      { label: "구글 서치콘솔", desc: "검색 노출 · 블로그 색인 확인", url: "https://search.google.com/search-console" },
+      { label: "구글 애널리틱스", desc: "방문자 · 유입 경로 통계", url: "https://analytics.google.com" },
+      { label: "수파베이스", desc: "회원 · 게시글 · 데이터 창고", url: "https://supabase.com/dashboard" },
+      { label: "구글 AI 스튜디오", desc: "제미나이 AI 열쇠 · 사용량 확인", url: "https://aistudio.google.com" },
+      { label: "구글 클라우드 콘솔", desc: "구글 로그인 · 결제 지갑 관리", url: "https://console.cloud.google.com" },
+      { label: "깃허브 (YJ 통합)", desc: "전체 웹·앱 작업물 보관함", url: "https://github.com/ybaehun-sketch/yj-apps" },
+    ],
+  },
+];
+
+function QuickLinksDropdown() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+          open ? "bg-slate-200 text-slate-900" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+        }`}
+      >
+        <span>🔗 운영 사이트</span>
+        <ChevronDown className={`h-3.5 w-3.5 opacity-70 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1.5 max-h-[75vh] w-72 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+          {STUDIO_QUICK_LINK_SECTIONS.map((section, idx) => (
+            <div key={section.title} className={idx > 0 ? "mt-2 border-t border-slate-100 pt-2" : ""}>
+              <div className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                {section.title}
+              </div>
+              {section.items.map((item) => (
+                <a
+                  key={item.url}
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center justify-between rounded-lg px-2.5 py-2 text-xs text-slate-700 transition-colors hover:bg-slate-50"
+                >
+                  <div>
+                    <div className="font-medium text-slate-900">{item.label}</div>
+                    <div className="text-[10px] text-slate-400">{item.desc}</div>
+                  </div>
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                </a>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface Props {
   apps: StudioAppEntity[];
@@ -268,6 +364,7 @@ export function Zone1PulseBar({
               onSelectApp(id);
             }}
           />
+          <QuickLinksDropdown />
         </nav>
 
         {/* 우측: 긴급 알림 드로어 버튼 + 로그아웃 */}
