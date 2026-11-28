@@ -2,6 +2,14 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
+if (System.getenv("GOOGLE_SERVICES_JSON") && !file("google-services.json").exists()) {
+    copy {
+        from System.getenv("GOOGLE_SERVICES_JSON")
+        into "."
+        rename { "google-services.json" }
+    }
+}
+
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
 /**
