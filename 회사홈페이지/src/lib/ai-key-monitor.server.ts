@@ -220,6 +220,33 @@ async function pingGeminiKeyFree(apiKey: string): Promise<{
   }
 }
 
+const SERVICE_LIVE_ENDPOINTS = [
+  { name: "찻잔타로", url: "https://teacuptarot.com/api/health/ai" },
+  { name: "꿈소반", url: "https://dreamsoban.app/api/health/ai" },
+  { name: "대나무속풀이", url: "https://bambooforest.app/api/health/ai" },
+] as const;
+
+async function checkServiceLiveApps(): Promise<{ ok: boolean; failedApps: string[] }> {
+  const results = await Promise.all(
+    SERVICE_LIVE_ENDPOINTS.map(async (target) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      try {
+        const res = await fetch(target.url, { method: "GET", signal: controller.signal });
+        if (!res.ok) return target.name;
+        const data = (await res.json()) as { ok?: boolean };
+        return data.ok === true ? null : target.name;
+      } catch {
+        return target.name;
+      } finally {
+        clearTimeout(timer);
+      }
+    }),
+  );
+  const failedApps = results.filter((name): name is string => Boolean(name));
+  return { ok: failedApps.length === 0, failedApps };
+}
+
 export async function checkAllAiKeys(): Promise<AiKeyMonitorOverview> {
   const state = await readState();
   const nowIso = new Date().toISOString();
@@ -250,7 +277,23 @@ export async function checkAllAiKeys(): Promise<AiKeyMonitorOverview> {
         };
       }
 
-      const ping = await pingGeminiKeyFree(apiKey);
+      let ping = await pingGeminiKeyFree(apiKey);
+      if (spec.id === "service" && ping.status === "healthy") {
+        const liveCheck = await checkServiceLiveApps();
+        if (!liveCheck.ok) {
+          ping = {
+            status: "error",
+            message: `실서비스 AI 연결 이상 (${liveCheck.failedApps.join(", ")})`,
+            latencyMs: ping.latencyMs,
+          };
+        } else {
+          ping = {
+            status: "healthy",
+            message: "신호 정상 (3개 실서비스 포함 연결 양호)",
+            latencyMs: ping.latencyMs,
+          };
+        }
+      }
 
       if (ping.status === "error" || ping.status === "warning") {
         await sendUrgentAlert({

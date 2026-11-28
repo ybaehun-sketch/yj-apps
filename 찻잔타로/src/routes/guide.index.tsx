@@ -25,7 +25,7 @@ function GuideList() {
   const locale = lang === "ja" ? "ja-JP" : lang === "zh-TW" ? "zh-TW" : lang === "en" ? "en-US" : "ko-KR";
 
   return (
-    <main className="mx-auto max-w-2xl px-5 py-10">
+    <main className="mx-auto max-w-[840px] px-5 py-10">
       <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">{t("legalBack")}</Link>
       <h1 className="mt-4 font-serif text-3xl font-bold">{t("guidesTitle")}</h1>
       <p className="mt-2 text-sm text-muted-foreground">{t("guideListDesc")}</p>
