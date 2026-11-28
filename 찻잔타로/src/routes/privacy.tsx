@@ -1,25 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { LegalPage } from "@/components/LegalPage";
+import { LegalPage, type Section } from "@/components/LegalPage";
+import { useI18n } from "@/lib/i18n";
+import { PRIVACY_I18N } from "@/lib/legal-i18n";
 
 const T = "개인정보처리방침 — 찻잔 타로";
 const D = "찻잔 타로가 어떤 개인정보를 왜 모으고, 얼마나 보관하며, 어떻게 지우는지 안내해요.";
 
-export const Route = createFileRoute("/privacy")({
-  head: () => ({
-    meta: [
-      { title: T },
-      { name: "description", content: D },
-      { property: "og:title", content: T },
-      { property: "og:description", content: D },
-      { property: "og:type", content: "article" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
-  component: () => (
-    <LegalPage
-      title="개인정보처리방침"
-      updated="2026년 11월 27일"
-      sections={[
+const KO_SECTIONS: Section[] = [
         {
           title: "수집하는 정보",
           body: (
@@ -87,7 +74,30 @@ export const Route = createFileRoute("/privacy")({
         { title: "안전 조치", body: <p>모든 통신 구간은 암호화(HTTPS)하며, 무로그인 이용 횟수 검증 토큰은 서버 서명으로 안전하게 보호해요.</p> },
         { title: "만 14세 미만", body: <p>서비스는 만 14세 미만 아동을 대상으로 개인정보를 수집하지 않아요.</p> },
         { title: "개인정보 보호 문의", body: <p>운영: 와이제이 스튜디오 · 문의: contact@yjstudio.app</p> },
-      ]}
-    />
-  ),
+];
+
+export const Route = createFileRoute("/privacy")({
+  head: () => ({
+    meta: [
+      { title: T },
+      { name: "description", content: D },
+      { property: "og:title", content: T },
+      { property: "og:description", content: D },
+      { property: "og:type", content: "article" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: PrivacyPage,
 });
+
+function PrivacyPage() {
+  const { lang } = useI18n();
+  const tr = PRIVACY_I18N[lang];
+  return (
+    <LegalPage
+      title={tr?.title ?? "개인정보처리방침"}
+      updated={tr?.updated ?? "2026년 11월 27일"}
+      sections={tr?.sections ?? KO_SECTIONS}
+    />
+  );
+}

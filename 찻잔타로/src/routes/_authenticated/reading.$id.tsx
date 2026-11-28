@@ -4,7 +4,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { toPng } from "html-to-image";
-import { RewardedAdDialog } from "@/components/MockAds";
+import { RewardedAdDialog, isAppWrapper } from "@/components/MockAds";
 import { CheckoutDialog, type Product } from "@/components/CheckoutDialog";
 import { PACKS } from "@/lib/products";
 import {
@@ -20,15 +20,17 @@ import {
   turnsLeft,
 } from "@/lib/membership";
 import { toast } from "sonner";
-import { AD_ONLY_MODE, adsLeftToday, isAdminEmail, recordAdWatched } from "@/lib/access";
+import { AD_ONLY_MODE, ADSENSE_APPROVED, adsLeftToday, isAdminEmail, recordAdWatched } from "@/lib/access";
 import { sfx } from "@/lib/sound";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CardFace, PersonaAvatar } from "@/components/TarotCardView";
-import { PERSONAS, cardById, type DrawnCard, type PersonaId } from "@/lib/tarot";
+import { PERSONAS, POSITIONS, cardById, type DrawnCard, type PersonaId } from "@/lib/tarot";
 import { grantGuestAdTurn, makeGuestPrescription, makePrescription, sendGuestMessage, sendMessage } from "@/lib/tarot.functions";
+import { useI18n, usePersonaText } from "@/lib/i18n";
+import { cardText } from "@/lib/tarot-i18n";
 
 type Msg = { id: string; role: string; content: string };
 
@@ -85,11 +87,21 @@ function ReadingChat() {
 }
 
 function Chat({ id }: { id: string }) {
+  const { t, lang } = useI18n();
+  const personaText = usePersonaText();
   const qc = useQueryClient();
   const { data } = useSuspenseQuery(readingQuery(id));
   const { reading } = data;
   const persona = PERSONAS[reading.persona as PersonaId] ?? PERSONAS.sister;
+  const personaName = personaText(persona.id).name;
   const cards = (reading.cards as DrawnCard[]) ?? [];
+  const posLabels: Record<string, string> = {
+    [POSITIONS[0]!]: t("posPast"),
+    [POSITIONS[1]!]: t("posPresent"),
+    [POSITIONS[2]!]: t("posFuture"),
+  };
+  const typingText =
+    persona.id === "sister" ? t("typingSister") : persona.id === "fact" ? t("typingFact") : t("typingWitch");
 
   const [messages, setMessages] = useState<Msg[]>(data.messages);
   useEffect(() => {
@@ -120,7 +132,7 @@ function Chat({ id }: { id: string }) {
   }, []);
   const openAd = () => {
     if (!admin && adsLeftToday() <= 0) {
-      toast.error("오늘 볼 수 있는 광고를 모두 봤어요. 내일 다시 만나요 🍵");
+      toast.error(t(isAppWrapper() ? "rxAdLimit" : "rxWebLimit"));
       return;
     }
     setAdOpen(true);
@@ -145,12 +157,12 @@ function Chat({ id }: { id: string }) {
   const [buyLeaf, setBuyLeaf] = useState<Product | null>(null);
   const userTurns = messages.filter((m) => m.role === "user").length;
   const left = turnsLeft(userTurns, extra);
-  // 찻잎이 있으면 막지 않고, 보낼 때 자동으로 1개 우려 대화를 이어간다
-  const locked = left <= 0 && leaves < 1 && !pending;
+  // 찻잎이 있으면 막지 않고, 보낼 때 자동으로 1개 우려 대화를 이어간다 (단, 광고 전용/애드센스 심사 중에는 무료 한도 후 잠금)
+  const locked = left <= 0 && (AD_ONLY_MODE || !ADSENSE_APPROVED || leaves < 1) && !pending;
 
   async function send() {
-    const t = text.trim();
-    if (!t || pending || locked) return;
+    const t2 = text.trim();
+    if (!t2 || pending || locked) return;
     if (left <= 0) {
       if (!(await spendLeaf(id, userTurns))) {
         toast.error("찻잎을 우리지 못했어요. 잠시 후 다시 시도해 주세요.");
@@ -161,7 +173,7 @@ function Chat({ id }: { id: string }) {
       toast.success(`찻잎 1개를 우려 대화 ${LEAF_TURNS}번이 이어져요 🌿`, { duration: 2500 });
     }
     setText("");
-    setMessages((m) => [...m, { id: `tmp-${Date.now()}`, role: "user", content: t }]);
+    setMessages((m) => [...m, { id: `tmp-${Date.now()}`, role: "user", content: t2 }]);
     setPending(true);
     try {
       let reply = "";
@@ -178,7 +190,8 @@ function Chat({ id }: { id: string }) {
                 role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",
                 content: m.content,
               })),
-              text: t,
+              text: t2,
+              language: lang,
             },
           }),
           new Promise<never>((_, rej) => setTimeout(() => rej(new Error("TIMEOUT")), 40000)),
@@ -187,14 +200,14 @@ function Chat({ id }: { id: string }) {
         nextTurnToken = res.turnToken;
       } else {
         const res = await Promise.race([
-          sendMessage({ data: { readingId: id, text: t } }),
+          sendMessage({ data: { readingId: id, text: t2, language: lang } }),
           new Promise<never>((_, rej) => setTimeout(() => rej(new Error("TIMEOUT")), 40000)),
         ]);
         reply = res.reply;
       }
       toast.dismiss("chat-error");
       const now = Date.now();
-      const userMsg = { id: `tmp-u-${now}`, role: "user", content: t };
+      const userMsg = { id: `tmp-u-${now}`, role: "user", content: t2 };
       const aiMsg = { id: `tmp-a-${now}`, role: "assistant", content: reply };
       const nextMsgs = [...messages, userMsg, aiMsg];
       setMessages((m) => [...m, aiMsg]);
@@ -217,15 +230,15 @@ function Chat({ id }: { id: string }) {
       const hasKorean = /[가-힣]/.test(raw);
       // 연결이 끊겼을 수 있으니 서버에 실제로 저장됐는지 다시 확인
       qc.invalidateQueries({ queryKey: ["reading", id] });
-      setText(t);
+      setText(t2);
       setMessages((m) => m.slice(0, -1));
       toast.error(
         timedOut
-          ? "답장이 늦어지고 있어요. 연결을 확인하고 다시 보내 볼까요?"
+          ? t("chatTimeout")
           : isNetwork || !hasKorean
-            ? "인터넷 연결이 잠시 불안정해요. 다시 보내 볼까요?"
+            ? t("chatNetErr")
             : raw,
-        { id: "chat-error", action: { label: "다시 시도", onClick: () => document.getElementById("chat-send")?.click() } },
+        { id: "chat-error", action: { label: t("retry"), onClick: () => document.getElementById("chat-send")?.click() } },
       );
     } finally {
       setPending(false);
@@ -248,6 +261,7 @@ function Chat({ id }: { id: string }) {
               role: m.role === "user" ? ("user" as const) : ("assistant" as const),
               content: m.content,
             })),
+            language: lang,
           },
         });
         p = res.prescription;
@@ -260,14 +274,14 @@ function Chat({ id }: { id: string }) {
           }
         } catch { /* ignore */ }
       } else {
-        const res = await makePrescription({ data: { readingId: id } });
+        const res = await makePrescription({ data: { readingId: id, language: lang } });
         p = res.prescription;
         qc.invalidateQueries({ queryKey: ["readings"] });
       }
       setPrescription(p);
       sfx.clink();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "처방전을 만들지 못했어요.");
+      toast.error(e instanceof Error ? e.message : t("rxError"));
       setRxOpen(false);
     } finally {
       setRxBusy(false);
@@ -279,11 +293,11 @@ function Chat({ id }: { id: string }) {
       <div className="flex items-center gap-3 rounded-2xl border bg-card/80 p-3">
         <PersonaAvatar id={persona.id} emoji={persona.emoji} className="size-12 text-2xl" />
         <div className="min-w-0 flex-1">
-          <p className="font-serif font-bold">{persona.name}</p>
+          <p className="font-serif font-bold">{personaName}</p>
           <p className="truncate text-xs text-muted-foreground">{reading.concern}</p>
         </div>
         <Button size="sm" onClick={finish}>
-          상담 마치기
+          {t("finishReading")}
         </Button>
       </div>
 
@@ -294,7 +308,7 @@ function Chat({ id }: { id: string }) {
               <div className="aspect-[5/8]">
                 <CardFace card={cardById(c.id)} />
               </div>
-              <p className="mt-1 text-[10px] text-muted-foreground">{c.position}</p>
+              <p className="mt-1 text-[10px] text-muted-foreground">{posLabels[c.position] ?? c.position}</p>
             </div>
           ))}
         </div>
@@ -330,7 +344,7 @@ function Chat({ id }: { id: string }) {
           <div className="flex gap-2">
             <PersonaAvatar id={persona.id} emoji={persona.emoji} className="size-8 border" />
             <p className="flex items-center gap-2 rounded-2xl rounded-tl-sm border bg-card px-4 py-2.5 text-muted-foreground">
-              <span className="animate-pulse">{TYPING[persona.id] ?? "생각을 적고 있어요…"}</span>
+              <span className="animate-pulse">{typingText ?? t("typingFallback")}</span>
               <span className="flex gap-1">{[0, 1, 2].map((d) => <span key={d} className="size-1.5 animate-bounce rounded-full bg-primary/60" style={{ animationDelay: `${d * 150}ms` }} />)}</span>
             </p>
           </div>
@@ -339,23 +353,30 @@ function Chat({ id }: { id: string }) {
       </div>
 
       {left > 0 && (
-        <p className="mb-1 text-center text-xs text-muted-foreground">남은 대화 {left}회 🍵</p>
+        <p className="mb-1 text-center text-xs text-muted-foreground">{t("turnsLeftMsg", { n: left })}</p>
       )}
       {locked ? (
+        !ADSENSE_APPROVED ? (
+          <div className="mb-3 space-y-2 rounded-2xl border bg-card p-4 text-center shadow-warm">
+            <p className="text-sm font-medium text-muted-foreground">{t("freeLimitReached")}</p>
+            <Button size="sm" onClick={finish}>{t("finishReading")}</Button>
+          </div>
+        ) : (
         <div className="mb-3 space-y-2 rounded-2xl border bg-card p-4 text-center shadow-warm">
-          <p className="font-serif font-bold">준비된 차를 다 마셨어요 ☕</p>
-          <p className="text-xs text-muted-foreground">이야기를 더 이어가고 싶다면 차를 한 잔 더 우려볼까요?</p>
+          <p className="font-serif font-bold">{t("outOfTeaTitle")}</p>
+          <p className="text-xs text-muted-foreground">{t("outOfTeaDesc")}</p>
           <div className="grid gap-2 pt-1">
             <Button variant={AD_ONLY_MODE ? "default" : "outline"} onClick={openAd}>
-              📺 짧은 광고 보고 {AD_TURNS}번 더 대화하기
+              {t(isAppWrapper() ? "watchAdMoreTurns" : "watchWebMoreTurns", { n: AD_TURNS })}
             </Button>
             {!AD_ONLY_MODE && (
               <Button onClick={() => setBuyLeaf(PACKS[0] ?? null)}>
-                🌿 찻잎 충전하고 {LEAF_TURNS}번 더 대화하기
+                {t("useLeafMoreTurns", { n: LEAF_TURNS })}
               </Button>
             )}
           </div>
         </div>
+        )
       ) : (
       <form
         onSubmit={(e) => {
@@ -380,11 +401,11 @@ function Chat({ id }: { id: string }) {
             const el = e.currentTarget;
             setTimeout(() => el.scrollIntoView({ block: "end", behavior: "smooth" }), 300);
           }}
-          placeholder={`${persona.name}에게 이야기하기…`}
+          placeholder={t("chatPlaceholder", { name: personaName })}
           className="max-h-32 min-h-10 resize-none border-none bg-transparent shadow-none focus-visible:ring-0"
         />
         <Button id="chat-send" type="submit" disabled={pending || !text.trim()} className="shrink-0">
-          보내기
+          {t("sendButton")}
         </Button>
       </form>
       )}
@@ -411,21 +432,21 @@ function Chat({ id }: { id: string }) {
             ok = await grantAdTurns(id, userTurns);
           }
           refreshLimits();
-          if (ok) toast.success(`대화 ${AD_TURNS}번이 추가됐어요 🍵`);
-          else toast.error("오늘 광고로 받을 수 있는 대화를 모두 썼어요.");
+          if (ok) toast.success(t("rxTurnsAdded", { n: AD_TURNS }));
+          else toast.error(t(isAppWrapper() ? "rxAdTurnLimit" : "rxWebTurnLimit"));
         }}
       />
 
       <CheckoutDialog
         product={buyLeaf}
         onClose={() => setBuyLeaf(null)}
-        doneLabel="바로 대화 이어가기"
+        doneLabel={t("adContinue")}
         onDone={(_p, real) => {
           const m = getMembership();
           if (!real) setMembership({ ...m, leaves: m.leaves + 1 });
           void spendLeaf(id, userTurns).then((ok) => {
             refreshLimits();
-            if (ok) toast.success(`찻잎을 우려 대화 ${LEAF_TURNS}번이 추가됐어요 🌿`);
+            if (ok) toast.success(t("rxTurnsAdded", { n: LEAF_TURNS }));
           });
         }}
       />
@@ -435,10 +456,11 @@ function Chat({ id }: { id: string }) {
         onOpenChange={setRxOpen}
         busy={rxBusy}
         line={prescription}
-        personaName={persona.name}
+        personaName={personaName}
         personaId={persona.id}
         personaEmoji={persona.emoji}
         cards={cards}
+        posLabels={posLabels}
       />
     </main>
   );
@@ -470,6 +492,7 @@ function PrescriptionDialog({
   personaEmoji,
   personaId,
   cards,
+  posLabels,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -479,9 +502,12 @@ function PrescriptionDialog({
   personaEmoji: string;
   personaId: string;
   cards: DrawnCard[];
+  posLabels: Record<string, string>;
 }) {
+  const { t, lang } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
-  const today = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
+  const locale = lang === "ja" ? "ja-JP" : lang === "zh-TW" ? "zh-TW" : lang === "en" ? "en-US" : "ko-KR";
+  const today = new Date().toLocaleDateString(locale, { year: "numeric", month: "long", day: "numeric" });
 
   async function makeImage() {
     if (!ref.current) throw new Error("no card");
@@ -489,13 +515,13 @@ function PrescriptionDialog({
     const bin = atob(url.split(",")[1] ?? "");
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return { url, file: new File([bytes], "마음처방전.png", { type: "image/png" }) };
+    return { url, file: new File([bytes], "teacup-tarot.png", { type: "image/png" }) };
   }
 
   function download(url: string) {
     const a = document.createElement("a");
     a.href = url;
-    a.download = "마음처방전.png";
+    a.download = "teacup-tarot.png";
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -505,11 +531,11 @@ function PrescriptionDialog({
   useEffect(() => {
     ready.current = null;
     if (!open || busy || !line) return;
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       ready.current = makeImage();
       ready.current.catch(() => { ready.current = null; });
     }, 400);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [open, busy, line]);
 
   async function run(kind: "save" | "share") {
@@ -517,51 +543,51 @@ function PrescriptionDialog({
     try {
       img = await (ready.current ?? makeImage());
     } catch {
-      toast.error("이미지를 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
+      toast.error(t("rxImgError"));
       return;
     }
     if (kind === "save") {
       download(img.url);
-      toast.success("처방전 이미지를 저장했어요.");
+      toast.success(t("rxSaved"));
       return;
     }
-    const text = `오늘의 마음 처방전 🍵\n“${line}”\n나도 찻잔 타로 보러 가기 👉 ${APP_URL}`;
+    const shareText = `${t("rxTitle")} 🍵\n“${line}”\n👉 ${APP_URL}`;
     try {
       if (navigator.canShare?.({ files: [img.file] })) {
-        await navigator.share({ files: [img.file], title: "오늘의 마음 처방전", text });
+        await navigator.share({ files: [img.file], title: t("rxTitle"), text: shareText });
         return;
       }
       if (navigator.share) {
-        await navigator.share({ title: "오늘의 마음 처방전", text, url: APP_URL });
+        await navigator.share({ title: t("rxTitle"), text: shareText, url: APP_URL });
         return;
       }
     } catch (e) {
       if ((e as Error).name === "AbortError") return;
     }
-    try { await navigator.clipboard?.writeText(text); } catch { /* ignore */ }
+    try { await navigator.clipboard?.writeText(shareText); } catch { /* ignore */ }
     download(img.url);
-    toast.success("이미지를 저장하고 공유 문구를 복사했어요.");
+    toast.success(t("rxSavedAndCopied"));
   }
 
   async function copyLink(silent = false) {
     try {
       await navigator.clipboard.writeText(APP_URL);
-      if (!silent) toast.success("링크를 복사했어요.");
+      if (!silent) toast.success(t("rxLinkCopied"));
       return true;
     } catch {
-      if (!silent) toast.error("복사하지 못했어요. 주소를 길게 눌러 복사해 주세요.");
+      if (!silent) toast.error(t("rxCopyFail"));
       return false;
     }
   }
 
   async function openSns(name: string) {
     const u = encodeURIComponent(APP_URL);
-    const t = encodeURIComponent(`오늘의 마음 처방전 🍵 “${line}”`);
+    const enc = encodeURIComponent(`${t("rxTitle")} 🍵 “${line}”`);
     const urls: Record<string, string> = {
-      X: `https://twitter.com/intent/tweet?text=${t}&url=${u}`,
+      X: `https://twitter.com/intent/tweet?text=${enc}&url=${u}`,
       페이스북: `https://www.facebook.com/sharer/sharer.php?u=${u}`,
-      밴드: `https://band.us/plugin/share?body=${t}%0A${u}&route=${u}`,
-      문자: `sms:?&body=${t}%20${u}`,
+      밴드: `https://band.us/plugin/share?body=${enc}%0A${u}&route=${u}`,
+      문자: `sms:?&body=${enc}%20${u}`,
     };
     if (urls[name]) {
       window.open(urls[name], "_blank", "noopener,noreferrer");
@@ -569,7 +595,7 @@ function PrescriptionDialog({
     }
     // 카카오톡·인스타그램은 웹 바로가기가 없어 이미지 공유 창 + 링크 복사로 연결
     await copyLink(true);
-    toast.success(`링크를 복사했어요. ${name}에 붙여넣어 주세요.`);
+    toast.success(t("rxLinkCopied"));
     await run("share");
   }
 
@@ -578,7 +604,7 @@ function PrescriptionDialog({
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm border-none bg-background p-4">
-        <DialogTitle className="sr-only">마음 처방전</DialogTitle>
+        <DialogTitle className="sr-only">{t("rxTitle")}</DialogTitle>
         <div
           ref={ref}
           className="rx-paper relative mx-auto flex aspect-[9/16] w-full max-w-[300px] flex-col items-center justify-between overflow-hidden rounded-2xl p-6 text-center text-cocoa"
@@ -586,22 +612,23 @@ function PrescriptionDialog({
           <div className="absolute inset-3 rounded-xl border border-gold/70" />
           <div className="absolute inset-[18px] rounded-lg border border-gold/30" />
           <div className="relative pt-5">
-            <p className="text-[9px] tracking-[0.4em] text-primary">✦ TODAY'S PRESCRIPTION ✦</p>
-            <p className="mt-2 font-serif text-[22px] font-bold">오늘의 마음 처방전</p>
+            <p className="text-[9px] tracking-[0.4em] text-primary">{t("rxBadge")}</p>
+            <p className="mt-2 font-serif text-[22px] font-bold">{t("rxTitle")}</p>
             <p className="mt-1 text-[10px] tracking-widest opacity-70">{today}</p>
           </div>
           <div className="relative flex gap-2">
             {cards.map((c) => {
               const card = cardById(c.id);
+              const ct = cardText(card, lang);
               return (
                 <div key={c.position} className="flex w-[62px] flex-col items-center rounded-md border border-gold/80 bg-gold/10 px-1 py-2">
-                  <span className="text-[8px] tracking-widest text-primary">{c.position}</span>
+                  <span className="text-[8px] tracking-widest text-primary">{posLabels[c.position] ?? c.position}</span>
                   {stampFor(card.id) ? (
-                    <img src={stampFor(card.id)} alt={`'${card.name}' 카드`} className="my-1 size-[52px] rounded-full" />
+                    <img src={stampFor(card.id)} alt={ct.label} className="my-1 size-[52px] rounded-full" />
                   ) : (
                     <span className="my-1 text-2xl">{card.symbol}</span>
                   )}
-                  <span className="font-serif text-[9px] leading-tight">{card.name}</span>
+                  <span className="font-serif text-[9px] leading-tight">{ct.name}</span>
                 </div>
               );
             })}
@@ -609,21 +636,21 @@ function PrescriptionDialog({
           <div className="relative w-full px-2">
             <div className="mx-auto mb-3 h-px w-16 bg-gold/60" />
             <p className="min-h-20 font-serif text-[17px] font-bold leading-relaxed">
-              {busy || !line ? "처방전을 쓰는 중…" : `“${line}”`}
+              {busy || !line ? t("rxWriting") : `“${line}”`}
             </p>
             <div className="mx-auto mt-3 h-px w-16 bg-gold/60" />
           </div>
           <div className="relative flex w-full items-end justify-between gap-2 px-3 pb-5">
             <div className="text-left">
-              <p className="text-[9px] tracking-widest text-primary">COUNSELOR</p>
+              <p className="text-[9px] tracking-widest text-primary">{t("rxReaderLabel")}</p>
               <p className="font-serif text-xs">{personaEmoji} {personaName}</p>
-              <p className="mt-2 text-[9px] tracking-[0.3em] text-primary">🍵 찻잔 타로</p>
+              <p className="mt-2 text-[9px] tracking-[0.3em] text-primary">🍵 {t("brandTitle")}</p>
             </div>
             <div className="flex flex-col items-center gap-1">
               <div className="rounded-md bg-card p-1">
                 <QRCodeSVG value={APP_URL} size={44} bgColor="transparent" fgColor="currentColor" className="text-cocoa" />
               </div>
-              <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="text-[8px] tracking-wider text-primary underline underline-offset-2">찻잔타로 방문하기</a>
+              <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="text-[8px] tracking-wider text-primary underline underline-offset-2">{t("rxVisitLink")}</a>
             </div>
             <div className="rx-seal flex size-12 rotate-[-12deg] items-center justify-center rounded-full font-serif text-xl text-primary-foreground">
               {SEAL[personaId] ?? "✦"}
@@ -632,15 +659,15 @@ function PrescriptionDialog({
         </div>
         <div className="mt-2 grid grid-cols-2 gap-2">
           <Button variant="outline" onClick={() => void run("save")} disabled={busy || !line}>
-            이미지 저장
+            {t("rxSaveImage")}
           </Button>
           <Button onClick={() => void run("share")} disabled={busy || !line}>
-            공유하기
+            {t("rxShare")}
           </Button>
         </div>
         <div className="mt-1 flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
           <span className="flex-1 truncate text-xs text-muted-foreground">{APP_URL}</span>
-          <Button size="sm" variant="secondary" onClick={() => void copyLink()}>복사하기</Button>
+          <Button size="sm" variant="secondary" onClick={() => void copyLink()}>{t("rxCopy")}</Button>
         </div>
         <div className="grid grid-cols-6 gap-1 text-center">
           {SNS.map((s) => (

@@ -1,25 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { LegalPage } from "@/components/LegalPage";
+import { LegalPage, type Section } from "@/components/LegalPage";
+import { useI18n } from "@/lib/i18n";
+import { TERMS_I18N } from "@/lib/legal-i18n";
 
 const T = "이용약관 — 찻잔 타로";
 const D = "찻잔 타로 AI 상담 서비스의 이용 조건과 이용 제한 기준을 안내해요.";
 
-export const Route = createFileRoute("/terms")({
-  head: () => ({
-    meta: [
-      { title: T },
-      { name: "description", content: D },
-      { property: "og:title", content: T },
-      { property: "og:description", content: D },
-      { property: "og:type", content: "article" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
-  component: () => (
-    <LegalPage
-      title="이용약관"
-      updated="2026년 11월 27일"
-      sections={[
+const KO_SECTIONS: Section[] = [
         { title: "목적", body: <p>이 약관은 찻잔 타로(이하 "서비스")를 이용하는 조건과 절차, 이용자와 운영자의 권리·의무를 정해요.</p> },
         {
           title: "서비스의 성격",
@@ -95,7 +82,30 @@ export const Route = createFileRoute("/terms")({
             </>
           ),
         },
-      ]}
-    />
-  ),
+];
+
+export const Route = createFileRoute("/terms")({
+  head: () => ({
+    meta: [
+      { title: T },
+      { name: "description", content: D },
+      { property: "og:title", content: T },
+      { property: "og:description", content: D },
+      { property: "og:type", content: "article" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: TermsPage,
 });
+
+function TermsPage() {
+  const { lang } = useI18n();
+  const tr = TERMS_I18N[lang];
+  return (
+    <LegalPage
+      title={tr?.title ?? "이용약관"}
+      updated={tr?.updated ?? "2026년 11월 27일"}
+      sections={tr?.sections ?? KO_SECTIONS}
+    />
+  );
+}

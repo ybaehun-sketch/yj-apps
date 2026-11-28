@@ -22,6 +22,7 @@ import { AccountMenu } from "@/components/AccountMenu";
 import { LegalLinks } from "@/components/LegalPage";
 import { BUSINESS } from "@/lib/business";
 import { AD_ONLY_MODE } from "@/lib/access";
+import { I18nProvider, LANG_BOOT_SCRIPT, LANG_BOOT_STYLE, useI18n, LanguageSelector, type TranslationKey } from "@/lib/i18n";
 
 function NotFoundComponent() {
   return (
@@ -114,6 +115,8 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="ko">
       <head>
         <HeadContent />
+        <style dangerouslySetInnerHTML={{ __html: LANG_BOOT_STYLE }} />
+        <script dangerouslySetInnerHTML={{ __html: LANG_BOOT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: ADSENSE_BOOT_SCRIPT }} />
       </head>
       <body>
@@ -125,6 +128,7 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function SoundToggle() {
+  const { t } = useI18n();
   const [on, setOn] = useState(true);
   useEffect(() => setOn(isSoundOn()), []);
   return (
@@ -134,8 +138,8 @@ function SoundToggle() {
         setOn(!on);
         if (!on) sfx.clink();
       }}
-      aria-label={on ? "소리 끄기" : "소리 켜기"}
-      title={on ? "소리 끄기" : "소리 켜기"}
+      aria-label={on ? t("soundOff") : t("soundOn")}
+      title={on ? t("soundOff") : t("soundOn")}
       className="flex items-center hover:text-foreground"
     >
       {on ? <Volume2 className="size-[18px]" /> : <VolumeX className="size-[18px]" />}
@@ -144,6 +148,7 @@ function SoundToggle() {
 }
 
 function Header() {
+  const { t } = useI18n();
   const [user, setUser] = useState<User | null>(null);
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
@@ -153,10 +158,10 @@ function Header() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isHome = pathname === "/";
   const backLabel = pathname.startsWith("/reading/")
-    ? "상담 나가기"
+    ? t("backExit")
     : pathname === "/new"
-      ? "고민 작성으로"
-      : "이전으로";
+      ? t("backConcern")
+      : t("backPrev");
   const goBack = () => {
     if (pathname.startsWith("/reading/")) {
       window.location.assign(AD_ONLY_MODE ? "/" : "/readings");
@@ -179,20 +184,21 @@ function Header() {
           </button>
         )}
         <Link to="/" className="flex min-w-0 items-center gap-1 whitespace-nowrap font-serif text-[15px] font-bold text-foreground sm:gap-1.5 sm:text-lg">
-          <span className="shrink-0 text-lg sm:text-2xl">🍵</span> <span className="truncate">찻잔 타로</span>
+          <span className="shrink-0 text-lg sm:text-2xl">🍵</span> <span className="truncate">{t("brandTitle")}</span>
         </Link>
       </div>
       <nav className="flex shrink-0 items-center gap-2 whitespace-nowrap text-[14px] font-medium text-foreground/80 sm:gap-4 sm:text-[15px]">
+        <LanguageSelector />
         <SoundToggle />
         <Link to="/about" className="hover:text-foreground">
-          소개
+          {t("navAbout")}
         </Link>
         <Link to="/guide" className="hover:text-foreground">
-          타로 이야기
+          {t("navGuide")}
         </Link>
         {!AD_ONLY_MODE && (
           <Link to="/membership" className="hover:text-foreground">
-            멤버십
+            {t("navMembership")}
           </Link>
         )}
         {!AD_ONLY_MODE && (
@@ -200,7 +206,7 @@ function Header() {
             <AccountMenu user={user} />
           ) : (
             <Link to="/auth" className="hover:text-foreground">
-              로그인
+              {t("navLogin")}
             </Link>
           )
         )}
@@ -210,6 +216,7 @@ function Header() {
 }
 
 function Footer() {
+  const { t } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   if (pathname.startsWith("/reading/") || pathname.startsWith("/admin") || pathname === "/auth") return null;
   return (
@@ -217,16 +224,36 @@ function Footer() {
       <LegalLinks />
       <div className="mt-3 space-y-0.5">
         <p>
-          {BUSINESS.name} · 문의{" "}
+          {t("footerStudioName")} · {t("footerInquiry")}{" "}
           <a href={`mailto:${BUSINESS.email}`} className="underline-offset-2 hover:underline">
             {BUSINESS.email}
           </a>
         </p>
-        <p>본 서비스의 AI 타로 해석은 재미와 성찰을 위한 참고용이며 의학·법률·투자 조언이 아닙니다.</p>
-        <p className="pt-1">© 2026 {BUSINESS.name}. All rights reserved.</p>
+        <p>{t("footerDisclaimer")}</p>
+        <p className="pt-1">© 2026 {t("footerStudioName")}. All rights reserved.</p>
       </div>
     </footer>
   );
+}
+
+const ROUTE_TITLES: Record<string, TranslationKey> = {
+  "/": "titleHome",
+  "/guide": "titleGuide",
+  "/about": "titleAbout",
+  "/contact": "titleContact",
+  "/terms": "titleTerms",
+  "/privacy": "titlePrivacy",
+  "/new": "titleNew",
+};
+
+function TitleSync() {
+  const { t, lang } = useI18n();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  useEffect(() => {
+    const key = ROUTE_TITLES[pathname] ?? (pathname.startsWith("/reading/") ? "titleReading" : undefined);
+    if (key) document.title = t(key);
+  }, [pathname, lang, t]);
+  return null;
 }
 
 function RootComponent() {
@@ -243,11 +270,14 @@ function RootComponent() {
   }, [router, queryClient]);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <Header />
-      <Outlet />
-      <Footer />
-      <Toaster />
-    </QueryClientProvider>
+    <I18nProvider>
+      <TitleSync />
+      <QueryClientProvider client={queryClient}>
+        <Header />
+        <Outlet />
+        <Footer />
+        <Toaster />
+      </QueryClientProvider>
+    </I18nProvider>
   );
 }

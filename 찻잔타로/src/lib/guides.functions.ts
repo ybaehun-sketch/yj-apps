@@ -125,7 +125,7 @@ ${existing}
     if (geminiKey) {
       for (const model of ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"]) {
         const gRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          `https://tokbiseo-gemini-proxy.ybaehun.workers.dev/v1beta/models/${model}:generateContent`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-goog-api-key": geminiKey },

@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AD_ONLY_MODE } from "@/lib/access";
+import { useI18n } from "@/lib/i18n";
 
 declare global {
   interface Window {
@@ -38,6 +39,7 @@ export function RewardedAdDialog({
   onReward: () => void;
   seconds?: number;
 }) {
+  const { t } = useI18n();
   const [left, setLeft] = useState(seconds);
   const [nativeAdActive, setNativeAdActive] = useState(false);
 
@@ -94,12 +96,12 @@ export function RewardedAdDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm border-none bg-cocoa p-6 text-cocoa-foreground">
-        <DialogTitle className="sr-only">차 한 잔 우리는 중</DialogTitle>
+        <DialogTitle className="sr-only">{t("adSr")}</DialogTitle>
         <div className="my-4 flex aspect-[4/3] flex-col items-center justify-center rounded-2xl bg-card text-card-foreground">
           <span className="animate-steam text-6xl">🍵</span>
-          <p className="mt-4 font-serif text-xl font-bold">따뜻한 차를 새로 우리는 중이에요</p>
+          <p className="mt-4 font-serif text-xl font-bold">{t("adBrewTitle")}</p>
           <p className="mt-1 px-6 text-center text-sm text-muted-foreground">
-            {nativeAdActive ? "광고가 끝나면 바로 대화를 이어가실 수 있어요" : "잠시만 기다리시면 대화를 이어가실 수 있어요"}
+            {nativeAdActive ? t("adWaitNative") : t("adWaitWeb")}
           </p>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-background/20">
@@ -113,11 +115,11 @@ export function RewardedAdDialog({
             onOpenChange(false);
           }}
         >
-          {nativeAdActive ? "광고 확인 중…" : left > 0 ? `차 한 잔 우리는 중… ${left}초` : "대화 이어가기 🍵"}
+          {nativeAdActive ? t("adChecking") : left > 0 ? t("adBrewing", { n: left }) : t("adContinue")}
         </Button>
         {!AD_ONLY_MODE && (
           <Link to="/membership" className="mt-2 block text-center text-xs underline opacity-70">
-            찻잎 충전하고 바로 대화하기
+            {t("adLeafLink")}
           </Link>
         )}
       </DialogContent>

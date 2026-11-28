@@ -7,11 +7,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { FlipCard } from "@/components/TarotCardView";
 import { FixedAdBanner } from "@/components/MockAds";
 import { DAILY_MESSAGES, cardLabel, dailyCardFor, type TarotCard } from "@/lib/tarot";
+import { cardText } from "@/lib/tarot-i18n";
 import { PRODUCTS } from "@/lib/products";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { listGuides } from "@/lib/guides.functions";
 import { LatestGuides } from "@/components/HomeExtras";
 import { AD_ONLY_MODE } from "@/lib/access";
+import { useI18n } from "@/lib/i18n";
 
 const guidesQ = queryOptions({ queryKey: ["guides"], queryFn: () => listGuides() });
 
@@ -41,6 +43,7 @@ function todayKey() {
 }
 
 function DailyTarot() {
+  const { t, lang } = useI18n();
   const navigate = useNavigate();
   const [card, setCard] = useState<TarotCard | null>(null);
   const [flipped, setFlipped] = useState(false);
@@ -74,7 +77,7 @@ function DailyTarot() {
   function draw() {
     if (flipped) return;
     if (!uid && !AD_ONLY_MODE) {
-      toast("로그인하면 매일 1장 무료 행운 타로를 볼 수 있어요 🍵");
+      toast(t("toastLoginPrompt"));
       navigate({ to: "/auth", search: { redirect: "/" } });
       return;
     }
@@ -91,26 +94,31 @@ function DailyTarot() {
         <button
           onClick={draw}
           disabled={!hydrated || flipped}
-          aria-label="오늘의 카드 뽑기"
+          aria-label={t("dailyAriaLabel")}
           className="w-32 shrink-0 transition-transform enabled:hover:-translate-y-1 sm:w-36"
         >
           <FlipCard card={card ?? dailyCardFor("x", "x")} flipped={flipped && !!card} />
         </button>
         <div className="text-center sm:text-left">
-          <p className="text-xs tracking-widest text-primary">TODAY'S FREE TAROT</p>
-          <h2 className="mt-1 font-serif text-2xl font-bold">오늘의 행운 타로</h2>
+          <p className="text-xs tracking-widest text-primary">{t("dailyBadge")}</p>
+          <h2 className="mt-1 font-serif text-2xl font-bold">{t("dailyTitle")}</h2>
           {flipped && card ? (
-            <>
-              <p className="mt-3 font-serif text-lg text-foreground">
-                {card.symbol} {cardLabel(card)}{" "}
-                <span className="text-sm text-muted-foreground">· {card.keywords}</span>
-              </p>
-              <p className="mt-2 leading-relaxed text-muted-foreground">{DAILY_MESSAGES[card.id]}</p>
-              <p className="mt-3 text-xs text-muted-foreground">내일 또 새로운 카드가 기다리고 있어요 ☕</p>
-            </>
+            (() => {
+              const ct = cardText(card, lang);
+              return (
+                <>
+                  <p className="mt-3 font-serif text-lg text-foreground">
+                    {card.symbol} {ct.label}{" "}
+                    <span className="text-sm text-muted-foreground">· {ct.keywords}</span>
+                  </p>
+                  <p className="mt-2 leading-relaxed text-muted-foreground">{ct.message}</p>
+                  <p className="mt-3 text-xs text-muted-foreground">{t("dailyNextNotice")}</p>
+                </>
+              );
+            })()
           ) : (
             <p className="mt-3 leading-relaxed text-muted-foreground">
-              하루에 한 장, 마음을 가다듬고 카드를 눌러 오늘의 메시지를 받아보세요.
+              {t("dailyDesc")}
             </p>
           )}
         </div>
@@ -120,6 +128,7 @@ function DailyTarot() {
 }
 
 function Index() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [concern, setConcern] = useState("");
   const { data: guides } = useSuspenseQuery(guidesQ);
@@ -137,7 +146,7 @@ function Index() {
 
   async function start() {
     if (concern.trim().length < 5) {
-      toast("고민을 조금만 더 자세히 들려주세요 🍵");
+      toast(t("toastShortConcern"));
       return;
     }
     sessionStorage.setItem("pending-concern", concern.trim());
@@ -155,33 +164,33 @@ function Index() {
     <>
     <main className="mx-auto max-w-3xl space-y-8 px-5 pb-16 pt-4">
       <div className="py-6 text-center">
-        <h1 className="font-serif text-3xl font-bold leading-snug sm:text-4xl">
-          따뜻한 차 한 잔 앞에서,
+        <h1 className="font-serif text-3xl font-bold leading-snug sm:text-4xl whitespace-pre-line">
+          {t("heroTitle1")}
           <br />
-          오늘의 마음을 꺼내 보세요
+          {t("heroTitle2")}
         </h1>
-        <p className="mt-3 text-muted-foreground">당신의 이야기와 3장의 카드로 나누는 1:1 타로 상담</p>
+        <p className="mt-3 text-muted-foreground">{t("heroSubtitle")}</p>
       </div>
 
       <DailyTarot />
 
       <section className="rounded-3xl bg-cocoa p-6 text-cocoa-foreground shadow-warm sm:p-8">
-        <h2 className="font-serif text-2xl font-bold">깊은 고민 상담 시작하기</h2>
-        <p className="mt-1 text-sm opacity-80">구체적으로 적을수록 카드가 더 또렷하게 이야기해 줘요.</p>
+        <h2 className="font-serif text-2xl font-bold">{t("consultTitle")}</h2>
+        <p className="mt-1 text-sm opacity-80">{t("consultDesc")}</p>
         <Textarea
           value={concern}
           onChange={(e) => setConcern(e.target.value)}
           rows={5}
           maxLength={2000}
           suppressHydrationWarning
-          placeholder="예) 3년 다닌 회사를 그만두고 하고 싶던 공부를 시작해도 될지 고민이에요. 모아둔 돈은 조금 있지만 불안해요…"
+          placeholder={t("consultPlaceholder")}
           className="mt-4 border-none bg-card text-card-foreground"
         />
         <Button onClick={start} size="lg" className="mt-4 w-full">
-          상담사 고르러 가기
+          {t("consultButton")}
         </Button>
         <p className="mt-3 text-center text-[11px] leading-relaxed opacity-75">
-          ※ AI 타로 상담은 가벼운 성찰과 재미를 위한 참고용이며, 의학·법률·투자 자문을 대신하지 않습니다.
+          {t("consultDisclaimer")}
         </p>
       </section>
 
@@ -189,31 +198,31 @@ function Index() {
 
       {AD_ONLY_MODE ? (
         <section className="mt-10 rounded-3xl border border-border bg-card p-6 shadow-warm">
-          <h2 className="font-serif text-xl font-bold">🍵 찻잔 타로 이용 안내</h2>
+          <h2 className="font-serif text-xl font-bold">{t("infoTitle")}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            별도 회원가입이나 결제 없이 누구나 무료로 타로 상담을 이용하실 수 있어요.
+            {t("infoSubtitle")}
           </p>
           <ul className="mt-4 divide-y divide-border/60 text-sm">
             <li className="flex items-center justify-between gap-3 py-2.5">
               <div>
-                <p className="font-semibold">1. 고민 적고 카드 3장 뽑기</p>
-                <p className="text-xs text-muted-foreground">고민을 적은 뒤 원하는 AI 상담사를 고르고 직감으로 3장의 카드를 선택해요</p>
+                <p className="font-semibold">{t("infoStep1Title")}</p>
+                <p className="text-xs text-muted-foreground">{t("infoStep1Desc")}</p>
               </div>
-              <p className="shrink-0 font-bold text-primary">무료</p>
+              <p className="shrink-0 font-bold text-primary">{t("freeBadge")}</p>
             </li>
             <li className="flex items-center justify-between gap-3 py-2.5">
               <div>
-                <p className="font-semibold">2. 매일 무료 새 상담</p>
-                <p className="text-xs text-muted-foreground">하루 1회 무료 새 상담 + 잠시 차 우리는 휴식 후 하루 3회 추가 상담</p>
+                <p className="font-semibold">{t("infoStep2Title")}</p>
+                <p className="text-xs text-muted-foreground">{t("infoStep2Desc")}</p>
               </div>
-              <p className="shrink-0 font-bold text-primary">무료</p>
+              <p className="shrink-0 font-bold text-primary">{t("freeBadge")}</p>
             </li>
             <li className="flex items-center justify-between gap-3 py-2.5">
               <div>
-                <p className="font-semibold">3. 대화 이어가기 &amp; 마음 처방전</p>
-                <p className="text-xs text-muted-foreground">상담당 2번 무료 대화 후 잠시 기다리면 2번씩 추가 대화 및 한 줄 처방전 발급</p>
+                <p className="font-semibold">{t("infoStep3Title")}</p>
+                <p className="text-xs text-muted-foreground">{t("infoStep3Desc")}</p>
               </div>
-              <p className="shrink-0 font-bold text-primary">무료</p>
+              <p className="shrink-0 font-bold text-primary">{t("freeBadge")}</p>
             </li>
           </ul>
         </section>
@@ -248,19 +257,19 @@ function Index() {
 
 
       <section className="mt-10 rounded-3xl border border-border bg-card p-6 shadow-warm">
-        <h2 className="font-serif text-xl font-bold">자주 묻는 질문</h2>
+        <h2 className="font-serif text-xl font-bold">{t("faqTitle")}</h2>
         <dl className="mt-4 space-y-3 text-sm leading-relaxed">
           <div>
-            <dt className="font-semibold">Q. 회원가입이나 로그인이 필요한가요?</dt>
-            <dd className="mt-0.5 text-muted-foreground">아니요, 별도의 가입 절차 없이 바로 고민을 적고 카드를 뽑아 상담을 시작할 수 있어요.</dd>
+            <dt className="font-semibold">{t("faqQ1")}</dt>
+            <dd className="mt-0.5 text-muted-foreground">{t("faqA1")}</dd>
           </div>
           <div>
-            <dt className="font-semibold">Q. 상담 내용은 다른 사람에게 공개되나요?</dt>
-            <dd className="mt-0.5 text-muted-foreground">모든 상담은 1:1 비공개로 진행되며, 이용자 기기에만 임시 저장되어 언제든 브라우저에서 지울 수 있어요.</dd>
+            <dt className="font-semibold">{t("faqQ2")}</dt>
+            <dd className="mt-0.5 text-muted-foreground">{t("faqA2")}</dd>
           </div>
           <div>
-            <dt className="font-semibold">Q. 타로 결과를 그대로 믿어도 되나요?</dt>
-            <dd className="mt-0.5 text-muted-foreground">찻잔 타로는 마음을 정리하고 스스로를 돌아보는 AI 엔터테인먼트 서비스입니다. 중요한 의학·법률·투자 결정은 반드시 전문가와 상의해 주세요.</dd>
+            <dt className="font-semibold">{t("faqQ3")}</dt>
+            <dd className="mt-0.5 text-muted-foreground">{t("faqA3")}</dd>
           </div>
         </dl>
       </section>

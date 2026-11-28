@@ -1,14 +1,16 @@
 // 광고 전용 수익화 모드 (결제 UI 숨김 · 추후 유료 결제 재개 시 false로 전환)
 export const AD_ONLY_MODE = true;
+// 애드센스 정식 승인 전에는 광고 안내를 숨기고 "오늘 무료 한도를 모두 사용했습니다."만 안내 (승인 후 true로 전환)
+export const ADSENSE_APPROVED = false;
 
 // 정식 결제 오픈 전/무결제 광고 운영 비용 방어선. 관리자(운영자) 계정은 모든 제한에서 제외돼요.
 export const ADMIN_EMAILS = ["ybaehun@gmail.com"];
 export const isAdminEmail = (email?: string | null) => !!email && ADMIN_EMAILS.includes(email.toLowerCase());
 
 export const DAILY_READINGS = 1; // 하루 무료 새 상담 수
-export const DAILY_READING_ADS = 3; // 무료 상담을 쓴 뒤 광고로 새 상담을 열 수 있는 하루 횟수
-export const DAILY_ADS = 5; // 하루 광고 보상 횟수
-export const MAX_TURNS_PER_READING = 2 + 2 * 5; // 무료 2 + 광고(2턴) 최대 5회 = 12
+export const DAILY_READING_ADS = 0; // 애드센스 심사 전 하루 1회 제한 (심사 후 추가 상담 오픈 시 3으로 복원)
+export const DAILY_ADS = 0; // 애드센스 심사 전 추가 대화 제한 (심사 후 5로 복원)
+export const MAX_TURNS_PER_READING = 2 + 2 * DAILY_ADS; // 무료 2턴 (심사 후 추가 대화 오픈 시 12턴)
 
 /** 한국 시각 기준 오늘 0시(UTC ISO) */
 export function kstDayStartISO(now = new Date()) {

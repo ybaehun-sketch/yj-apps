@@ -8,12 +8,13 @@ import { CardSpread } from "@/components/CardSpread";
 import { DECK, PERSONAS, POSITIONS, shuffle, type PersonaId } from "@/lib/tarot";
 import { DAILY_LIMIT_CODE, getGuestStartStatus, getStartStatus, startGuestReading, startReading } from "@/lib/tarot.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { FixedAdBanner, RewardedAdDialog } from "@/components/MockAds";
+import { FixedAdBanner, RewardedAdDialog, isAppWrapper } from "@/components/MockAds";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { getMembership, syncWallet } from "@/lib/membership";
-import { AD_ONLY_MODE } from "@/lib/access";
+import { AD_ONLY_MODE, ADSENSE_APPROVED } from "@/lib/access";
 import { cn } from "@/lib/utils";
 import { sfx } from "@/lib/sound";
+import { useI18n, usePersonaText } from "@/lib/i18n";
 
 export const Route = createFileRoute("/_authenticated/new")({
   head: () => ({
@@ -31,6 +32,8 @@ export const Route = createFileRoute("/_authenticated/new")({
 const SPREAD = DECK.length;
 
 function NewReading() {
+  const { t, lang } = useI18n();
+  const personaText = usePersonaText();
   const navigate = useNavigate();
   const [concern, setConcern] = useState("");
   const [step, setStep] = useState<"persona" | "draw">("persona");
@@ -115,6 +118,7 @@ function NewReading() {
             cards,
             unlock: unlock === "ad" ? "ad" : undefined,
             dayToken,
+            language: lang,
           },
         });
         localStorage.setItem("teacup-guest-day", res.dayToken);
@@ -142,6 +146,7 @@ function NewReading() {
           persona,
           cards,
           unlock,
+          language: lang,
         },
       });
       sessionStorage.removeItem("pending-concern");
@@ -153,68 +158,82 @@ function NewReading() {
         setBusy(false);
         setGateOpen(true);
         return;
-      } else toast.error(e instanceof Error ? e.message : "상담을 시작하지 못했어요.");
+      } else toast.error(e instanceof Error ? e.message : t("startError"));
       setBusy(false);
     }
   }
 
+  const posLabels = [t("posPast"), t("posPresent"), t("posFuture")];
+
   if (step === "persona") {
     return (
       <main className="mx-auto max-w-3xl px-5 pb-16">
-        <h1 className="mt-4 font-serif text-3xl font-bold">어떤 상담사와 이야기할까요?</h1>
+        <h1 className="mt-4 font-serif text-3xl font-bold">{t("newTitle")}</h1>
         <div className="mt-5 rounded-2xl border bg-card/70 p-4">
-          <p className="mb-2 text-sm text-muted-foreground">나의 고민</p>
+          <p className="mb-2 text-sm text-muted-foreground">{t("newConcernLabel")}</p>
           <Textarea
             value={concern}
             onChange={(e) => setConcern(e.target.value)}
             rows={3}
             maxLength={2000}
-            placeholder="고민을 적어주세요"
+            placeholder={t("newConcernPlaceholder")}
             className="bg-card"
           />
         </div>
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          {Object.values(PERSONAS).map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setPersona(p.id)}
-              className={cn(
-                "rounded-3xl border-2 bg-card p-5 text-left shadow-warm transition-all hover:-translate-y-1",
-                persona === p.id ? "border-primary" : "border-transparent",
-              )}
-            >
-              <PersonaAvatar id={p.id} emoji={p.emoji} className="size-20 text-4xl" />
-              <p className="mt-3 font-serif text-xl font-bold">{p.name}</p>
-              <p className="text-sm text-primary">{p.title}</p>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{p.desc}</p>
-            </button>
-          ))}
+          {Object.values(PERSONAS).map((p) => {
+            const pt = personaText(p.id);
+            return (
+              <button
+                key={p.id}
+                onClick={() => setPersona(p.id)}
+                className={cn(
+                  "rounded-3xl border-2 bg-card p-5 text-left shadow-warm transition-all hover:-translate-y-1",
+                  persona === p.id ? "border-primary" : "border-transparent",
+                )}
+              >
+                <PersonaAvatar id={p.id} emoji={p.emoji} className="size-20 text-4xl" />
+                <p className="mt-3 font-serif text-xl font-bold">{pt.name}</p>
+                <p className="text-sm text-primary">{pt.title}</p>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{pt.desc}</p>
+              </button>
+            );
+          })}
         </div>
         <Button
           size="lg"
           className="mt-8 w-full"
           onClick={() => {
-            if (!persona) { toast.error("상담사를 먼저 골라주세요"); return; }
-            if (concern.trim().length < 5) { toast.error("고민을 5자 이상 적어주세요"); return; }
-            if (needsUnlock) { setGateOpen(true); return; }
+            if (!persona) { toast.error(t("toastPickPersona")); return; }
+            if (concern.trim().length < 5) { toast.error(t("toastConcernMin")); return; }
+            if (needsUnlock) {
+              if (!ADSENSE_APPROVED) {
+                toast.error(t("freeLimitReached"));
+                return;
+              }
+              setGateOpen(true);
+              return;
+            }
             goDraw();
           }}
         >
-          카드 뽑으러 가기
+          {t("goDrawButton")}
         </Button>
         {status && status.freeLeft <= 0 && (
           <p className="mt-2 text-center text-xs text-muted-foreground">
-            {unlock
-              ? "새 상담이 열렸어요 🍵"
-              : AD_ONLY_MODE
-                ? "오늘의 무료 상담은 이미 썼어요 · 짧은 광고를 보고 새 상담을 열 수 있어요"
-                : "오늘의 무료 상담은 이미 썼어요 · 광고나 찻잎으로 새 상담을 열 수 있어요"}
+            {!ADSENSE_APPROVED
+              ? t("freeLimitReached")
+              : unlock
+                ? t("unlockOpened")
+                : AD_ONLY_MODE
+                  ? t(isAppWrapper() ? "freeUsedAd" : "freeUsedWeb")
+                  : t("freeUsedLeaf")}
           </p>
         )}
         <Dialog open={gateOpen} onOpenChange={setGateOpen}>
           <DialogContent className="max-w-sm">
-            <DialogTitle className="font-serif">오늘의 무료 찻잔을 이미 비웠어요 🍵</DialogTitle>
-            <p className="text-sm text-muted-foreground">새로운 고민을 더 나누고 싶다면, 차를 한 잔 더 우려볼까요?</p>
+            <DialogTitle className="font-serif">{t("gateTitle")}</DialogTitle>
+            <p className="text-sm text-muted-foreground">{t("gateDesc")}</p>
             <div className="grid gap-2 pt-2">
               {!AD_ONLY_MODE && (
                 <Button
@@ -222,19 +241,19 @@ function NewReading() {
                     if (leaves < 1) { navigate({ to: "/membership" }); return; }
                     setUnlock("leaf");
                     setGateOpen(false);
-                    toast.success("찻잎 1개로 새 상담을 열어요 🌿", { description: "상담이 시작될 때 찻잎이 쓰여요" });
+                    toast.success(t("toastLeafUnlock"), { description: t("toastLeafUnlockDesc") });
                     if (persona && concern.trim().length >= 5) goDraw();
                   }}
                 >
-                  {leaves < 1 ? "🌿 찻잎 충전하러 가기" : `🌿 찻잎 1개로 새 상담 열기 (보유 ${leaves}개)`}
+                  {leaves < 1 ? t("gateLeafCharge") : t("gateLeafUse", { n: leaves })}
                 </Button>
               )}
               {(status?.adOpensLeft ?? 0) > 0 && (
                 <Button variant={AD_ONLY_MODE ? "default" : "outline"} onClick={() => { setGateOpen(false); setAdOpen(true); }}>
-                  📺 짧은 광고 보고 새 상담 열기 (오늘 {status?.adOpensLeft}번)
+                  {t(isAppWrapper() ? "gateAd" : "gateWeb", { n: status?.adOpensLeft ?? 0 })}
                 </Button>
               )}
-              <Button variant="ghost" onClick={() => setGateOpen(false)}>내일 다시 올게요</Button>
+              <Button variant="ghost" onClick={() => setGateOpen(false)}>{t("gateLater")}</Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -243,7 +262,7 @@ function NewReading() {
           onOpenChange={setAdOpen}
           onReward={() => {
             setUnlock("ad");
-            toast.success("새 상담이 열렸어요 🍵");
+            toast.success(t("unlockOpened"));
             if (persona && concern.trim().length >= 5) goDraw();
           }}
         />
@@ -255,11 +274,11 @@ function NewReading() {
   return (
     <main className="mx-auto max-w-3xl px-5 pb-16">
       <button onClick={() => setStep("persona")} className="mt-2 text-sm text-muted-foreground hover:text-foreground">
-        ← 상담사 다시 고르기
+        {t("rePickPersona")}
       </button>
-      <h1 className="mt-3 font-serif text-3xl font-bold">마음이 끌리는 카드 3장을 골라주세요</h1>
+      <h1 className="mt-3 font-serif text-3xl font-bold">{t("drawTitle")}</h1>
       <p className="mt-1 text-muted-foreground">
-        고민을 떠올리며 천천히 숨을 고르고, 직감을 믿어보세요. ({picked.length}/3)
+        {t("drawDesc")} ({picked.length}/3)
       </p>
 
       <div className="mt-6 grid grid-cols-3 gap-3 sm:gap-6">
@@ -272,14 +291,14 @@ function NewReading() {
                 <div className="aspect-[5/8] rounded-xl border-2 border-dashed border-border" />
               )}
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">{pos}</p>
+            <p className="mt-2 text-xs text-muted-foreground">{posLabels[i]}</p>
           </div>
         ))}
       </div>
 
       {!revealed && (
         <>
-          <p className="mt-8 text-center text-xs text-muted-foreground">22장이 펼쳐져 있어요 · 옆으로 밀며 마음이 가는 카드를 골라주세요</p>
+          <p className="mt-8 text-center text-xs text-muted-foreground">{t("spreadHint")}</p>
           <CardSpread>
             <div className="flex w-max pr-4">
               {deck.map((c, i) => (
@@ -294,7 +313,7 @@ function NewReading() {
                     shuffling ? "scale-75 opacity-0" : "animate-deal",
                     picked.includes(i) && "pointer-events-none -translate-y-5 opacity-20",
                   )}
-                  aria-label={`카드 ${i + 1}`}
+                  aria-label={t("cardAria", { n: i + 1 })}
                 >
                   <CardBack />
                 </button>
@@ -302,7 +321,7 @@ function NewReading() {
             </div>
           </CardSpread>
           <Button variant="outline" className="mt-6 w-full" onClick={doShuffle} disabled={shuffling}>
-            🔀 카드 다시 섞기
+            {t("shuffleButton")}
           </Button>
         </>
       )}
@@ -310,16 +329,16 @@ function NewReading() {
       {revealed && (
         <div className="mt-8 space-y-3">
           <Button size="lg" className="w-full" onClick={begin} disabled={busy}>
-            {busy ? `${persona ? PERSONAS[persona].name : "상담사"}가 카드를 읽고 있어요…` : "이 카드로 상담 시작하기"}
+            {busy ? t("readingBusy", { name: persona ? personaText(persona).name : "" }) : t("startWithCards")}
           </Button>
           <Button variant="ghost" className="w-full" onClick={doShuffle} disabled={busy}>
-            다시 뽑기
+            {t("redraw")}
           </Button>
         </div>
       )}
       <p className="mt-10 text-center text-xs text-muted-foreground">
         <Link to="/readings" className="underline">
-          지난 상담 보기
+          {t("pastReadings")}
         </Link>
       </p>
       <FixedAdBanner />
